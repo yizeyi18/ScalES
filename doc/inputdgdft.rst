@@ -1,5 +1,5 @@
 Input parameters for ScalES
---------------------------
+---------------------------
 
 .. list-table:: All parameters for ScalES
    :widths: 15 10 20 40

@@ -10,7 +10,7 @@ Wlcome to ScalES's documentation!
    install
    tutorial
    inputpwdft
-   inputscales
+   inputdgdft
    FAQ
    refactor2020
 

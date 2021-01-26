@@ -132,7 +132,7 @@ html_context = {
 #    ]
 #}
 
-html_logo = '_static/scales_logo1.png'
+html_logo = '_static/scales_logo.png'
 
 
 # -- Options for HTMLHelp output ------------------------------------------

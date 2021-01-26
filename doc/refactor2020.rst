@@ -71,7 +71,7 @@ Target: refactor2020 for PWDFT
 
 
 - [x] Introduce a "program" variable in esdf to determine the program
-  mode. Deprecate the isScalES and isTDDFT flag
+  mode. Deprecate the isDGDFT and isTDDFT flag
 
 - [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
   being the default option, we should always use the branch
@@ -114,6 +114,8 @@ Target: refactor2020 for PWDFT
 
 - [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
+- [x] Rename the project to Scalable Electronic Structure (ScalES,
+  pronounced as "scales"). Change namespace etc
 
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
@@ -237,21 +239,27 @@ Target: refactor2020 for PWDFT
   transformation among the methods of 
   
     a. the new bdist.redistribute_col_to_row and
+
     b. the old AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+
     c. methods based on pdgemr2d (not available in GPU, but according to
     Wei may be faster on CPU).
 
     We need:
     
     1. Benchmark results about the performance of each option.
+
     2. Leave at most two options (preferably one) for such a task. 
+
     3. In case pdgemr2d is needed in the end, it needs to be
            encapsulated.
 
     a. [x] clean interface with bdist.redistribute_col_to_row (David). 
+
     b. [p] Get rid of AlltoallForward / AlltoallBackward (David)
            [x] in CPU code
            [ ] in GPU code
+
     c. [ ] test the performance of different implementations of bdist (Wei)
 
 - [ ] Systematically test the cutoff values for commonly used
@@ -259,9 +267,6 @@ Target: refactor2020 for PWDFT
   periodtable.cpp
 
 - [ ] pcdiis: cleanup the row<->col transformation. (Wei)
-
-- [ ] Rename the project to Scalable Electronic Structure (ScalES,
-  pronounced as "scales"). Change namespace etc, legal part etc 
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
@@ -280,6 +285,8 @@ Target: refactor2020 for PWDFT
 
 - [ ] ACE: VexxProj applied to only unlocked vectors? (Do it after
   locking for eigensolver)
+
+- [ ] Simplify the legal part of each file, update author contribution
 
 Plans for further developments in PWDFT
 =======================================
@@ -363,7 +370,7 @@ Plans for TDDFT
 - [ ] Make tddft/ compile. maybe with cmake.
 
 
-Plans for ScalES
+Plans for DGDFT
 ===============
 
 - [ ] Make dg/ compile. Old fashioned Makefile is fine.
@@ -429,3 +436,177 @@ Tests
 
 
 
+
+Citing ScalES (need to figure out a way how to do this)
+=======================================================
+
+For general usage of ScalES package for electronic structure calculation, 
+**please cite the following two papers.**::
+
+    @Article{JCP2012,
+      Title                    = {{Adaptive local basis set for Kohn-Sham density functional theory in a discontinuous Galerkin framework I: Total energy calculation}},
+      Author                   = {Lin, L. and Lu, J. and Ying, L. and E, W.},
+      Journal                  = {J. Comput. Phys.},
+      Year                     = {2012},
+      Pages                    = {2140--2154},
+      Volume                   = {231}
+    }
+    
+    @Article{JCP2015,
+      Title                    = {{DGDFT}: A massively parallel method for large scale density functional theory calculations},
+      Author                   = {W. Hu and L. Lin and C. Yang},
+      Journal                  = {J. Chem. Phys.},
+      Year                     = {2015},
+      Pages                    = {124110},
+      Volume                   = {143}
+    }
+
+For hybrid functional calculations using PWDFT, 
+**please also cite the following paper.**::
+
+    @Article{JCTC2016,
+      Title                    = {Adaptively Compressed Exchange Operator},
+      Author                   = {Lin, L.},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2016},
+      Pages                    = {2242},
+      Volume                   = {12}
+    }
+
+For large scale calculations using DGDFT and Chebyshev filtering, 
+**please also cite the following paper.**::
+
+    @Article{JCTC2018_DG,
+      Title                    = {Two-level {Chebyshev} filter based complementary subspace method for pushing the envelope of large-scale electronic structure calculations},
+      Author                   = {A. S. Banerjee and L. Lin and P. Suryanarayana and C. Yang and J. E. Pask},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2018},
+      Pages                    = {2930},
+      Volume                   = {14}
+    }
+
+For large scale RT-TDDFT calculations,
+**please also cite the following paper.**::
+
+    @Article{JCTC2018_TD,
+      Title                    = {Fast real-time time-dependent density functional theory calculations with the parallel transport gauge},
+      Author                   = {W. Jia and D. An and L.-W. Wang and L. Lin},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2018},
+      Pages                    = {5645},
+      Volume                   = {14}
+    }
+
+More references on ScalES
+=========================
+
+**Method developments:**
+
+    W. Jia, L.-W. Wang and L. Lin, Parallel transport time-dependent density
+    functional theory calculations with hybrid functional on Summit, SC '19
+    Proceedings of the International Conference for High Performance
+    Computing, Article No. 79
+
+    W. Jia and L. Lin, Fast real-time time-dependent hybrid functional
+    calculations with the parallel transport gauge and the adaptively
+    compressed exchange formulation, Comput. Phys. Commun. 240, 21, 2019
+
+    W. Hu, Y. Huang, X. Qin, L. Lin, E. Kan, X. Li, C. Yang, J. Yang,
+    Room-temperature magnetism and tunable energy gaps in
+    edge-passivated zigzag graphene quantum dots, npj 2D Mater. Appl. 3,
+    17, 2019
+
+    Y. Li and L. Lin, Globally constructed adaptive local basis set for
+    spectral projectors of second order differential operators, SIAM
+    Multiscale Model. Simul., 17, 92, 2019
+
+    A. S. Banerjee, L. Lin, P. Suryanarayana, C. Yang, J. E. Pask,
+    Two-level Chebyshev filter based complementary subspace method for
+    pushing the envelope of large-scale electronic structure
+    calculations, J. Chem. Theory Comput. 14, 2930, 2018
+
+    K. Dong, W. Hu and L. Lin, Interpolative separable density fitting
+    through centroidal Voronoi tessellation with applications to hybrid
+    functional electronic structure calculations, J. Chem. Theory
+    Comput. 14, 1311, 2018
+
+    A. Damle and L. Lin, Disentanglement via entanglement: A unified
+    method for Wannier localization, SIAM Multiscale Model. Simul., 16,
+    1392, 2018
+
+    W. Hu, L. Lin and C. Yang, Interpolative separable density fitting
+    decomposition for accelerating hybrid density functional
+    calculations with applications to defects in silicon, J. Chem.
+    Theory Comput. 13, 5420, 2017
+
+    W. Hu, L. Lin and C. Yang, Projected Commutator DIIS Method for
+    Accelerating Hybrid Functional Electronic Structure Calculations, J.
+    Chem. Theory Comput. 13, 5458, 2017
+
+    L. Lin and B. Stamm, A posteriori error estimates for discontinuous
+    Galerkin methods using non-polynomial basis functions. Part II:
+    Eigenvalue problems, Math. Model. Numer. Anal. 51, 1733, 2017
+
+    W. Hu, L. Lin, A. Banerjee, E. Vecharynski and C. Yang, Adaptively
+    compressed exchange operator for large scale hybrid density
+    functional calculations with applications to the adsorption of water
+    on silicene, J. Chem. Theory Comput. 13, 1188, 2017
+
+    G. Zhang, L. Lin, W. Hu, C. Yang and J.E. Pask, Adaptive local basis
+    set for Kohn-Sham density functional theory in a discontinuous
+    Galerkin framework II: Force, vibration, and molecular dynamics
+    calculations, J. Comput. Phys. 335, 426 2017
+
+    A. S. Banerjee, L. Lin, W. Hu, C. Yang, J. E. Pask, Chebyshev
+    polynomial filtered subspace iteration in the Discontinuous Galerkin
+    method for large-scale electronic structure calculations, J. Chem.
+    Phys. 145, 154101, 2016
+
+    L. Lin, Adaptively compressed exchange operator, J. Chem. Theory
+    Comput. 12, 2242, 2016
+
+
+    L. Lin and B. Stamm, A posteriori error estimates for discontinuous
+    Galerkin methods using non-polynomial basis functions. Part I:
+    Second order linear PDE, Math. Model. Numer. Anal. 50, 1193, 2016
+
+    A. Damle, L. Lin and L. Ying, Compressed representation of Kohn-Sham
+    orbitals via selected columns of the density matrix, J. Chem. Theory
+    Comput. 11, 1463, 2015
+
+    W. Hu, L. Lin and C. Yang, DGDFT: A massively parallel method for
+    large scale density functional theory calculations, J. Chem. Phys.
+    143, 124110, 2015
+
+    J. Kaye, L. Lin and C. Yang, A posteriori error estimator for
+    adaptive local basis functions to solve Kohn-Sham density functional
+    theory, Commun. Math. Sci. 13, 1741, 2015
+
+    L. Lin and L. Ying, Element orbitals for Kohn-Sham density
+    functional theory, Phys. Rev. B 85, 235144, 2012
+
+    L. Lin, J. Lu, L. Ying and W. E, Optimized local basis set for
+    Kohn-Sham density functional theory, J. Comput. Phys 231, 4515,
+    2012
+
+    L. Lin, J. Lu, L. Ying and W. E, Adaptive local basis set for
+    Kohn-Sham density functional theory in a discontinuous Galerkin
+    framework I: Total energy calculation, J. Comput. Phys. 231, 2140,
+    2012
+    
+**Applications:**
+
+    W. Hu, L. Lin, R. Zhang, C. Yang and J. Yang, Highly efficient
+    photocatalytic water splitting over edge-modified phosphorene
+    nanoribbons, J. Amer. Chem. Soc. 139, 15429, 2017
+
+    W. Hu, L. Lin, C. Yang, J. Dai and J. Yang, Edge-modified
+    phosphorene nanoflake heterojunctions as highly efficient solar
+    cells, Nano Lett. 16 1675, 2016
+
+    W. Hu, L. Lin and C. Yang, Edge reconstruction in armchair
+    phosphorene nanoribbons revealed by discontinuous Galerkin density
+    functional theory, Phys. Chem. Chem. Phys. 17, 31397, 2015
+
+    W. Hu, L. Lin, C. Yang and J. Yang, Electronic structure of
+    large-scale graphene nanoflakes, J. Chem. Phys. 141, 214704, 2014
