@@ -4,7 +4,7 @@
 
 Author: Lin Lin and Wei Hu
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -48,9 +48,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  <blas.hh>
 #include  "esdf.hpp"
 
-namespace dgdft{
+namespace scales{
 
-using namespace dgdft::esdf;
+using namespace scales::esdf;
 
 
 // *********************************************************************
@@ -794,4 +794,4 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 }        // -----  end of function DistFourier::Initialize  ----- 
 
 
-} // namespace dgdft
+} // namespace scales

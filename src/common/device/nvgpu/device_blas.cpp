@@ -4,7 +4,7 @@
 
 Authors: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -65,7 +65,7 @@ inline void __cublas_error(cublasStatus_t status, const char *file, int line, co
 
 #define CUBLAS_ERROR(status, msg) __cublas_error( status, __FILE__, __LINE__, msg )
 
-namespace dgdft {
+namespace scales {
 
 /// @namespace DEVICE_BLAS
 ///
@@ -597,6 +597,6 @@ void batched_least_square(Int m, Int n, Int nrhs, cuDoubleComplex *A, Int lda, c
 }
 
 } // namespace cublas
-} // namespace dgdft
+} // namespace scales
 
 #endif

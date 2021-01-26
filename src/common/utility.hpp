@@ -4,7 +4,7 @@
 
 Authors: Lin Lin, Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -59,7 +59,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "cu_numvec_impl.hpp"
 #include  "cuda_utils.h"
 #endif
-namespace dgdft{
+namespace scales{
 
 #ifdef _PROFILING_
 extern Real alltoallTime;
@@ -1855,5 +1855,5 @@ void skipln(std::ifstream &upfin);
 
 // spline along the radial direction
 void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
-} // namespace dgdft
+} // namespace scales
 #endif // _UTILITY_HPP_

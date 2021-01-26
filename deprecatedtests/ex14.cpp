@@ -4,14 +4,14 @@
 // This test subroutine is to be revised in the next step when
 // periodictable is updated.
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "spinor.hpp"
 #include "fourier.hpp"
 #include "utility.hpp"
 
 #define EPSMODIFIEDBLOPEX      "modified_blopex"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test the periodtable class";

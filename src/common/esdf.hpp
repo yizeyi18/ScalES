@@ -4,7 +4,7 @@
 
 Authors: Chris J. Pickard and Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -62,7 +62,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "numtns_impl.hpp"
 #include "tinyvec_impl.hpp"
 
-namespace dgdft{
+namespace scales{
 
 // Forward declaration of Atom structure in periodtable.hpp 
 struct Atom;
@@ -229,8 +229,8 @@ struct ESDFInputParam{
   /// Default: ionMaxIter + 1
   Int MDscfEnergyCriteriaEngageIonIter;
   /// @brief Maximum number of outer SCF iterations in MD
-  /// Currently this is interperetd slightly differently in DGDFT and PWDFT  
-  /// In DGDFT, this number goes into effect once Energy based SCF convergence is activated
+  /// Currently this is interperetd slightly differently in ScalES and PWDFT  
+  /// In ScalES, this number goes into effect once Energy based SCF convergence is activated
   /// Default: the same as scfOuterMaxIter
   Int                MDscfOuterMaxIter;
   /// @brief Etot tolerance in Energy based convergence
@@ -363,7 +363,7 @@ struct ESDFInputParam{
   ///
   /// In the case when the eigensolver tolerance is tunned dynamically
   /// (see 
-  /// @ref dgdft::esdf::ESDFInputParam::isEigToleranceDynamic "isEigToleranceDynamic"), the tolerance for
+  /// @ref scales::esdf::ESDFInputParam::isEigToleranceDynamic "isEigToleranceDynamic"), the tolerance for
   /// the eigensolver is controlled dynamically and can be larger than
   /// eigTolerance.
   ///
@@ -429,7 +429,7 @@ struct ESDFInputParam{
   /// is mpisize.
   ///
   /// This option is needed to restart the electron density using 
-  /// @ref dgdft::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
+  /// @ref scales::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
   bool                isOutputDensity;
   /// @brief Whether to output the wavefunctions in the extended
   /// element.
@@ -537,7 +537,7 @@ struct ESDFInputParam{
   /// eigensolver is controlled dynamically and is related to the
   /// error in the current %SCF iteration.  The lower limit of the
   /// tolerance is controlled by
-  /// @ref dgdft::esdf::ESDFInputParam::eigTolerance "eigTolerance".
+  /// @ref scales::esdf::ESDFInputParam::eigTolerance "eigTolerance".
   bool                isEigToleranceDynamic;
 
   /// @brief File for storing the information of the pseudopotential.
@@ -632,7 +632,7 @@ struct ESDFInputParam{
   /// extended element.
   ///
   /// This is not directly controlled by the user, but through 
-  /// @ref dgdft::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction".
+  /// @ref scales::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction".
   Index3              numGridWavefunctionElem;
   /// @brief Number of uniform grids for representing the density
   /// along x,y,z directions in the element.
@@ -641,18 +641,18 @@ struct ESDFInputParam{
   /// uses a denser grid to represent the electron density and
   /// potential than that of the wavefunction on the uniform grid.
   /// This parameter is controlled by
-  /// @ref dgdft::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction"
+  /// @ref scales::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction"
   /// and
-  /// @ref dgdft::esdf::ESDFInputParam::densityGridFactor "densityGridFactor".
+  /// @ref scales::esdf::ESDFInputParam::densityGridFactor "densityGridFactor".
   Index3              numGridDensityElem;
   /// @brief Number of Legendre-Gauss-Lobatto (LGL) grids for
   /// representing the basis functions along x,y,z directions in the
   /// element.
   ///
   /// This parameter is controlled by
-  /// @ref dgdft::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction"
+  /// @ref scales::esdf::ESDFInputParam::ecutWavefunction "ecutWavefunction"
   /// and
-  /// @ref dgdft::esdf::ESDFInputParam::LGLGridFactor "LGLGridFactor".
+  /// @ref scales::esdf::ESDFInputParam::LGLGridFactor "LGLGridFactor".
   Index3              numGridLGL;
   /// @brief Penalty parameter 
   ///
@@ -762,7 +762,7 @@ struct ESDFInputParam{
 
   /// @brief Number of processors used by ScaLAPACK in the PW part
   ///
-  /// Default: mpisize for PWDFT. mpisizeRow for DGDFT.
+  /// Default: mpisize for PWDFT. mpisizeRow for ScalES.
   Int                 numProcScaLAPACKPW;
 
   // PEXSI
@@ -1138,7 +1138,7 @@ struct ESDFInputParam{
 
   // **###**
   // Inputs related to Chebyshev polynomial filtered 
-  // complementary subspace iteration strategy in DGDFT
+  // complementary subspace iteration strategy in ScalES
   bool scfdg_use_chefsi_complementary_subspace;
   bool scfdg_chefsi_complementary_subspace_syrk;
   bool scfdg_chefsi_complementary_subspace_syr2k;
@@ -1193,5 +1193,5 @@ extern ESDFInputParam  esdfParam;
 
 
 } // namespace esdf
-} // namespace dgdft
+} // namespace scales
 #endif // _ESDF_HPP_

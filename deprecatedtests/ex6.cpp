@@ -1,11 +1,11 @@
 // *********************************************************************
 // Test FFT
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "spinor.hpp"
 #include "fourier.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test FFT";

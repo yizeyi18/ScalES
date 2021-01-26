@@ -1,4 +1,4 @@
-Wlcome to DGDFT's documentation!
+Wlcome to ScalES's documentation!
 =================================
 
 .. toctree::
@@ -10,7 +10,7 @@ Wlcome to DGDFT's documentation!
    install
    tutorial
    inputpwdft
-   inputdgdft
+   inputscales
    FAQ
    refactor2020
 

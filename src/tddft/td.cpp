@@ -4,7 +4,7 @@
 
 Author: Weile Jia, Lin Lin 
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -53,10 +53,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 
 #ifdef _COMPLEX_
-namespace dgdft{
+namespace scales{
 
-using namespace dgdft::DensityComponent;
-using namespace dgdft::esdf;
+using namespace scales::DensityComponent;
+using namespace scales::esdf;
 
 #ifdef _PROFILING_
 using namespace  mpi;

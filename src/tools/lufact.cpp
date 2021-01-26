@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -41,7 +41,7 @@ works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file lufact.cpp
-/// @brief Read a matrix generated from DGDFT in parallel, convert to
+/// @brief Read a matrix generated from ScalES in parallel, convert to
 /// block cyclic format, and compute a resolvent using ScaLAPACK's LU
 /// routine.
 ///
@@ -49,12 +49,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 ///
 /// @date 2015-08-17
 #include "sparse_matrix_decl.hpp"
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 
 // FIXME
@@ -73,7 +73,7 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
 
 void Usage(){
   cout 
-    << "Read a matrix generated from DGDFT in parallel, " << endl
+    << "Read a matrix generated from ScalES in parallel, " << endl
     << "convert to block cyclic format, and compute a resolvent using " << endl
     << "ScaLAPACK's LU routine" << endl << endl
     << "Usage: lufact -H [Hfile] [-S [Sfile] ] -r [nprow] -c [npcol] -MB [Blocksize] "

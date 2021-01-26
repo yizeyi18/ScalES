@@ -4,7 +4,7 @@
 
 Author: Dong An, Weile Jia, Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -53,10 +53,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 
 #ifdef _COMPLEX_
-using namespace dgdft::scalapack;
-using namespace dgdft::esdf;
+using namespace scales::scalapack;
+using namespace scales::esdf;
 
-namespace dgdft{
+namespace scales{
 
 // Solving linear system Ax = b using GMRES with preconditioning matrix M
 Sgmres::Sgmres(){
@@ -431,7 +431,7 @@ void Sgmres::Solve( Complex * rhs, Complex* xVec, Complex omega) {
   else       statusOFS << " GMRES used " <<  iter << " iterations, did not reach convergence, Residual is: "<< relres << std::endl;
 }    
 
-} // namespace dgdft
+} // namespace scales
 
 #endif
 

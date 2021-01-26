@@ -7,7 +7,7 @@
 
 #include <lapack.hh>
 
-namespace dgdft {
+namespace scales {
 
 template <typename T>
 class HostOptPackBlockDistributor : public detail::BlockDistributorImpl<T> {

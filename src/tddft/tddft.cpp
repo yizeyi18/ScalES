@@ -4,7 +4,7 @@
 
 Authors: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -53,10 +53,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// and molecular dynamics.
 #include "pwdft.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 #ifdef DEVICE
 #ifdef USE_MAGMA

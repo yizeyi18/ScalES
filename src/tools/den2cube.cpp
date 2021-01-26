@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @brief Utility routine to convert the density files to Gaussian cube
 /// format.
 /// 
-/// This is a sequential code reading the output from DGDFT in parallel
+/// This is a sequential code reading the output from ScalES in parallel
 /// mode.
 ///
 /// The input takes the format of DEN_xxx, where xxx is consecutive
@@ -68,14 +68,14 @@ such enhancements or derivative works thereof, in binary and source code form.
 ///            xxx
 ///
 /// @date 2014-12-16 Original version
-#include "dgdft.hpp"
+#include "scales.hpp"
 
 #define _DEBUGlevel_ 0
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 using std::vector;
 using std::pair;

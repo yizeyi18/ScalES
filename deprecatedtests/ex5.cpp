@@ -1,10 +1,10 @@
 // *********************************************************************
 // Test spinors
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "spinor.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test spinors";

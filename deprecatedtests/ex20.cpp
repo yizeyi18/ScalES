@@ -10,12 +10,12 @@
 ///
 /// @author Lin Lin
 /// @date 2013-01-09
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "utility.hpp"
 #include "fourier.hpp"
 #include "mpi_interf.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 void Usage(){

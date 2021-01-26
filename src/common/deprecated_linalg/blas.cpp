@@ -4,7 +4,7 @@
 
 Authors: Jack Poulson and Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -45,7 +45,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-09-12
 #include "blas.hpp"
 
-namespace dgdft {
+namespace scales {
 namespace blas {
 
 extern "C" {
@@ -1263,4 +1263,4 @@ void Trsm
 } 
 
 } // namespace blas
-} // namespace dgdft
+} // namespace scales

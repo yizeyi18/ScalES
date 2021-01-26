@@ -4,7 +4,7 @@
 
 Authors: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -55,7 +55,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 extern cublasHandle_t hcublas;
 
-namespace dgdft {
+namespace scales {
 
 /// @namespace cublas
 ///
@@ -147,7 +147,7 @@ void Axpy( int n, const float * alpha, const float * x, int incx, float * y, int
              const cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb );
 void batched_least_square(Int m, Int n, Int nrhs, cuDoubleComplex *A, Int lda, cuDoubleComplex *C, Int ldc, Int batchSize , int maxDim);
 } // namespace device_blas
-} // namespace dgdft
+} // namespace scales
 
 #endif
 #endif

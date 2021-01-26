@@ -6,7 +6,7 @@ set( DG_PWDFT_SRC
      scf.cpp
      spinor.cpp )
 
-if( DGDFT_ENABLE_CUDA )
+if( ScalES_ENABLE_CUDA )
 
   set( DG_PWDFT_CUDA_SRC
        device_eigensolver.cpp

@@ -5,7 +5,7 @@
 #include "nummat_impl.hpp"
 #include "utility.hpp"
 
-namespace dgdft {
+namespace scales {
 
 template <typename T>
 class HostGenericBlockDistributor : public detail::BlockDistributorImpl<T> {

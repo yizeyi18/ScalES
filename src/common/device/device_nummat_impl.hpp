@@ -4,7 +4,7 @@
 
 Author: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "device_nummat_decl.hpp"
 
-namespace  dgdft{
+namespace  scales{
 
 template <class F> inline deviceNumMat<F>::deviceNumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
   if(m_>0 && n_>0) 
@@ -269,7 +269,7 @@ Symmetrize( deviceNumMat<F>& A )
 }        // -----  end of function Symmetrize ----- 
 #endif
 
-} // namespace dgdft
+} // namespace scales
 
 #endif // _DEVICE_NUMMAT_IMPL_HPP_
 #endif // DEVICE

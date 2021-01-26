@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 //#define _DEBUGlevel_ 0
 
-namespace dgdft{
+namespace scales{
 
 // *********************************************************************
 // Utility routines
@@ -267,7 +267,7 @@ template<typename F>
       scalapack::ScaLAPACKMatrix<F>&                       scaMat,
       const NumTns<std::vector<Int> >&                     basisIdx,
       MPI_Comm                                               comm ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -493,7 +493,7 @@ template<typename F>
 //    MPI_Comm                                             colComm,
 //    MPI_Comm                                             commSca,
 //    const Int                                            mpisizeSca ){
-//    using namespace dgdft::scalapack;
+//    using namespace scales::scalapack;
 //
 //
 //
@@ -758,7 +758,7 @@ template<typename F>
       MPI_Comm                                               commElem,
       const std::vector<Int>&                              mpirankElemVec,
       const std::vector<Int>&                              mpirankScaVec){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
 
     // Global rank and size
@@ -1027,7 +1027,7 @@ template<typename F>
       const NumTns<std::vector<Int> >&               basisIdx,
       MPI_Comm                                         comm,
       Int                                            numColKeep = -1 ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -1212,7 +1212,7 @@ template<typename F>
       const std::vector<Int>&                        mpirankElemVec,
       const std::vector<Int>&                        mpirankScaVec,
       Int                                            numColKeep = -1 ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -2990,7 +2990,7 @@ template<typename F>
       const scalapack::Descriptor&                         desc, 
       scalapack::ScaLAPACKMatrix<F>&                       scaMat,
       MPI_Comm                                               comm ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -3154,6 +3154,6 @@ template<typename F>
     return;
   }  // -----  end of function DistElemMatToScaMat  ----- 
 
-} // namespace dgdft
+} // namespace scales
 
 #endif // _HAMILTONIAN_DG_CONVERSION_HPP_

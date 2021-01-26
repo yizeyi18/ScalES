@@ -4,7 +4,7 @@
 
 Author: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -54,7 +54,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "spinor.hpp"
 #include  "esdf.hpp"
 
-namespace dgdft{
+namespace scales{
 
 class EigenSolver
 {
@@ -163,5 +163,5 @@ public:
 
 }; // -----  end of class  EigenSolver  ----- 
 
-} // namespace dgdft
+} // namespace scales
 #endif // _EIGENSOLVER_HPP_

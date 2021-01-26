@@ -3,7 +3,7 @@
 #include "environment.hpp"
 #include <lapack.hh>
 
-namespace dgdft {
+namespace scales {
 
 
 template <typename T>

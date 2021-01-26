@@ -4,18 +4,18 @@
 // This test subroutine is to be revised in the next step when
 // periodictable is updated.
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "spinor.hpp"
 #include "fourier.hpp"
 #include "esdf.hpp"
 #include "utility.hpp"
 
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 using namespace esdf;
-using dgdft::esdf::ESDFInputParam;
-using dgdft::esdf::ESDFReadInput;
+using scales::esdf::ESDFInputParam;
+using scales::esdf::ESDFReadInput;
 
 static char help[] = "Test the utilities and input interface";
 
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
     ESDFInputParam  esdfParam;
 
-    ESDFReadInput( esdfParam, "dgdft.in" );
+    ESDFReadInput( esdfParam, "scales.in" );
 
 
     Print(statusOFS, "Etot              = ",  1.23234, "[Ry]");

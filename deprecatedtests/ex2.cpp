@@ -1,12 +1,12 @@
 // *********************************************************************
 // Test NumVec, NumMat and NumTns
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
 #include "numtns_impl.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 int main(int argc, char **argv) 

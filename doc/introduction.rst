@@ -4,13 +4,9 @@ Introduction
 Overview
 ========
 
-DGDFT (short for Discontinuous Galerkin Density Functional Theory) is a
-software package designed to perform large scale electronic structure
-calculations (tens of thousands of atoms or larger). While the original
-goal of the project was only on very large scale systems taking
-advantage of the discontinuous Galerkin (DG) formulation, a few
-useful, and relatively independent modules have been developed using the
-software infrasture of DGDFT. 
+ScalES (Scalable Electronic Structure) is a software package aimed at 
+perform electronic structure calculations in a scalable fashion. There
+are a few relatively independent modules:
 
 - Plane Wave DFT (under ``src/pwdft``), for standard ground state DFT
   calculations using the planewave basis set. 
@@ -20,12 +16,12 @@ software infrasture of DGDFT.
 - Time-dependent DFT (under ``src/tddft``), for real-time TDDFT
   calculations using the planewave basis set.
 
-- Discontinuous Galerkin DFT (under ``src/dg``), for very large scale
+- Discontinuous Galerkin DFT (under ``src/dgdft``), for very large scale
   ground state DFT calculations using the discontinuous (see logo),
   adaptive local basis set.
 
 There are many excellent electronic structure software packages
-available. The DGDFT package has the following features (some are
+available. The ScalES package has the following features (some are
 perhaps unique to this package) from a practical perspective:
 
 - Very fast planewave DFT calculations for hundreds to thousands of
@@ -46,17 +42,17 @@ perhaps unique to this package) from a practical perspective:
   electronic structure developers who also care about high performance
   computing.
 
-The DGDFT project started with a small team working part time on the
+The ScalES project started with a small team working part time on the
 project in a math department (the situation has not changed drastically
-so far). So almost all features of DGDFT are built around a single
+so far). So almost all features of ScalES are built around a single
 scenario: **perform fast, massively parallel, large scale, Gamma-point
 only, pseudopotential DFT calculations** (with some more adjectives depending on the
-detailed scenario, but the gist remains the same). DGDFT strives to be
+detailed scenario, but the gist remains the same). ScalES strives to be
 the **best electronic structure code** in this regime. For **anything
 outside this regime**, we expect that users can easily find other
 software packages that (certainly) have more functionalities and
-outperform DGDFT. The following common tasks are currently considered
-out of scope of DGDFT.  None of the limitation is fundamental. They are
+outperform ScalES. The following common tasks are currently considered
+out of scope of ScalES.  None of the limitation is fundamental. They are
 all due to the desire to make the code maintainable (a.k.a.  lack of man
 power and/or laziness).
 
@@ -100,9 +96,9 @@ Contributors
 - Lin-Wang Wang, Lawrence Berkeley National Laboratory
 - Chao Yang, Lawrence Berkeley National Laboratory
 
-Citing DGDFT
+Citing ScalES
 ==============
-For general usage of DGDFT package for electronic structure calculation, 
+For general usage of ScalES package for electronic structure calculation, 
 **please cite the following two papers.**::
 
     @Article{JCP2012,
@@ -115,7 +111,7 @@ For general usage of DGDFT package for electronic structure calculation,
     }
     
     @Article{JCP2015,
-      Title                    = {{DGDFT}: A massively parallel method for large scale density functional theory calculations},
+      Title                    = {{ScalES}: A massively parallel method for large scale density functional theory calculations},
       Author                   = {W. Hu and L. Lin and C. Yang},
       Journal                  = {J. Chem. Phys.},
       Year                     = {2015},
@@ -124,7 +120,7 @@ For general usage of DGDFT package for electronic structure calculation,
     }
 
 
-More references on DGDFT
+More references on ScalES
 ========================
 
 **Method developments:**
@@ -238,14 +234,14 @@ More references on DGDFT
     W. Hu, L. Lin, C. Yang and J. Yang, Electronic structure of
     large-scale graphene nanoflakes, J. Chem. Phys. 141, 214704, 2014
 
-DGDFT version history
+ScalES version history
 =====================
 
 - v1.0 (TBD)
 
-  - First public release of DGDFT project.
-  - The publicly release version of DGDFT include only the ``pwdft`` module. 
-  - The ``dg`` and ``tddft`` module are available in the developer's
+  - First public release of ScalES project.
+  - The publicly release version of ScalES include only the ``pwdft`` module. 
+  - The ``dgdft`` and ``tddft`` module are available in the developer's
     branch and will be released later.
 
 - Between v0.8 and v1.0 (2016-2020), we did not use a version system.
@@ -255,14 +251,14 @@ DGDFT version history
   new ``master`` branch for further developments. These branches
   include:
 
-  - ``cuda_dg``: GPU development in DGDFT with cuda.
+  - ``cuda_dg``: GPU development with cuda.
   - ``GPU`` and ``AMD_GPU_HIP``: GPU developments in PWDFT with cuda and
-    hip, and TDDFT with cuda.
-  - ``TDDFT``: Real-time TDDFT.
+    hip, and tddft with cuda.
+  - ``tddft``: Real-time TDDFT.
   - ``refactor1`` and ``refactor2`` (4/4/2016--12/27/2017): Major
     refactoring of the code as well as method developments.  Merge with
     ACE formulation of hybrid functionals.  Develop Chebyshev filtering
-    for PWDFT and DGDFT. ISDF algorithm for hybrid functionals. UPF file
+    for ``pwdft`` and ``dgdft``. ISDF algorithm for hybrid functionals. UPF file
     format for pseudopotentials.
 
 - v0.8 (3/5/2016)
@@ -287,7 +283,7 @@ DGDFT version history
   - A number of developments in v0.4.x including MD, parallel
     read/write, Harris functional, and OpenMP for LOBPCG
   - Another (not used) functionality is the evaluation of the a
-    residual type posteriori error estimator in DGDFT, available at
+    residual type posteriori error estimator in ``dgdft``, available at
     4/16 with commit ``bb22eb9``.
 
 - v0.3 (1/20/2013)
@@ -310,45 +306,3 @@ DGDFT version history
   - C code refactored into a C++ code. Perhaps refactored twice.
   - Already a reasonably parallel code!
 
-License
-=======
-DGDFT is distributed under BSD license (modified by Lawrence Berkeley
-National Laboratory).
-
-DGDFT Copyright (c) 2012 The Regents of the University of California,
-through Lawrence Berkeley National Laboratory (subject to receipt of 
-any required approvals from U.S. Dept. of Energy).  All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.

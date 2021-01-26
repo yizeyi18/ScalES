@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "environment.hpp"
 #include "numvec_impl.hpp"
 
-namespace  dgdft{
+namespace  scales{
 
 
 /// @struct SparseMatrix
@@ -104,7 +104,7 @@ template <class F> struct DistSparseMatrix{
   ///
   /// firstCol = mpirank * (size/mpisize) + 1
   /// 
-  /// FIXME: The definition of firstCol is different in DGDFT and in
+  /// FIXME: The definition of firstCol is different in ScalES and in
   /// PEXSI.  In PEXSI, firstCol is 0-based (C-convention).
   Int          firstCol;
 
@@ -176,7 +176,7 @@ void ParaWriteDistSparseMatrix(
 
 
 
-} // namespace dgdft
+} // namespace scales
 
 
 

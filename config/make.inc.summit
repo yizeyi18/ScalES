@@ -27,7 +27,7 @@ endif
 
 ifeq (${DEVICE}, nvgpu)
   NVCC = nvcc
-  CUDA_FLAG =  -D DEVICE  -I ${DGDFT_DIR}/src/common/device/ -I ${DGDFT_DIR}/src/common/device/nvgpu -I ${CUDA_DIR}/include
+  CUDA_FLAG =  -D DEVICE  -I ${ScalES_DIR}/src/common/device/ -I ${ScalES_DIR}/src/common/device/nvgpu -I ${CUDA_DIR}/include
   #CUDA_DIR = /usr/common/software/cuda/10.2.89
   CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcusolver #-lmagma #-lmagma_sparse #-lcudadevrt
   NVCCFLAG = -gencode arch=compute_70,code=sm_70 -DGPU #-I ../include -DSYNC  # for debug purpose
@@ -59,26 +59,26 @@ ifeq (${USE_PEXSI}, 1)
   PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${METIS_LIB} 
 endif
 
-DGDFT_DIR     = /ccs/home/jiawl/DG/summit/refactor2020
+ScalES_DIR     = /ccs/home/jiawl/DG/summit/refactor2020
 
 # inclues
-BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
+BLOPEX_INCLUDE   = -I${ScalES_DIR}/external/blopex
 #FFTW_INCLUDE     = -I/opt/fftw/3.3.0.1/x86_64/include
 FFTW_DIR         =  /ccs/home/jiawl/DG/summit/fftw-3.3.8-install
 FFTW_INCLUDE     = -I$(FFTW_DIR)/include
-DGDFT_INCLUDE    = -I${DGDFT_DIR}/src/pwdft -I${DGDFT_DIR}/src/common
+ScalES_INCLUDE    = -I${ScalES_DIR}/src/pwdft -I${ScalES_DIR}/src/common
 CUDA_INCLUDE     = -I${CUDA_DIR}/include
 
 MAGMA_DIR        = /ccs/home/jiawl/DG/summit/magma-2.5.0/install
 MAGMA_INC        = -I ${MAGMA_DIR}/include
 MAGMA_LIB        = -qsmp=omp ${MAGMA_DIR}/lib/libmagma.a ${MAGMA_DIR}/lib/libmagma_sparse.a -lcusparse
-INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC} ${CUDA_INCLUDE}
+INCLUDES         = ${ScalES_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC} ${CUDA_INCLUDE}
 
 # Libraries
 LIBXC_DIR     = /ccs/home/jiawl/DG/summit/libxc
 LIBXC_LIB        = $(LIBXC_DIR)/lib/libxc.a
 LIBXC_INCLUDE    = -I$(LIBXC_DIR)/include
-BLOPEX_LIB       = #${DGDFT_DIR}/external/blopex/libblopex.a 
+BLOPEX_LIB       = #${ScalES_DIR}/external/blopex/libblopex.a 
 FFTW_LIB         = -L $(FFTW_DIR)/lib -lfftw3 -lfftw3_mpi
 FFTW_LIB         = $(FFTW_DIR)/lib/libfftw3.a  $(FFTW_DIR)/lib/libfftw3_mpi.a
 FFTW_LIB         = $(FFTW_DIR)/lib/libfftw3.a $(FFTW_DIR)/lib/libfftw3_mpi.a
@@ -92,11 +92,11 @@ MKL_LIB = -L/sw/summit/essl/6.1.0-2/essl/6.1/lib64 -lessl -L${OLCF_NETLIB_SCALAP
       #-L/sw/summitdev/xl/20180125/xlf/15.1.6/lib -lxlf90
 
 
-RQRCP_LIB        = ${DGDFT_DIR}/external/rqrcp/librqrcp.a
-LBFGS_LIB        = ${DGDFT_DIR}/external/lbfgs/liblbfgs.a
+RQRCP_LIB        = ${ScalES_DIR}/external/rqrcp/librqrcp.a
+LBFGS_LIB        = ${ScalES_DIR}/external/lbfgs/liblbfgs.a
 
-DGDFT_LIB    = ${DGDFT_DIR}/src/common/libcommon.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB} ${RQRCP_LIB} ${LBFGS_LIB} ${MKL_LIB} 
+ScalES_LIB    = ${ScalES_DIR}/src/common/libcommon.a
+LIBS         = ${ScalES_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB} ${RQRCP_LIB} ${LBFGS_LIB} ${MKL_LIB} 
 
 
 

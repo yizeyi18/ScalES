@@ -4,7 +4,7 @@
 
 Authors: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -65,12 +65,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 #endif
 #endif
 
-namespace  dgdft{
+namespace  scales{
 
-using namespace dgdft::DensityComponent;
-using namespace dgdft::esdf;
+using namespace scales::DensityComponent;
+using namespace scales::esdf;
 
-using namespace dgdft::scalapack;
+using namespace scales::scalapack;
 
 SCF::SCF    (  )
 {
@@ -2632,4 +2632,4 @@ SCF::UpdateTDDFTParameters    ( )
   return ;
 }         // -----  end of method SCF::UpdateTDDFTParameters  ----- 
 
-} // namespace dgdft
+} // namespace scales

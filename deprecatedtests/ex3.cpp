@@ -1,10 +1,10 @@
 // *********************************************************************
 // Test domain
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "domain.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 int main(int argc, char **argv) 

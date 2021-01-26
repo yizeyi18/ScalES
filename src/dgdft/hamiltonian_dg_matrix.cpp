@@ -4,7 +4,7 @@
 
 Authors: Lin Lin, Wei Hu and Lexing Ying
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -55,7 +55,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 // FIXME Check all numBasis == 0 and see whether it should be numBasisTotal = 0
 
-namespace dgdft{
+namespace scales{
 
 using namespace PseudoComponent;
 
@@ -2795,4 +2795,4 @@ void
   }         // -----  end of method HamiltonianDG::UpdateDGMatrix  ----- 
 
 
-} // namespace dgdft
+} // namespace scales

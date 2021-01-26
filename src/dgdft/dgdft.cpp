@@ -4,7 +4,7 @@
 
 Author: Lin Lin and Wei Hu
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -40,25 +40,25 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file dgdft.cpp
-/// @brief Main driver for DGDFT for self-consistent field iteration.
+/// @file scales.cpp
+/// @brief Main driver for ScalES for self-consistent field iteration.
 /// @date 2012-09-16 Original version
 /// @date 2014-02-11 Dual grid implementation
 /// @date 2014-08-06 Intra-element parallelization
-/// @date 2016-03-07 Refactoring DGDFT to include geometry optimization
+/// @date 2016-03-07 Refactoring ScalES to include geometry optimization
 /// and molecular dynamics.
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 
 void Usage(){
   std::cout 
-    << "dgdft -in [inFile]" << std::endl
-    << "in:             Input file (default: dgdft.in)" << std::endl;
+    << "scales -in [inFile]" << std::endl
+    << "in:             Input file (default: scales.in)" << std::endl;
 }
 
 
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
       inFile = options["-in"];
     }
     else{
-      inFile = "dgdft.in";
+      inFile = "scales.in";
     }
 
 

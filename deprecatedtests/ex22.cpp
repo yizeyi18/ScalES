@@ -11,12 +11,12 @@
 ///
 /// @author Lin Lin
 /// @date 2013-01-29
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack; 
+using namespace scales::esdf;
+using namespace scales::scalapack; 
 
 void Usage(){
   cout << "Test for the ScaLAPACK" << endl;

@@ -4,7 +4,7 @@
 
 Author: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -51,13 +51,13 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
-namespace dgdft{
+namespace scales{
 
-using namespace dgdft::scalapack;
+using namespace scales::scalapack;
 
-using namespace dgdft::PseudoComponent;
+using namespace scales::PseudoComponent;
 
-using namespace dgdft::esdf;
+using namespace scales::esdf;
 
 Spinor::Spinor ( const Domain &dm, 
     const Int numComponent, 
@@ -1511,4 +1511,4 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
 
 
-}  // namespace dgdft
+}  // namespace scales

@@ -1,12 +1,12 @@
 // *********************************************************************
 // Test spinors without Petsc for real and complex case
 // *********************************************************************
-#include  "dgdft.hpp"
+#include  "scales.hpp"
 #include  "utility.hpp"
 #include  "domain.hpp"
 #include  "spinor.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test spinors";

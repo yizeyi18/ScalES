@@ -27,13 +27,13 @@ OBJS = ${SRCS:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o}
 endif
 DEPS = ${SRCS:.cpp=.d} ${SRCF90:.f90=.d} ${SRCF:.f=.d}
 
-all: libdgdft.a
+all: libscales.a
 
 -include ${DEPS}
 
-libdgdft.a: ${OBJS}
+libscales.a: ${OBJS}
 	$(AR) $(ARFLAGS) $@ ${OBJS}
 	$(RANLIB) $@
 
 cleanall:
-	${RM} -f ${OBJS} ${DEPS} libdgdft.a *.d.*
+	${RM} -f ${OBJS} ${DEPS} libscales.a *.d.*

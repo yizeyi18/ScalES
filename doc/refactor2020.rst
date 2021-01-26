@@ -3,21 +3,21 @@ Plan for Refactor2020
 
 Last revision: 09/15/2020 
 
-This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  This has a different scope from the original plan 12/20/2019 (see below).
+This note serves as a todo list for the 3rd major refactoring of ``ScalES``.  This has a different scope from the original plan 12/20/2019 (see below).
 
 - [x] done
 - [p] in progress
 - [ ] planned but not started
 - [d] still under consideration but deferred to future developments
 
-Goal: Release DGDFT 1.0, and write a paper reporting the performance of
+Goal: Release ScalES 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 
 
 General thoughts
 ================
 
-- The key component of DGDFT is PWDFT, which has the potential of being
+- The key component of ScalES is PWDFT, which has the potential of being
   developed into a highly efficient, massively parallel code usable by a
   relatively wide audience. The features that make PWDFT standing out
   are that it has much better support of massively parallel and
@@ -61,7 +61,7 @@ General thoughts
   and can be used as a testbed for new programming models if needed
   (there may be also more benefit to be gained there)
 
-- [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
+- [p] A minimal sphinx based document for ScalES, supporting mainly the PWDFT
   module.  Do not document the parameter values yet in sphinx yet (they are
   not stable for now). Directly refer to esdf.hpp and esdf.cpp
 
@@ -71,7 +71,7 @@ Target: refactor2020 for PWDFT
 
 
 - [x] Introduce a "program" variable in esdf to determine the program
-  mode. Deprecate the isDGDFT and isTDDFT flag
+  mode. Deprecate the isScalES and isTDDFT flag
 
 - [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
   being the default option, we should always use the branch
@@ -363,7 +363,7 @@ Plans for TDDFT
 - [ ] Make tddft/ compile. maybe with cmake.
 
 
-Plans for DGDFT
+Plans for ScalES
 ===============
 
 - [ ] Make dg/ compile. Old fashioned Makefile is fine.

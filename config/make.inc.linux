@@ -49,28 +49,28 @@ endif
 
 
 
-DGDFT_DIR     = /home/lin/Projects/dgdft
+ScalES_DIR     = /home/lin/Projects/scales
 LAPACK_DIR    = $(HOME)/Software/lapack-3.5.0
 BLAS_DIR      = $(HOME)/Software/OpenBLAS/build_release
 
 # inclues
-BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
+BLOPEX_INCLUDE   = -I${ScalES_DIR}/external/blopex
 FFTW_INCLUDE     = -I/usr/local/include
-DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
+ScalES_INCLUDE    = -I${ScalES_DIR}/include 
 LIBXC_INCLUDE    = -I/usr/include
-INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
+INCLUDES         = ${ScalES_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 # Libraries
 LIBXC_LIB        = -lxc
-BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
+BLOPEX_LIB       = ${ScalES_DIR}/external/blopex/libblopex.a 
 GFORTRAN_LIB     = /usr/lib/gcc/x86_64-linux-gnu/4.8/libgfortran.a
 SCALAPACK_LIB    = $(HOME)/Software/scalapack-2.0.2/libscalapack.a
 FFTW_LIB         = -L/usr/local/lib -lfftw3_mpi -lfftw3 -lm
 LAPACK_LIB       = ${LAPACK_DIR}/liblapack.a
 BLAS_LIB         = ${BLAS_DIR}/lib/libopenblas.a
 
-DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
+ScalES_LIB    = ${ScalES_DIR}/src/libscales.a
+LIBS         = ${ScalES_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
 CC           = mpicc 
 CXX          = mpicxx

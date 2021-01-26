@@ -4,7 +4,7 @@
 
 Author: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -51,7 +51,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "device_nummat_decl.hpp"
 #include "device_utils.h"
 
-namespace  dgdft{
+namespace  scales{
 
 // Templated form of numerical matrix
 //
@@ -120,7 +120,7 @@ template <class F> inline Real Energy(const deviceNumMat<F>& M);
 template <class F> inline void Transpose ( const deviceNumMat<F>& A, deviceNumMat<F>& B );
 template <class F> inline void Symmetrize( deviceNumMat<F>& A );
 */
-} // namespace dgdft
+} // namespace scales
 
 #endif // _DEVICE_NUMMAT_DECL_HPP_
 #endif // DEVICE

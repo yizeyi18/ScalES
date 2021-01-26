@@ -1,5 +1,5 @@
 % Generate pseudopotential from UPF file format to the binary format
-% that can be read by PWDFT/DGDFT (2016 or later).
+% that can be read by PWDFT/ScalES (2016 or later).
 %
 Znucs = [1 8 14 47];
 

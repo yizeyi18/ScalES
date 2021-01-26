@@ -4,7 +4,7 @@
 
   Author: Amartya Banerjee
 
-  This file is part of DGDFT. All rights reserved.
+  This file is part of ScalES. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -42,16 +42,16 @@
 */
 /// @file ex49.cpp 
 
-#include "dgdft.hpp"
+#include "scales.hpp"
 
 #ifdef ELSI
 #include  "elsi.h"
 #endif
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 int main(int argc, char **argv) 
 {
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
       int proc_grid_row, proc_grid_col;
 
       if(contxt >= 0)
-	dgdft::scalapack::Cblacs_gridinfo(contxt, &dummy_np_row, &dummy_np_col, &proc_grid_row, &proc_grid_col);
+	scales::scalapack::Cblacs_gridinfo(contxt, &dummy_np_row, &dummy_np_col, &proc_grid_row, &proc_grid_col);
 
     
       statusOFS << " Done.";
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
 
       int m_temp = N, n_temp = N;
       const double DBL_ONE = 1.0, DBL_ZERO = 0.0;
-      dgdft::scalapack::SCALAPACK(pdtran)(&m_temp, &n_temp, &DBL_ONE,
+      scales::scalapack::SCALAPACK(pdtran)(&m_temp, &n_temp, &DBL_ONE,
                                           scaH_temp.Data(), &I_ONE, &I_ONE, scaH_temp.Desc().Values(),
                                           &DBL_ZERO,
                                           scaH.Data(),  &I_ONE, &I_ONE, scaH.Desc().Values());                                     
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
       if(contxt >= 0)
 	{  
           c_elsi_finalize();    
-	  dgdft::scalapack::Cblacs_gridexit( contxt );
+	  scales::scalapack::Cblacs_gridexit( contxt );
 	}
     
 

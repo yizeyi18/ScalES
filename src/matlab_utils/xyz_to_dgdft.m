@@ -1,8 +1,8 @@
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% xyz_to_dgdft.m 
+% xyz_to_scales.m 
 %
 % This script converts the commonly found .xyz file fromat to the 
-% dgdft/pwdft input format. The cell size in Angstroms and the 
+% scales/pwdft input format. The cell size in Angstroms and the 
 % input/output file names need to be modified suitably.
 % use shiftz_flag = 1 if you are dealing with a quasi-2D system and would
 % like to place the atoms at the centre of the cell (i.e., xred = 0.5)
@@ -23,7 +23,7 @@ acell_z_ang = 7.9376;
 % Input and output filenames
 % Change these values as you require
 fname_in = 'dislocation1.xyz'; 
-fname_out = 'dgdft_dislocation_1.txt';
+fname_out = 'scales_dislocation_1.txt';
 
 % These flags are useful for quasi-1D and quasi-2D systems
 % If any of them are 1, we shift the atoms in that direction 
@@ -88,7 +88,7 @@ end
 
 fclose(fid_in);
 
-% Now write in dgdft format
+% Now write in scales format
 sz = length(at_num_list);
 
 fid_out = fopen(fname_out,'w');

@@ -5,7 +5,7 @@
 #include "numvec_decl.hpp"
 #include <memory>
 
-namespace dgdft {
+namespace scales {
 
 
 // Block Distribution Algorithms
@@ -51,4 +51,4 @@ public:
 template <typename T>
 BlockDistributor<T> make_block_distributor( BlockDistAlg alg, MPI_Comm comm, Int M, Int N );
 
-} // namespace dgdft
+} // namespace scales

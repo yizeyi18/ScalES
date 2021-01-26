@@ -4,9 +4,9 @@
 ///
 /// @author Lin Lin
 /// @date 2013-10-24
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 

@@ -1,7 +1,7 @@
 #include "block_distributor_impl.hpp"
 #include "block_distributor_factory.hpp"
 
-namespace dgdft {
+namespace scales {
 
 #define bdist_impl(T) \
 template class BlockDistributor<T>; \
@@ -15,4 +15,4 @@ bdist_impl(double);
 // TODO Complex
 
 
-} // namespace dgdft
+} // namespace scales

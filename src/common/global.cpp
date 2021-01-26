@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -51,7 +51,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include <google/coredumper.h>
 #endif
 
-namespace dgdft{
+namespace scales{
 
 // *********************************************************************
 // Input parameters
@@ -88,4 +88,4 @@ void ErrorHandling( const char * msg ){
 }
 
 
-} // namespace dgdft
+} // namespace scales

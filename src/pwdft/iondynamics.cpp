@@ -4,7 +4,7 @@
 
   Author: Lin Lin, Amartya Banerjee and Subhajit Banerjee
 
-  This file is part of DGDFT. All rights reserved.
+  This file is part of ScalES. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -53,9 +53,9 @@
 #include  <blas.hh>
 #include  <lapack.hh>
 
-namespace dgdft{
+namespace scales{
 
-using namespace dgdft::esdf;
+using namespace scales::esdf;
 
 
 void
@@ -1850,7 +1850,7 @@ IonDynamics::ExtrapolateCoefficient    ( Int ionIter, DblNumVec& coef ) {
   return ;
 }         // -----  end of method IonDynamics::ExtrapolateCoefficient  ----- 
 
-} // namespace dgdft
+} // namespace scales
 
 
 

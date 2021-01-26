@@ -12,12 +12,12 @@
 //
 // A\b = [3; -2];
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "utility.hpp"
 
 
 static char help[] = "Test the least square solver for dense matrices sequentially.";
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 int main(int argc, char **argv) 

@@ -4,7 +4,7 @@
 
 Author: Dong An, Weile Jia, Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -56,7 +56,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #ifdef _COMPLEX_
 
-namespace dgdft{
+namespace scales{
 
   // Solving linear system Ax = b using GMRES with preconditioning matrix M
   class Sgmres
@@ -140,7 +140,7 @@ namespace dgdft{
 
 
 
-} // namespace dgdft
+} // namespace scales
 
 
 

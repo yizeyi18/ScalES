@@ -4,7 +4,7 @@
 
 Authors: Lin Lin, Wei Hu and Amartya Banerjee
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -55,11 +55,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "scfdg_upper_end_of_spectrum.hpp"
 
 
-namespace  dgdft{
+namespace  scales{
 
-  using namespace dgdft::DensityComponent;
-  using namespace dgdft::esdf;
-  using namespace dgdft::scalapack;
+  using namespace scales::DensityComponent;
+  using namespace scales::esdf;
+  using namespace scales::scalapack;
 
 
   // FIXME Leave the smoother function to somewhere more appropriate
@@ -235,7 +235,7 @@ namespace  dgdft{
 
       // **###**
       // Variables related to Chebyshev polynomial filtered 
-      // complementary subspace iteration strategy in DGDFT
+      // complementary subspace iteration strategy in ScalES
       // Only accessed if CheFSI is in use 
 
       if(Diag_SCFDG_by_Cheby_ == 1)
@@ -3250,8 +3250,8 @@ namespace  dgdft{
       //   void 
       //   SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
       //                              std::vector<int> &my_cheby_scala_info,
-      //                              dgdft::scalapack::Descriptor &my_scala_descriptor,
-      //                              dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
+      //                              scales::scalapack::Descriptor &my_scala_descriptor,
+      //                              scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
       //   {
       //    
       //     HamiltonianDG&  hamDG = *hamDGPtr_;
@@ -3376,8 +3376,8 @@ namespace  dgdft{
       void 
         SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
             MPI_Comm comm,
-            dgdft::scalapack::Descriptor &my_scala_descriptor,
-            dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat)
+            scales::scalapack::Descriptor &my_scala_descriptor,
+            scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat)
         {
 
           HamiltonianDG&  hamDG = *hamDGPtr_;
@@ -3649,7 +3649,7 @@ namespace  dgdft{
           {
             GetTime( cheby_timeSta );
             statusOFS << std::endl << std::endl << " ------------------------------- ";
-            statusOFS << std::endl << " First CheFSI step for DGDFT cycle " << i << " of " << Iter_Max << " . ";
+            statusOFS << std::endl << " First CheFSI step for ScalES cycle " << i << " of " << Iter_Max << " . ";
             // Filter the eigenvectors
             statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
             GetTime( timeSta );
@@ -3811,14 +3811,14 @@ namespace  dgdft{
 
               // Set up BLACS for subsequent ScaLAPACK operations
               Int cheby_scala_context = -2;
-              dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
-              dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+              scales::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+              scales::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
 
               // Figure out my ScaLAPACK information
               int dummy_np_row, dummy_np_col;
               int my_cheby_scala_proc_row, my_cheby_scala_proc_col;
 
-              dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
+              scales::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
 
 
               GetTime( timeEnd );
@@ -3828,7 +3828,7 @@ namespace  dgdft{
               statusOFS << std::endl << " ScaLAPACK process grid = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " ."  << std::endl;
 
               // Eigenvcetors in ScaLAPACK format : this will be used multiple times
-              dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
+              scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
 
               if(cheby_scala_context >= 0)
               { 
@@ -3839,7 +3839,7 @@ namespace  dgdft{
 
                 // The dimensions should be  hamDG.NumBasisTotal() * hamDG.NumStateTotal()
                 // But this is not verified here as far as the distributed vector is concerned
-                dgdft::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
@@ -3883,15 +3883,15 @@ namespace  dgdft{
                 GetTime( detail_timeSta);
 
                 // Compute C = X^T * X
-                dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
 
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
                 cheby_scala_chol_mat.SetDescriptor(cheby_chol_desc);
 
-                dgdft::scalapack::Gemm( 'T', 'N',
+                scales::scalapack::Gemm( 'T', 'N',
                     hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                     1.0,
                     cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
@@ -3906,7 +3906,7 @@ namespace  dgdft{
 
                 GetTime( detail_timeSta);
                 // Compute V = Chol(C)
-                dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+                scales::scalapack::Potrf( 'U', cheby_scala_chol_mat);
 
                 GetTime( detail_timeEnd);
                 statusOFS << std::endl << " Cholesky factorization computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
@@ -3914,7 +3914,7 @@ namespace  dgdft{
 
                 GetTime( detail_timeSta);
                 // Compute  X = X * V^{-1}
-                dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+                scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
                     cheby_scala_chol_mat, 
                     cheby_scala_eigvecs_X );
 
@@ -3977,8 +3977,8 @@ namespace  dgdft{
 
 
                 // Convert HX to ScaLAPACK format
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
-                dgdft::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+                scales::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
@@ -4002,17 +4002,17 @@ namespace  dgdft{
                 statusOFS << std::endl << " Solving the subspace problem ... ";
                 GetTime( timeSta );
 
-                dgdft::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
 
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
                 cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
 
                 GetTime( detail_timeSta);
 
-                dgdft::scalapack::Gemm( 'T', 'N',
+                scales::scalapack::Gemm( 'T', 'N',
                     hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                     1.0,
                     cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
@@ -4057,7 +4057,7 @@ namespace  dgdft{
                     1);
 
                 // Now perform X <- HX (=X) * Q (=scaZ)
-                dgdft::scalapack::Gemm( 'N', 'N',
+                scales::scalapack::Gemm( 'N', 'N',
                     hamDG.NumBasisTotal(), hamDG.NumStateTotal(), hamDG.NumStateTotal(),
                     1.0,
                     cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(), 
@@ -4120,7 +4120,7 @@ namespace  dgdft{
 
               // Clean up BLACS
               if(cheby_scala_context >= 0) {
-                dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+                scales::scalapack::Cblacs_gridexit( cheby_scala_context );
               }
 
 
@@ -4214,7 +4214,7 @@ namespace  dgdft{
           {
             GetTime( cheby_timeSta );
             statusOFS << std::endl << std::endl << " ------------------------------- ";
-            statusOFS << std::endl << " General CheFSI step for DGDFT cycle " << i << " of " << Iter_Max << " . ";
+            statusOFS << std::endl << " General CheFSI step for ScalES cycle " << i << " of " << Iter_Max << " . ";
 
             // Filter the eigenvectors
             statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
@@ -4400,14 +4400,14 @@ namespace  dgdft{
 
               // Set up BLACS for subsequent ScaLAPACK operations
               Int cheby_scala_context = -2;
-              dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
-              dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+              scales::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+              scales::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
 
               // Figure out my ScaLAPACK information
               int dummy_np_row, dummy_np_col;
               int my_cheby_scala_proc_row, my_cheby_scala_proc_col;
 
-              dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
+              scales::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
 
 
               GetTime( timeEnd );
@@ -4417,7 +4417,7 @@ namespace  dgdft{
               statusOFS << std::endl << " ScaLAPACK process grid = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " ."  << std::endl;
 
               // Eigenvcetors in ScaLAPACK format : this will be used multiple times
-              dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
+              scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
 
               if(cheby_scala_context >= 0)
               { 
@@ -4428,7 +4428,7 @@ namespace  dgdft{
 
                 // The dimensions should be  hamDG.NumBasisTotal() * hamDG.NumStateTotal()
                 // But this is not verified here as far as the distributed vector is concerned
-                dgdft::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
@@ -4469,15 +4469,15 @@ namespace  dgdft{
                 GetTime( detail_timeSta);
 
                 // Compute C = X^T * X
-                dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
 
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
                 cheby_scala_chol_mat.SetDescriptor(cheby_chol_desc);
 
-                dgdft::scalapack::Gemm( 'T', 'N',
+                scales::scalapack::Gemm( 'T', 'N',
                     hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                     1.0,
                     cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
@@ -4492,7 +4492,7 @@ namespace  dgdft{
 
                 GetTime( detail_timeSta);
                 // Compute V = Chol(C)
-                dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+                scales::scalapack::Potrf( 'U', cheby_scala_chol_mat);
 
                 GetTime( detail_timeEnd);
                 statusOFS << std::endl << " Cholesky factorization computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
@@ -4500,7 +4500,7 @@ namespace  dgdft{
 
                 GetTime( detail_timeSta);
                 // Compute  X = X * V^{-1}
-                dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+                scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
                     cheby_scala_chol_mat, 
                     cheby_scala_eigvecs_X );
 
@@ -4575,8 +4575,8 @@ namespace  dgdft{
 
                 // Set up BLACS for for the single proc context
 
-                dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
-                dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
+                scales::scalapack::Cblacs_get( 0, 0, &single_proc_context );
+                scales::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
 
                 if( single_proc_context >= 0)
                 {
@@ -4605,8 +4605,8 @@ namespace  dgdft{
                 statusOFS << std::endl << std::endl << " Raleigh - Ritz step : ";
 
                 // Convert HX to ScaLAPACK format
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
-                dgdft::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+                scales::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
@@ -4628,18 +4628,18 @@ namespace  dgdft{
                 statusOFS << std::endl << " Solving the subspace problem ... ";
                 GetTime( timeSta );
 
-                dgdft::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+                scales::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
                     scaBlockSize_, scaBlockSize_, 
                     0, 0, 
                     cheby_scala_context);
 
-                dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
+                scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
                 cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
 
 
                 GetTime( detail_timeSta);
 
-                dgdft::scalapack::Gemm( 'T', 'N',
+                scales::scalapack::Gemm( 'T', 'N',
                     hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                     1.0,
                     cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
@@ -4734,7 +4734,7 @@ namespace  dgdft{
                     1);
 
                 // Now perform X <- HX (=X) * Q (=scaZ)
-                dgdft::scalapack::Gemm( 'N', 'N',
+                scales::scalapack::Gemm( 'N', 'N',
                     hamDG.NumBasisTotal(), hamDG.NumStateTotal(), hamDG.NumStateTotal(),
                     1.0,
                     cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(), 
@@ -4820,12 +4820,12 @@ namespace  dgdft{
               // Clean up BLACS
               if(cheby_scala_context >= 0) 
               {
-                dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+                scales::scalapack::Cblacs_gridexit( cheby_scala_context );
               }
 
               if( single_proc_context >= 0)
               {
-                dgdft::scalapack::Cblacs_gridexit( single_proc_context );
+                scales::scalapack::Cblacs_gridexit( single_proc_context );
               }
 
 
@@ -4848,7 +4848,7 @@ namespace  dgdft{
 
       // **###**    
       /// @brief Routines related to Chebyshev polynomial filtered 
-      /// complementary subspace iteration strategy in DGDFT
+      /// complementary subspace iteration strategy in ScalES
       void SCFDG::scfdg_complementary_subspace_serial(Int filter_order )
       {
         statusOFS << std::endl << " ----------------------------------------------------------" ; 
@@ -5208,7 +5208,7 @@ namespace  dgdft{
 
 
       /// @brief Routines related to Chebyshev polynomial filtered 
-      /// complementary subspace iteration strategy in DGDFT in parallel
+      /// complementary subspace iteration strategy in ScalES in parallel
       void SCFDG::scfdg_complementary_subspace_parallel(Int filter_order )
       {
 
@@ -5334,8 +5334,8 @@ namespace  dgdft{
 
         // Set up BLACS for subsequent ScaLAPACK operations
         Int cheby_scala_context = -1;
-        dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
-        dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+        scales::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+        scales::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
 
         statusOFS << std::endl << " Cheby-Scala context will use " << num_cheby_scala_procs << " processes.";
         statusOFS << std::endl << " Cheby-Scala process grid dim. = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " .";
@@ -5372,8 +5372,8 @@ namespace  dgdft{
         }
 
         Int bigger_grid_context = -1;
-        dgdft::scalapack::Cblacs_get( 0, 0, &bigger_grid_context );
-        dgdft::scalapack::Cblacs_gridmap(&bigger_grid_context, &bigger_grid_pmap[0], bigger_grid_num_rows, bigger_grid_num_rows, bigger_grid_num_cols);   
+        scales::scalapack::Cblacs_get( 0, 0, &bigger_grid_context );
+        scales::scalapack::Cblacs_gridmap(&bigger_grid_context, &bigger_grid_pmap[0], bigger_grid_num_rows, bigger_grid_num_rows, bigger_grid_num_cols);   
 
         statusOFS << std::endl << " Bigger grid context will use " << bigger_grid_num_procs << " processes.";
         statusOFS << std::endl << " Bigger process grid dim. = " << bigger_grid_num_rows << " * " << bigger_grid_num_cols << " .";
@@ -5384,8 +5384,8 @@ namespace  dgdft{
         single_proc_pmap[0] = 0; // Just using proc. 0 for the job.
 
         // Set up BLACS for for the single proc context
-        dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
-        dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
+        scales::scalapack::Cblacs_get( 0, 0, &single_proc_context );
+        scales::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
 
         // For safety, make sure this is MPI Rank zero : throw an error otherwise
         // Fix this in the future ?
@@ -5420,8 +5420,8 @@ namespace  dgdft{
         statusOFS << std::endl ;
 	
         // Step b: Orthonormalize using "bigger grid"
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X;
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_eigvecs_X;
+        scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X;
+        scales::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_eigvecs_X;
 
         scalapack::Descriptor cheby_eigvec_desc;
         scalapack::Descriptor bigger_grid_eigvec_desc;
@@ -5492,17 +5492,17 @@ namespace  dgdft{
           GetTime( extra_timeSta );
 
           // Compute C = X^T * X
-          dgdft::scalapack::Descriptor bigger_grid_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+          scales::scalapack::Descriptor bigger_grid_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
               scaBlockSize_, scaBlockSize_, 
               0, 0, 
               bigger_grid_context);
 
-          dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_chol_mat;
+          scales::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_chol_mat;
           bigger_grid_chol_mat.SetDescriptor(bigger_grid_chol_desc);
 
           if(SCFDG_comp_subspace_syrk_ == 0)
           {
-            dgdft::scalapack::Gemm( 'T', 'N',
+            scales::scalapack::Gemm( 'T', 'N',
                 hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                 1.0,
                 bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(), 
@@ -5514,7 +5514,7 @@ namespace  dgdft{
           else
           {  
 
-            dgdft::scalapack::Syrk('U', 'T',
+            scales::scalapack::Syrk('U', 'T',
                 hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                 1.0, bigger_grid_eigvecs_X.Data(),
                 I_ONE, I_ONE,bigger_grid_eigvecs_X.Desc().Values(),
@@ -5532,7 +5532,7 @@ namespace  dgdft{
           GetTime( extra_timeSta);
 
           // Compute V = Chol(C)
-          dgdft::scalapack::Potrf( 'U', bigger_grid_chol_mat);
+          scales::scalapack::Potrf( 'U', bigger_grid_chol_mat);
 
           GetTime( extra_timeEnd);
           statusOFS << std::endl << " Cholesky factorization computed in : " << (extra_timeEnd - extra_timeSta) << " s.";
@@ -5541,7 +5541,7 @@ namespace  dgdft{
           GetTime( extra_timeSta);
 
           // Compute  X = X * V^{-1}
-          dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+          scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
               bigger_grid_chol_mat, 
               bigger_grid_eigvecs_X );
 
@@ -5618,11 +5618,11 @@ namespace  dgdft{
 
         GetTime(timeSta);
         // Convert HX to ScaLAPACK format on Cheby-Scala grid
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_HX;
+        scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+        scales::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_HX;
 
-        dgdft::scalapack::Descriptor cheby_scala_HX_desc;
-        dgdft::scalapack::Descriptor bigger_grid_HX_desc;
+        scales::scalapack::Descriptor cheby_scala_HX_desc;
+        scales::scalapack::Descriptor bigger_grid_HX_desc;
 
 
         // Convert HX to ScaLAPACK format on Cheby-Scala grid
@@ -5678,8 +5678,8 @@ namespace  dgdft{
 
         }
         // Compute X^T * HX on bigger grid
-        dgdft::scalapack::Descriptor bigger_grid_square_mat_desc;
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat;
+        scales::scalapack::Descriptor bigger_grid_square_mat_desc;
+        scales::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat;
 
         if(SCFDG_comp_subspace_syr2k_ == 0)
           statusOFS << std::endl << " Computing X^T * HX on bigger grid using GEMM ... ";
@@ -5700,7 +5700,7 @@ namespace  dgdft{
 
           if(SCFDG_comp_subspace_syr2k_ == 0)
           {        
-            dgdft::scalapack::Gemm('T', 'N',
+            scales::scalapack::Gemm('T', 'N',
                 hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                 1.0,
                 bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(), 
@@ -5712,7 +5712,7 @@ namespace  dgdft{
           else
           {
 
-            dgdft::scalapack::Syr2k ('U', 'T',
+            scales::scalapack::Syr2k ('U', 'T',
                 hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                 0.5, 
                 bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(),
@@ -5722,19 +5722,19 @@ namespace  dgdft{
 
 
             // Copy the upper triangle to a temporary location
-            dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat_copy;
+            scales::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat_copy;
             bigger_grid_square_mat_copy.SetDescriptor(bigger_grid_square_mat_desc);
 
             char uplo = 'A';
             int ht = hamDG.NumStateTotal();
-            dgdft::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
+            scales::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
                 bigger_grid_square_mat.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat.Desc().Values(), 
                 bigger_grid_square_mat_copy.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat_copy.Desc().Values() );
 
             uplo = 'L';
             char trans = 'T';
             double scalar_one = 1.0, scalar_zero = 0.0;
-            dgdft::scalapack::SCALAPACK(pdtradd)(&uplo, &trans, &ht, &ht,
+            scales::scalapack::SCALAPACK(pdtradd)(&uplo, &trans, &ht, &ht,
                 &scalar_one,
                 bigger_grid_square_mat_copy.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat_copy.Desc().Values(), 
                 &scalar_zero,
@@ -5748,8 +5748,8 @@ namespace  dgdft{
         statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" ;
 
         // Move square matrix to Cheby-Scala grid for working with top states
-        dgdft::scalapack::Descriptor cheby_scala_square_mat_desc;
-        dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_square_mat;
+        scales::scalapack::Descriptor cheby_scala_square_mat_desc;
+        scales::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_square_mat;
 
         statusOFS << std::endl << " Moving X^T * HX to Cheby-Scala grid using pdgemr2d ... ";
         GetTime( extra_timeSta );
@@ -5880,7 +5880,7 @@ namespace  dgdft{
 
         // Distribute onto Cheby-Scala grid    
         scalapack::Descriptor Xmat_desc;
-        dgdft::scalapack::ScaLAPACKMatrix<Real> Xmat;
+        scales::scalapack::ScaLAPACKMatrix<Real> Xmat;
 
         if(cheby_scala_context >= 0)
         {
@@ -6051,7 +6051,7 @@ namespace  dgdft{
 
         if(cheby_scala_context >= 0)
         {  
-          SCFDG_comp_subspace_trace_Hmat_ = dgdft::scalapack::SCALAPACK(pdlatra)(&M_temp_ , 
+          SCFDG_comp_subspace_trace_Hmat_ = scales::scalapack::SCALAPACK(pdlatra)(&M_temp_ , 
               cheby_scala_square_mat.Data() , &I_ONE , &I_ONE , 
               cheby_scala_square_mat.Desc().Values());
 
@@ -6083,18 +6083,18 @@ namespace  dgdft{
         // Clean up BLACS
         if(cheby_scala_context >= 0) 
         {
-          dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+          scales::scalapack::Cblacs_gridexit( cheby_scala_context );
         }
 
         if(bigger_grid_context >= 0)
         {
-          dgdft::scalapack::Cblacs_gridexit( bigger_grid_context );
+          scales::scalapack::Cblacs_gridexit( bigger_grid_context );
 
         }
 
         if( single_proc_context >= 0)
         {
-          dgdft::scalapack::Cblacs_gridexit( single_proc_context );             
+          scales::scalapack::Cblacs_gridexit( single_proc_context );             
         }
 
 
@@ -7562,10 +7562,10 @@ namespace  dgdft{
 
               // FIXME 
               // Currently, only the first processor column participate in the
-              // communication between PEXSI and DGDFT For the first processor
+              // communication between PEXSI and ScalES For the first processor
               // column involved in PEXSI, the first numProcPEXSICommCol_
               // processors are involved in the data communication between PEXSI
-              // and DGDFT
+              // and ScalES
 
               for( Int i = 0; i < numProcPEXSICommCol_; i++ ){
                 mpirankSparseVec[i] = i;
@@ -8054,10 +8054,10 @@ namespace  dgdft{
 
               // FIXME 
               // Currently, only the first processor column participate in the
-              // communication between PEXSI and DGDFT For the first processor
+              // communication between PEXSI and ScalES For the first processor
               // column involved in PEXSI, the first numProcPEXSICommCol_
               // processors are involved in the data communication between PEXSI
-              // and DGDFT
+              // and ScalES
 
               for( Int i = 0; i < numProcPEXSICommCol_; i++ ){
                 mpirankSparseVec[i] = i;
@@ -10881,4 +10881,4 @@ namespace  dgdft{
 
 
 
-    } // namespace dgdft
+    } // namespace scales

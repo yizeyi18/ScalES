@@ -1,9 +1,9 @@
 // *********************************************************************
 // Test the error handling of PETSc with throw/catch
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test the error handling of PETSc with throw/catch";

@@ -1,4 +1,4 @@
-%% Plot the adaptive local basis functions obtained from the DGDFT
+%% Plot the adaptive local basis functions obtained from the ScalES
 %calculation on a uniform grid.
 %
 %  This is just a temporary code for post processing.  In future this

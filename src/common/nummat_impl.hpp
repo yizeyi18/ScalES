@@ -4,7 +4,7 @@
 
 Authors: Lexing Ying and Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -48,7 +48,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "nummat_decl.hpp"
 
-namespace  dgdft{
+namespace  scales{
 
 template <class F> inline NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
   if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
@@ -219,6 +219,6 @@ Symmetrize( NumMat<F>& A )
   return ;
 }        // -----  end of function Symmetrize ----- 
 
-} // namespace dgdft
+} // namespace scales
 
 #endif // _NUMMAT_IMPL_HPP_

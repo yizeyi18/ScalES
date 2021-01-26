@@ -5,7 +5,7 @@
 #include "host_optpack_block_distributor.hpp"
 
 
-namespace dgdft {
+namespace scales {
 
 namespace detail {
 

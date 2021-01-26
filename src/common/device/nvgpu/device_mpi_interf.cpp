@@ -4,7 +4,7 @@
 
 Author: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -62,7 +62,7 @@ static int stringCmp(const void *a, const void* b)
 	
 	return sum;
 }
-namespace dgdft{
+namespace scales{
 
 // *********************************************************************
 // Constants
@@ -138,4 +138,4 @@ void setDevice(MPI_Comm comm)
 
 } // namespace mpi
 
-} // namespace dgdft
+} // namespace scales

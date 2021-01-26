@@ -4,7 +4,7 @@
 
 Authors: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include  "device_numtns_decl.hpp"
 
-namespace  dgdft{
+namespace  scales{
 
 template <class F> 
   inline deviceNumTns<F>::deviceNumTns(Int m, Int n, Int p): m_(m), n_(n), p_(p), owndata_(true) {
@@ -207,7 +207,7 @@ template <class F> inline Real Energy(const deviceNumTns<F>& T)
   return sum;
 }
 */
-} // namespace dgdft
+} // namespace scales
 
 #endif // _DEVICE_NUMTNS_IMPL_HPP_
 #endif // DEVICE

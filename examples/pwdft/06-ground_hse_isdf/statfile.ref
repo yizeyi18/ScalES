@@ -71,7 +71,7 @@ Type =  14   Position  = +2.5656249999999998e+00  +2.5656249999999998e+00  +2.56
 Type =  14   Position  = +2.5656249999999998e+00  +7.6968749999999995e+00  +7.6968749999999995e+00  
 Type =  14   Position  = +7.6968749999999995e+00  +7.6968749999999995e+00  +2.5656249999999998e+00  
 
- * Reading from standard UPF file located at /home/linlin/Projects/dgdft/examples/pp_ONCV/Si_ONCV_PBE-1.2.upf
+ * Reading from standard UPF file located at /home/linlin/Projects/scales/examples/pp_ONCV/Si_ONCV_PBE-1.2.upf
 HSE functional is used. In LIBXC, the XC id is
 XC_HYB_GGA_XC_HSE06  XCId = 428
 

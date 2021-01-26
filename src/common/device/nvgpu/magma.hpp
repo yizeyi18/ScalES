@@ -4,7 +4,7 @@
 
 Authors: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -58,7 +58,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "magma.h"
 
-namespace dgdft {
+namespace scales {
 
 /// @namespace MAGMA
 ///
@@ -84,7 +84,7 @@ void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int l
 void Zgels( Int m, Int n, Int nrhs, cuDoubleComplex * A, Int lda, cuDoubleComplex * B, Int ldb);
 
 } // namespace MAGMA
-} // namespace dgdft
+} // namespace scales
 
 #endif
 #endif

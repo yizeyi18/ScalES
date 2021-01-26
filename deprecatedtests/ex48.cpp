@@ -4,7 +4,7 @@
 
   Author: Amartya Banerjee
 
-  This file is part of DGDFT. All rights reserved.
+  This file is part of ScalES. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -42,18 +42,18 @@
 */
 /// @file ex48.cpp 
 
-#include "dgdft.hpp"
+#include "scales.hpp"
 
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 
 
 // This should be called only by prcessors sharing the context of Hmat
-double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat)
+double test_find_comp_subspace_UB_parallel(scales::scalapack::ScaLAPACKMatrix<Real>& Hmat)
 {
   double b_up = 0.0;  
   double alpha, beta;
@@ -70,30 +70,30 @@ double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Rea
   const int scaBlockSize = Hmat.MB();
     
   // Set up v0
-  dgdft::scalapack::Descriptor vec_v0_desc;
+  scales::scalapack::Descriptor vec_v0_desc;
   vec_v0_desc.Init( ht, 1, 
 		    scaBlockSize, scaBlockSize, 
 		    0, 0, 
 		    context);   
-  dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v0;
+  scales::scalapack::ScaLAPACKMatrix<Real>  vec_v0;
   vec_v0.SetDescriptor(vec_v0_desc);
     
   // Set up v
-  dgdft::scalapack::Descriptor vec_v_desc;
+  scales::scalapack::Descriptor vec_v_desc;
   vec_v_desc.Init( ht, 1, 
 		   scaBlockSize, scaBlockSize, 
 		   0, 0, 
 		   context);   
-  dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v;     
+  scales::scalapack::ScaLAPACKMatrix<Real>  vec_v;     
   vec_v.SetDescriptor(vec_v_desc);
     
   // Set up f
-  dgdft::scalapack::Descriptor vec_f_desc;
+  scales::scalapack::Descriptor vec_f_desc;
   vec_f_desc.Init( ht, 1, 
 		   scaBlockSize, scaBlockSize, 
 		   0, 0, 
 		   context);   
-  dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_f;    
+  scales::scalapack::ScaLAPACKMatrix<Real>  vec_f;    
   vec_f.SetDescriptor(vec_f_desc);
 
     
@@ -104,24 +104,24 @@ double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Rea
     
   // Normalize this vector
   double nrm;     
-  dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_v.Data(), &I_ONE, &I_ONE, vec_v.Desc().Values(), &I_ONE);
+  scales::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_v.Data(), &I_ONE, &I_ONE, vec_v.Desc().Values(), &I_ONE);
 
   double scalar_a = 1.0 / nrm;
-  dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE);
+  scales::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE);
 
   // Compute f = H * v 
-  dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+  scales::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
 				      vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 				      &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
 
   // alpha = dot(f,v)
-  dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+  scales::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 				     vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
     
 
   // f = f - alpha * v;
   minus_alpha = -alpha;
-  dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+  scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 				      vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 
     
@@ -136,37 +136,37 @@ double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Rea
   for(Int j = 1; j < Num_Lanczos_Steps; j ++)
     {
       // beta = norm2(f)
-      dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &beta, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+      scales::scalapack::SCALAPACK(pdnrm2)(&ht, &beta, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
 	
       // v0 = v
-      dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+      scales::scalapack::SCALAPACK(pdcopy)(&ht , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 					  vec_v0.Data() , &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE );
   
       // v = f / beta
-      dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+      scales::scalapack::SCALAPACK(pdcopy)(&ht , vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 					  vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE ); // v = f
 	
       scalar_a = (1.0 / beta);
-      dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE); // v <-- v (=f) / beta
+      scales::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE); // v <-- v (=f) / beta
 	
       // f = H * v : use -H here 
-      dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+      scales::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
 					  vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 					  &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
 
 
       // f = f - beta * v0
       minus_beta = -beta;
-      dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_beta , vec_v0.Data(), &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE , 
+      scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_beta , vec_v0.Data(), &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE , 
 					  vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 	
       // alpha = dot(f,v)
-      dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+      scales::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 					 vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
 
       // f = f - alpha * v;
       minus_alpha = -alpha;
-      dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+      scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 					  vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 
 	
@@ -185,7 +185,7 @@ double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Rea
   lapack::Syevd( 'N', 'U', Num_Lanczos_Steps, mat_T.Data(), Num_Lanczos_Steps, ritz_values.Data() );
   
   // Compute the norm of f
-  dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+  scales::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
     
   // Finally compute upper bound
   b_up = ritz_values(Num_Lanczos_Steps - 1) + nrm;
@@ -196,8 +196,8 @@ double test_find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Rea
 }
   
 // This should be called only by prcessors sharing the context of Hmat
-void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
-				dgdft::scalapack::ScaLAPACKMatrix<Real>& Xmat,
+void  test_CheFSI_Hmat_parallel(scales::scalapack::ScaLAPACKMatrix<Real>& Hmat,
+				scales::scalapack::ScaLAPACKMatrix<Real>& Xmat,
 				DblNumVec& eig_vals_Xmat,
 				int filter_order,
 				int num_cycles,
@@ -220,21 +220,21 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
   double b = upper_bound;
     
   // Set up Ymat
-  dgdft::scalapack::Descriptor Ymat_desc;
+  scales::scalapack::Descriptor Ymat_desc;
   Ymat_desc.Init( ht, wd, 
 		  scaBlockSize, scaBlockSize, 
 		  0, 0, 
 		  context);   
-  dgdft::scalapack::ScaLAPACKMatrix<Real>  Ymat;
+  scales::scalapack::ScaLAPACKMatrix<Real>  Ymat;
   Ymat.SetDescriptor(Ymat_desc);
 	
   // Set up Yt_mat
-  dgdft::scalapack::Descriptor Yt_mat_desc;
+  scales::scalapack::Descriptor Yt_mat_desc;
   Yt_mat_desc.Init( ht, wd, 
 		    scaBlockSize, scaBlockSize, 
 		    0, 0, 
 		    context);   
-  dgdft::scalapack::ScaLAPACKMatrix<Real>  Yt_mat;
+  scales::scalapack::ScaLAPACKMatrix<Real>  Yt_mat;
   Yt_mat.SetDescriptor(Yt_mat_desc);
 
   statusOFS << std::endl << "  ------- " << std::endl;
@@ -262,7 +262,7 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
       // Step 1: Y = (H * X - c * X) * (sigma/e)
   
       // Compute Y = H * X 
-      dgdft::scalapack::Gemm('N', 'N',
+      scales::scalapack::Gemm('N', 'N',
 			     ht, wd, ht,
 			     1.0,
 			     Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -288,7 +288,7 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
 	  // Step 2: Yt = (H * Y - c * Y) * (2 * sigma_new/e) - (sigma * sigma_new) * X
     
 	  // Compute Yt = H * Y 
-	  dgdft::scalapack::Gemm('N', 'N',
+	  scales::scalapack::Gemm('N', 'N',
 				 ht, wd, ht,
 				 1.0,
 				 Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -326,17 +326,17 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
       GetTime(time_fine_sta);
 	
       // B) Orthonormalize the filtered vectors
-      dgdft::scalapack::Descriptor square_mat_desc;
+      scales::scalapack::Descriptor square_mat_desc;
       square_mat_desc.Init( wd, wd, 
 			    scaBlockSize, scaBlockSize, 
 			    0, 0, 
 			    context);   
 	
-      dgdft::scalapack::ScaLAPACKMatrix<Real> square_mat;
+      scales::scalapack::ScaLAPACKMatrix<Real> square_mat;
       square_mat.SetDescriptor(square_mat_desc);
   
       // Compute X^T * X
-      dgdft::scalapack::Syrk('U', 'T',
+      scales::scalapack::Syrk('U', 'T',
 			     wd, ht,
 			     1.0, Xmat.Data(),
 			     I_ONE, I_ONE, Xmat.Desc().Values(),
@@ -344,18 +344,18 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
 			     I_ONE, I_ONE, square_mat.Desc().Values());
   
       // Compute the Cholesky factor 
-      dgdft::scalapack::Potrf( 'U', square_mat);
+      scales::scalapack::Potrf( 'U', square_mat);
 	  
       // Solve using the Cholesky factor
       // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
-      dgdft::scalapack::Trsm('R', 'U', 'N', 'N', 1.0,
+      scales::scalapack::Trsm('R', 'U', 'N', 'N', 1.0,
 			     square_mat, 
 			     Xmat);
 	
 	
       // C) Raleigh-Ritz step
       // Compute Y = H * X 
-      dgdft::scalapack::Gemm('N', 'N',
+      scales::scalapack::Gemm('N', 'N',
 			     ht, wd, ht,
 			     1.0,
 			     Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -366,7 +366,7 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
 
   
       // Compute X^T * HX
-      dgdft::scalapack::Gemm( 'T', 'N',
+      scales::scalapack::Gemm( 'T', 'N',
 			      wd, wd, ht,
 			      1.0,
 			      Xmat.Data(), I_ONE, I_ONE,  Xmat.Desc().Values(), 
@@ -379,16 +379,16 @@ void  test_CheFSI_Hmat_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
   
       // Solve the eigenvalue problem
       std::vector<Real> temp_eigen_values_vector; 	
-      dgdft::scalapack::ScaLAPACKMatrix<Real>  scaZ;
+      scales::scalapack::ScaLAPACKMatrix<Real>  scaZ;
   
-      dgdft::scalapack::Syevd('U', square_mat, temp_eigen_values_vector, scaZ);
+      scales::scalapack::Syevd('U', square_mat, temp_eigen_values_vector, scaZ);
 	
       // D) Subspace rotation step
       // Copy X to Y
       blas::Copy( loc_sz, Xmat.Data(), 1, Ymat.Data(), 1 );
 	
       // X = X * Q (  Here Ymat contains X)
-      dgdft::scalapack::Gemm( 'N', 'N',
+      scales::scalapack::Gemm( 'N', 'N',
 			      ht, wd, wd,
 			      1.0,
 			      Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(), 
@@ -574,7 +574,7 @@ int main(int argc, char **argv)
       int proc_grid_row, proc_grid_col;
 
       if(contxt >= 0)
-	dgdft::scalapack::Cblacs_gridinfo(contxt, &dummy_np_row, &dummy_np_col, &proc_grid_row, &proc_grid_col);
+	scales::scalapack::Cblacs_gridinfo(contxt, &dummy_np_row, &dummy_np_col, &proc_grid_row, &proc_grid_col);
 
     
       statusOFS << " Done.";
@@ -622,7 +622,7 @@ int main(int argc, char **argv)
       
 	  scaC.SetDescriptor(descC);
       
-	  dgdft::scalapack::Gemm( 'T', 'N',
+	  scales::scalapack::Gemm( 'T', 'N',
 				  N_states, N_states, N,
 				  1.0,
 				  scaX.Data(), I_ONE, I_ONE,scaX.Desc().Values(), 
@@ -644,7 +644,7 @@ int main(int argc, char **argv)
 
       if(contxt >= 0)
 	{  
-	  dgdft::scalapack::Syrk('U', 'T',
+	  scales::scalapack::Syrk('U', 'T',
 				 N_states, N,
 				 1.0, scaX.Data(),
 				 I_ONE, I_ONE, scaX.Desc().Values(),
@@ -667,7 +667,7 @@ int main(int argc, char **argv)
     
       if(contxt >= 0)
 	{ 
-	  dgdft::scalapack::Potrf( 'U', scaC);
+	  scales::scalapack::Potrf( 'U', scaC);
 	}
       GetTime( timeEnd );
 
@@ -680,7 +680,7 @@ int main(int argc, char **argv)
     
       if(contxt >= 0)
 	{ 
-	  dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0, 
+	  scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0, 
 				  scaC, 
 				  scaX );
 	}
@@ -761,7 +761,7 @@ int main(int argc, char **argv)
       
 	  alt_C.SetDescriptor(desc_alt_C);
 
-	  dgdft::scalapack::Gemm( 'T', 'N',
+	  scales::scalapack::Gemm( 'T', 'N',
 				  N_states, N_states, N_states,
 				  1.0,
 				  small_X.Data(), I_ONE, I_ONE, small_X.Desc().Values(), 
@@ -771,10 +771,10 @@ int main(int argc, char **argv)
 				  contxt);
 
 	  // Cholesky factorization
-	  dgdft::scalapack::Potrf( 'U', alt_C);
+	  scales::scalapack::Potrf( 'U', alt_C);
 	  
 	  // TRSM 
-	  dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0, 
+	  scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0, 
 				  alt_C, 
 				  small_X );
 	  
@@ -788,7 +788,7 @@ int main(int argc, char **argv)
       
 	  small_Y.SetDescriptor(desc_small_Y);
 	  
-	  dgdft::scalapack::Gemm( 'N', 'N',
+	  scales::scalapack::Gemm( 'N', 'N',
 				  N_states, N_states, N_states,
 				  1.0,
 				  scaM.Data(), I_ONE, I_ONE, scaM.Desc().Values(), 
@@ -799,7 +799,7 @@ int main(int argc, char **argv)
 	  
 	  
 	  // Finally, compute scaC = X^T * Y
-	  dgdft::scalapack::Gemm( 'T', 'N',
+	  scales::scalapack::Gemm( 'T', 'N',
 				  N_states, N_states, N_states,
 				  1.0,
 				  small_Y.Data(), I_ONE, I_ONE, small_Y.Desc().Values(), 
@@ -836,7 +836,7 @@ int main(int argc, char **argv)
 	  char uplo = 'A';
 	  int ht = N_states;
     
-	  dgdft::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
+	  scales::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
 					       scaC.Data(), &I_ONE, &I_ONE, scaC.Desc().Values(), 
 					       scaD.Data(), &I_ONE, &I_ONE, scaD.Desc().Values() );
 
@@ -921,7 +921,7 @@ int main(int argc, char **argv)
       
 	  scaH.SetDescriptor(descH);
       
-	  dgdft::scalapack::Gemm( 'T', 'N',
+	  scales::scalapack::Gemm( 'T', 'N',
 				  N_states, N_states, N,
 				  1.0,
 				  scaX_alt.Data(), I_ONE, I_ONE,scaX_alt.Desc().Values(), 
@@ -952,7 +952,7 @@ int main(int argc, char **argv)
       if(contxt >= 0)
 	{  
 	  // Eigenvalue probem solution call
-	  dgdft::scalapack::Syevd('U', scaC, eigen_values, scaZ);
+	  scales::scalapack::Syevd('U', scaC, eigen_values, scaZ);
 	}
     
       GetTime( timeEnd );
@@ -975,7 +975,7 @@ int main(int argc, char **argv)
 	  scaY.SetDescriptor(descY);
 	  
 	  
-	  dgdft::scalapack::Gemm( 'N', 'N',
+	  scales::scalapack::Gemm( 'N', 'N',
 				  N, N_states, N_states,
 				  1.0,
 				  scaX.Data(), I_ONE, I_ONE, scaX.Desc().Values(), 
@@ -1094,8 +1094,8 @@ int main(int argc, char **argv)
       single_proc_pmap[0] = 0; // Just using proc. 0 for the job.
 
       // Set up BLACS for for the single proc context
-      dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
-      dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
+      scales::scalapack::Cblacs_get( 0, 0, &single_proc_context );
+      scales::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
 
       scalapack::Descriptor temp_single_proc_desc;
       scalapack::ScaLAPACKMatrix<Real>  temp_single_proc_scala_mat;
@@ -1195,7 +1195,7 @@ int main(int argc, char **argv)
     
       if(contxt >= 0)
 	{  
-	  dgdft::scalapack::Cblacs_gridexit( contxt );
+	  scales::scalapack::Cblacs_gridexit( contxt );
 	}
     
   

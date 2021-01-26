@@ -4,7 +4,7 @@
 
 Author: Lin Lin and Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -54,7 +54,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "nummat_impl.hpp"
 #include "numtns_impl.hpp"
 
-namespace dgdft{
+namespace scales{
 
 // The following typedefs must be IDENTIAL to that in utility.hpp 
 typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
@@ -240,10 +240,10 @@ public:
   /// @brief Generate the atomic density. This is to be used with
   /// structure factor to generate the initial atomic density.
   ///
-  /// This can be used both for PWDFT and DGDFT.
+  /// This can be used both for PWDFT and ScalES.
   /// 
   /// NOTE: This assumes atom.pos should agree with posStart in domain
-  /// (PWDFT) and global domain (DGDFT).
+  /// (PWDFT) and global domain (ScalES).
   ///
   void CalculateAtomDensity( const Atom& atom, const Domain& dm, 
       const std::vector<DblNumVec>& gridpos, 
@@ -312,7 +312,7 @@ Real MaxForce( const std::vector<Atom>& atomList );
 
 
 
-} // namespace dgdft
+} // namespace scales
 
 
 #endif // _PERIODTABLE_HPP_

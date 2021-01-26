@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "tinyvec_impl.hpp"
 #include  "numvec_impl.hpp"
 
-namespace dgdft{
+namespace scales{
 
 struct Domain
 {
@@ -83,7 +83,7 @@ struct Domain
 };
 
 
-} // namespace dgdft
+} // namespace scales
 
 
 #endif // _DOMAIN_HPP

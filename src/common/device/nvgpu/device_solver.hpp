@@ -4,7 +4,7 @@
 
 Authors: Weile Jia
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -53,7 +53,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 extern cusolverDnHandle_t cusolverH;
 
-namespace dgdft {
+namespace scales {
 
 /// @namespace device_solver
 ///
@@ -80,7 +80,7 @@ void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int l
 
 
 } // namespace device_solver
-} // namespace dgdft
+} // namespace scales
 
 #endif
 #endif

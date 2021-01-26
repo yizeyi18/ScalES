@@ -4,7 +4,7 @@
 
 Authors: Chris J. Pickard and Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "periodtable.hpp"
 #include <xc.h>
 
-namespace dgdft{
+namespace scales{
 
 
 // *********************************************************************
@@ -375,7 +375,7 @@ void esdf_key() {
   strcpy(kw_label[i],"log_files");
   strcpy(kw_typ[i],"L:B");
 
-  /* LL: Keywords added below for DGDFT */
+  /* LL: Keywords added below for ScalES */
   i++;
   strcpy(kw_label[i],"mixing_steplength");
   strcpy(kw_typ[i],"D:E");
@@ -1057,7 +1057,7 @@ void esdf_key() {
 
   // **###**
   // Inputs related to Chebyshev polynomial filtered 
-  // complementary subspace iteration strategy in DGDFT
+  // complementary subspace iteration strategy in ScalES
   i++;
   strcpy(kw_label[i],"scfdg_use_chefsi_complementary_subspace");
   strcpy(kw_typ[i],"I:E");
@@ -2362,7 +2362,7 @@ ESDFReadInput ( const char* filename )
   // Program type. All options below assume pwdft is used unless otherwise specified. 
   // Many options are shared by all programs
   {
-    std::vector<std::string> program_list = { "pwdft", "dgdft", "tddft" };
+    std::vector<std::string> program_list = { "pwdft", "scales", "tddft" };
     esdf_string("Program", "pwdft", strtmp); 
     esdfParam.program         = strtmp;
     if( not InArray(esdfParam.program, program_list) ){
@@ -2541,7 +2541,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.BlockSizeScaLAPACK               = esdf_integer( "Block_Size_ScaLAPACK", 32 );
 
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
-    esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
+    esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in ScalES for energy based SCF
 
     esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
@@ -2687,7 +2687,7 @@ ESDFReadInput ( const char* filename )
 
   // DG
 
-  if( esdfParam.program == "dgdft" ){
+  if( esdfParam.program == "scales" ){
     Index3& numElem = esdfParam.numElem;
     if (esdf_block("Element_Size",&nlines)) {
       sscanf(block_data[0],"%d %d %d", 
@@ -2698,7 +2698,7 @@ ESDFReadInput ( const char* filename )
     }
 
 
-    // DGDFT specific parameters for controlling convergence
+    // ScalES specific parameters for controlling convergence
     esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
     esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
     esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
@@ -2719,7 +2719,7 @@ ESDFReadInput ( const char* filename )
 
 
 
-    // DGDFT requires the number of grids to be readjusted, so that the
+    // ScalES requires the number of grids to be readjusted, so that the
     // wavefunction grid and the density grid sizes are a multiple of
     // the number of elements along each dimension.
     //
@@ -2953,7 +2953,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.isOutputVelocity      = esdf_integer( "Output_Velocity", 1 );
     esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
 
-    // Energy based SCF convergence for MD: currently used in DGDFT only
+    // Energy based SCF convergence for MD: currently used in ScalES only
     esdfParam.MDscfEnergyCriteriaEngageIonIter = esdf_integer( "MD_SCF_energy_criteria_engage_ioniter", esdfParam.ionMaxIter + 1); 
     esdfParam.MDscfEtotdiff = esdf_double("MD_SCF_Etot_diff", esdfParam.scfOuterEnergyTolerance);
     esdfParam.MDscfEbanddiff = esdf_double("MD_SCF_Eband_diff", esdfParam.scfOuterEnergyTolerance);
@@ -2984,7 +2984,7 @@ ESDFReadInput ( const char* filename )
 
   // **###**
   // Inputs related to Chebyshev polynomial filtered 
-  // complementary subspace iteration strategy in DGDFT
+  // complementary subspace iteration strategy in ScalES
   // ~~
   {
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
@@ -3150,8 +3150,8 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT Phi MaxIter                    = ",  esdfParam.TDDFTPhiMaxIter);
   }
 
-  if( esdfParam.program == "dgdft" ){
-    PrintBlock(statusOFS, "DGDFT information");
+  if( esdfParam.program == "scales" ){
+    PrintBlock(statusOFS, "ScalES information");
     Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
     Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
     Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
@@ -3531,4 +3531,4 @@ Int AdjustNumGrid( Int numGrid ){
 
 
 } // namespace esdf
-} // namespace dgdft
+} // namespace scales

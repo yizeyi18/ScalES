@@ -4,7 +4,7 @@
 
 Authors: Lexing Ying and Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -48,7 +48,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "environment.hpp"
 
-namespace dgdft{
+namespace scales{
 
 // *********************************************************************
 // Tiny vectors of dimension 3.
@@ -132,6 +132,6 @@ F prod( void )   const  { return v_[0]*v_[1]; }
 typedef Vec2T<double> Point2;
 typedef Vec2T<int>    Index2;
 
-} // namespace dgdft
+} // namespace scales
 
 #endif // _TINYVEC_DECL_HPP_

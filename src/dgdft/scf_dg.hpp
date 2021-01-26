@@ -4,7 +4,7 @@
 
 Author: Lin Lin, Wei Hu and Amartya Banerjee
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -63,7 +63,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 
 
-namespace dgdft{
+namespace scales{
 
 
 class SCFDG
@@ -183,7 +183,7 @@ private:
 
   // **###**
   // Variables related to Chebyshev polynomial filtered 
-  // complementary subspace iteration strategy in DGDFT
+  // complementary subspace iteration strategy in ScalES
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
   bool SCFDG_comp_subspace_syrk_; // Currently only available in the parallel version
@@ -228,7 +228,7 @@ private:
   /// 
   /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
   ///
-  /// LL 11/26/2014: In the new version of DGDFT-PEXSI with the
+  /// LL 11/26/2014: In the new version of ScalES-PEXSI with the
   /// intra-element parallelization, the pexsi communicator is given as
   /// follows:
   ///
@@ -410,19 +410,19 @@ private:
   /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
   void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
       MPI_Comm comm,
-      dgdft::scalapack::Descriptor &my_scala_descriptor,
-      dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
+      scales::scalapack::Descriptor &my_scala_descriptor,
+      scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
 
 
   //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
   //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
   //                                  std::vector<int> &my_cheby_scala_info,
-  //                                  dgdft::scalapack::Descriptor &my_scala_descriptor,
-  //                                  dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+  //                                  scales::scalapack::Descriptor &my_scala_descriptor,
+  //                                  scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
 
   // **###**    
   /// @brief Internal routines related to Chebyshev polynomial filtered 
-  /// complementary subspace iteration strategy in DGDFT
+  /// complementary subspace iteration strategy in ScalES
   double scfdg_fermi_func_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve, Real x);
   void scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve);
 
@@ -488,7 +488,7 @@ public:
 
   // **###**    
   /// @brief Routines related to Chebyshev polynomial filtered 
-  /// complementary subspace iteration strategy in DGDFT
+  /// complementary subspace iteration strategy in ScalES
   void scfdg_complementary_subspace_serial( Int filter_order );
   void scfdg_complementary_subspace_parallel( Int filter_order );
   void scfdg_complementary_subspace_compute_fullDM();
@@ -609,6 +609,6 @@ public:
 
 
 
-} // namespace dgdft
+} // namespace scales
 #endif // _SCF_HPP_
 

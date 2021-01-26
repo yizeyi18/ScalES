@@ -1,15 +1,15 @@
 // *********************************************************************
 // Test for the periodic table class without using Petsc.
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "utility.hpp"
 #include "eigensolver.hpp"
 #include "periodtable.hpp"
 #include "esdf.hpp"
 #include "scf.hpp"
 
-using namespace dgdft;
-using namespace dgdft::esdf;
+using namespace scales;
+using namespace scales::esdf;
 using namespace std;
 
 void Usage(){
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
     ESDFInputParam  esdfParam;
 
-    ESDFReadInput( esdfParam, "dgdft.in" );
+    ESDFReadInput( esdfParam, "scales.in" );
 
     PrintBlock(statusOFS, "Basic information");
 

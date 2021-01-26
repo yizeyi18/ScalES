@@ -4,7 +4,7 @@
 
 Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -41,7 +41,7 @@ works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file environment.hpp
-/// @brief Environment variables for DGDFT.
+/// @brief Environment variables for ScalES.
 /// @date 2013-09-06
 #ifndef _ENVIRONMENT_DECL_HPP_
 #define _ENVIRONMENT_DECL_HPP_
@@ -127,7 +127,7 @@ such enhancements or derivative works thereof, in binary and source code form.
  *  Data types and constants
  **********************************************************************/
 
-namespace dgdft{
+namespace scales{
 
 // Basic data types
 #ifdef SUMMITDEV
@@ -225,13 +225,13 @@ const int LENGTH_FULL_PREC = 16;
 const int LENGTH_VAR_DATA = 18;
 
 
-} // namespace dgdft
+} // namespace scales
 
 /***********************************************************************
  *  Error handling
  **********************************************************************/
 
-namespace dgdft{
+namespace scales{
 
 
 void ErrorHandling( const char * msg );
@@ -259,7 +259,7 @@ struct NullStream : std::ostream
 #define iC(fun)  { int ierr=fun; if(ierr!=0) exit(1); }
 #define iA(expr) { if((expr)==0) { std::cerr<<"wrong "<<__LINE__<<" in " <<__FILE__<<std::endl; std::cerr.flush(); exit(1); } }
 
-} // namespace dgdft
+} // namespace scales
 
 
 #endif // _ENVIRONMENT_DECL_HPP_

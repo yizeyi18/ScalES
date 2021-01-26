@@ -15,12 +15,12 @@ all: pwdft
 
 -include ${DEPS}
 
-pwdft: ${OBJS} ${DGDFT_LIB}
+pwdft: ${OBJS} ${ScalES_LIB}
 	($(LOADER) -o $@ ${OBJS} $(LOADOPTS) )
 
-${DGDFT_LIB}:
-	(cd ${DGDFT_DIR}/src/common; make all )
+${ScalES_LIB}:
+	(cd ${ScalES_DIR}/src/common; make all )
 
 cleanall:
-	rm -f ${EXES} ${OBJS}  ${DGDFT_LIB} ${DEPS} *.d.o pwdft
+	rm -f ${EXES} ${OBJS}  ${ScalES_LIB} ${DEPS} *.d.o pwdft
 	cd ../common;  make cleanall
