@@ -2,10 +2,10 @@
 /// @brief Test the parallel FFTW
 /// @author Lin Lin
 /// @date 2013-01-08
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "utility.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 void Usage(){

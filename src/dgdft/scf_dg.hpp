@@ -1,45 +1,10 @@
-/*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: Lin Lin, Wei Hu and Amartya Banerjee
 
-Author: Lin Lin, Wei Hu and Amartya Banerjee
-
-This file is part of DGDFT. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.
- */
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
@@ -63,7 +28,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 
 
-namespace dgdft{
+namespace scales{
 
 
 class SCFDG
@@ -183,7 +148,7 @@ private:
 
   // **###**
   // Variables related to Chebyshev polynomial filtered 
-  // complementary subspace iteration strategy in DGDFT
+  // complementary subspace iteration strategy in ScalES
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
   bool SCFDG_comp_subspace_syrk_; // Currently only available in the parallel version
@@ -228,7 +193,7 @@ private:
   /// 
   /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
   ///
-  /// LL 11/26/2014: In the new version of DGDFT-PEXSI with the
+  /// LL 11/26/2014: In the new version of ScalES-PEXSI with the
   /// intra-element parallelization, the pexsi communicator is given as
   /// follows:
   ///
@@ -410,19 +375,19 @@ private:
   /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
   void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
       MPI_Comm comm,
-      dgdft::scalapack::Descriptor &my_scala_descriptor,
-      dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
+      scales::scalapack::Descriptor &my_scala_descriptor,
+      scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
 
 
   //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
   //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
   //                                  std::vector<int> &my_cheby_scala_info,
-  //                                  dgdft::scalapack::Descriptor &my_scala_descriptor,
-  //                                  dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+  //                                  scales::scalapack::Descriptor &my_scala_descriptor,
+  //                                  scales::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
 
   // **###**    
   /// @brief Internal routines related to Chebyshev polynomial filtered 
-  /// complementary subspace iteration strategy in DGDFT
+  /// complementary subspace iteration strategy in ScalES
   double scfdg_fermi_func_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve, Real x);
   void scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve);
 
@@ -488,7 +453,7 @@ public:
 
   // **###**    
   /// @brief Routines related to Chebyshev polynomial filtered 
-  /// complementary subspace iteration strategy in DGDFT
+  /// complementary subspace iteration strategy in ScalES
   void scfdg_complementary_subspace_serial( Int filter_order );
   void scfdg_complementary_subspace_parallel( Int filter_order );
   void scfdg_complementary_subspace_compute_fullDM();
@@ -609,6 +574,6 @@ public:
 
 
 
-} // namespace dgdft
+} // namespace scales
 #endif // _SCF_HPP_
 

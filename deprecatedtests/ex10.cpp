@@ -6,10 +6,10 @@
 //
 //
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "eigensolver.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test for solving the eigenvalue problem for periodic Laplacian operator using SLEPc";

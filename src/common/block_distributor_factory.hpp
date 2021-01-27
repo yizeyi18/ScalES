@@ -1,3 +1,10 @@
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: David Williams-Young
+
 #pragma once
 
 #include "block_distributor_impl.hpp"
@@ -5,7 +12,7 @@
 #include "host_optpack_block_distributor.hpp"
 
 
-namespace dgdft {
+namespace scales {
 
 namespace detail {
 

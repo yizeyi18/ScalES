@@ -4,7 +4,7 @@
 
 Author: Amartya Banerjee
 
-This file is part of DGDFT. All rights reserved.
+This file is part of ScalES. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -42,12 +42,12 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file ex46.cpp (formerly scala_time.cp)
 
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 
 
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
       statusOFS << std::endl << " Computing X^T * X via GEMM ... " ; 
       GetTime( timeSta );
 
-      dgdft::scalapack::Gemm( 'T', 'N',
+      scales::scalapack::Gemm( 'T', 'N',
 		  N_s, N_s, N,
 		  1.0,
 		  scaX.Data(), I_ONE, I_ONE,scaX.Desc().Values(), 
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
       GetTime( timeSta );
 
        
-      dgdft::scalapack::Syrk( 'U', 'T',
+      scales::scalapack::Syrk( 'U', 'T',
 			       N_s, N,
 			       1.0, scaX.Data(),
 			       I_ONE, I_ONE,scaX.Desc().Values(),
@@ -257,7 +257,7 @@ int main(int argc, char **argv)
       statusOFS << std::endl << " Computing Cholesky factorization ... " ; 
       GetTime( timeSta );
       
-      dgdft::scalapack::Potrf( 'U', scaB);
+      scales::scalapack::Potrf( 'U', scaB);
       
       GetTime( timeEnd );
       statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
@@ -269,7 +269,7 @@ int main(int argc, char **argv)
       statusOFS << std::endl << " Solving using TRSM ... " ; 
       GetTime( timeSta );
       
-      dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+      scales::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
 			      scaB, scaX );
       
       GetTime( timeEnd );
@@ -283,7 +283,7 @@ int main(int argc, char **argv)
     
     statusOFS << std::endl << std::endl << " Cleaning up BLACS ... ";
     
-    dgdft::scalapack::Cblacs_gridexit( contxt );
+    scales::scalapack::Cblacs_gridexit( contxt );
 
     statusOFS << " Done." << std::endl ;
 

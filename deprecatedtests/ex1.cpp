@@ -1,10 +1,10 @@
 // *********************************************************************
 // Test Tiny vectors
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "tinyvec_impl.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 int main(int argc, char **argv) 

@@ -82,15 +82,15 @@ end
 
 if(1)
    
-  disp('PWDFT/DGDFT input file');
+  disp('PWDFT/ScalES input file');
   
   rdcmat = xyzmat ./ repmat([C(1,1), C(2,2), C(3,3)], ...
     size(xyzmat,1), 1);
 
   if( nargin <= 6 ) 
-    filename = 'pwdft_dgdft_input';
+    filename = 'pwdft_scales_input';
   else
-    filename = sprintf( 'dgdft_pwdft_input_%s', suffix );
+    filename = sprintf( 'scales_pwdft_input_%s', suffix );
   end
   
  fh = fopen(filename,'w'); 

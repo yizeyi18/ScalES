@@ -4,12 +4,12 @@
 /// @author Lin Lin
 /// @date 2013-07-14
 #include "sparse_matrix_decl.hpp"
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 #define _DEBUGlevel_ 1
 

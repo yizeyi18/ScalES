@@ -1,3 +1,10 @@
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: David Williams-Young
+
 #pragma once
 
 #include "environment.hpp"
@@ -5,7 +12,7 @@
 #include "numvec_decl.hpp"
 #include <memory>
 
-namespace dgdft {
+namespace scales {
 
 
 // Block Distribution Algorithms
@@ -51,4 +58,4 @@ public:
 template <typename T>
 BlockDistributor<T> make_block_distributor( BlockDistAlg alg, MPI_Comm comm, Int M, Int N );
 
-} // namespace dgdft
+} // namespace scales

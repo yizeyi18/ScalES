@@ -7,13 +7,13 @@
 //   A = -\Delta / 2 + I
 //
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "spinor.hpp"
 #include "fourier.hpp"
 
 #define EPSMODIFIEDBLOPEX      "modified_blopex"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 static char help[] = "Test for solving the eigenvalue problem for periodic Laplacian operator using SLEPc";

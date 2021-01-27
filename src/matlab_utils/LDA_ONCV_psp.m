@@ -1,5 +1,5 @@
 % Generate pseudopotential from psp8 file format to the binary format
-% that can be read by PWDFT/DGDFT (2016 or later).
+% that can be read by PWDFT/ScalES (2016 or later).
 % 
 % Revision: 2016/11/06
 % Revision: 2016/11/22 Extend the nonlocal pseudopotential as an

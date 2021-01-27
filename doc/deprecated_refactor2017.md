@@ -1,7 +1,7 @@
-Refactor2017 of DGDFT
+Refactor2017 of ScalES
 =====================
 
-This is a list from the 2nd major refactoring of DGDFT.
+This is a list from the 2nd major refactoring of ScalES.
 
 - A better way to handle various exchange correlation functionals
   - Initialization, finalizing phase
@@ -79,9 +79,9 @@ This is a list from the 2nd major refactoring of DGDFT.
     be needed. 
   - SCF, eigensolver supports multiple types of classes. Details in
     different realization of the Hamiltonian class.
-  - Should be compatible with DGDFT. Currently DGDFT only supports
+  - Should be compatible with ScalES. Currently ScalES only supports
     KohnSham class essentially. It might be too difficult to support
-    DGDFT for any class other than KohnSham at this point. Perhaps focus
+    ScalES for any class other than KohnSham at this point. Perhaps focus
     on hybrid functionals.
   - The new design should be combined with the design of spin
     polarization. This design instead should leave room for k-point
@@ -118,9 +118,9 @@ c tentatively add core dumper
   - coredumper
   - Encapsulate the error handling function (partially done)
 c Combine PWDFT_bb and MD 
-  c Should only have pwdft.cpp and dgdft.cpp
+  c Should only have pwdft.cpp and scales.cpp
   c Standardize the output of initial and final results into subroutines
-    that are shared between pwdft and dgdft. 
+    that are shared between pwdft and scales. 
   c NVE, Nose-Hoover, BB, density extrapolation
   - into something called move_ions for geometry optimization and MD.
     o BFGS or preconditioned version (e.g. QE uses BFGS)
@@ -219,7 +219,7 @@ c Unified treatment of restarting / inputing position and velocity in
 
  
 
-Features included in PWDFT but may not in DGDFT:
+Features included in PWDFT but may not in ScalES:
 
 - Support VLocal format and UPF format of pseudopotential
 
@@ -251,7 +251,7 @@ c Need a MATLAB routine to visualize the locality / smoothness of the
   kinetic energy cutoff (still needs more testing)
 
 - eigensolver.cpp: for HF molecule when ecut is large (80au)
-  ~/ResearchBIN/dgdft/HF/PW_UPF/ecut
+  ~/ResearchBIN/scales/HF/PW_UPF/ecut
   the LOBPCGScaLAPACK version converges slower than LOBPCG with a single
   core. This might be a bug, or related to issues related to the
   deflation. Need to try Meiyue's more stable version of LOBPCG.
@@ -265,7 +265,7 @@ c Need a MATLAB routine to visualize the locality / smoothness of the
   One possibility is to mimic qbox: store the wavefunction on the coarse
   Fourier grid, and add a label Spinor.IsReal() to indicate whether real
   arithmetic or complex arithmetic should be used.  This would condense 
-  PPCG/LOBPCG Real/Complex versions. Just make sure that DGDFT changes
+  PPCG/LOBPCG Real/Complex versions. Just make sure that ScalES changes
   accordingly as well.  Treatment of spin/k-point. Qbox's design is to
   have a SlaterDet class, and a Wavefunction class. The SlaterDet are
   stored as SlaterDets sd_[ispin][ikp] in wavefunction. This means spin

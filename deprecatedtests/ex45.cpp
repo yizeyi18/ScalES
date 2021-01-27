@@ -1,8 +1,8 @@
 /// @file ex45.cpp
 /// @brief Testing core dumper
 /// @date 2016-11-06
-#include "dgdft.hpp"
-using namespace dgdft;
+#include "scales.hpp"
+using namespace scales;
 using namespace std;
 
 

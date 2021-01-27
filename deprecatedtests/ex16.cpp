@@ -5,11 +5,11 @@
 //   A = -\Delta / 2 + I
 //
 // *********************************************************************
-#include "dgdft.hpp"
+#include "scales.hpp"
 #include "utility.hpp"
 #include "eigensolver.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
 
 void Usage(){

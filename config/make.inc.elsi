@@ -73,17 +73,17 @@ ifeq (${USE_PEXSI}, 1)
 endif
 
 
-DGDFT_DIR     = /global/homes/j/jiawl/ELSI/new_dgdft
+ScalES_DIR     = /global/homes/j/jiawl/ELSI/new_scales
 #COREDUMPER_DIR = /global/home/users/wjia/shared_libraries/coredumper-1.2.1/build
 
 
 # inclues
-BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
+BLOPEX_INCLUDE   = -I${ScalES_DIR}/external/blopex
 FFTW_INCLUDE     = -I/opt/fftw/3.3.0.1/x86_64/include
-DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
+ScalES_INCLUDE    = -I${ScalES_DIR}/include 
 LIBXC_INCLUDE    = -I/global/homes/j/jiawl/2edison/software/libxc/include
 #COREDUMPER_INCLUDE = -I${COREDUMPER_DIR}/include
-INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${ELSI_INCLUDE}
+INCLUDES         = ${ScalES_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${ELSI_INCLUDE}
 
 # Libraries
 LIBXC_LIB        = /global/homes/j/jiawl/2edison/software/libxc/lib/libxc.a
@@ -96,8 +96,8 @@ MKL_LIB          = -mkl=cluster
 #COREDUMPER_LIB   = ${COREDUMPER_DIR}/lib/libcoredumper.a
 
 
-DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${ELSI_LIB} ${PEXSI_LIB}  ${LIBXC_LIB} ${FFTW_LIB}  ${COREDUMPER_LIB}  ${MKL_LIB}
+ScalES_LIB    = ${ScalES_DIR}/src/libscales.a
+LIBS         = ${ScalES_LIB} ${ELSI_LIB} ${PEXSI_LIB}  ${LIBXC_LIB} ${FFTW_LIB}  ${COREDUMPER_LIB}  ${MKL_LIB}
 
 CC           = cc
 CXX          = CC

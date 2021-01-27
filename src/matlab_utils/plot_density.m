@@ -1,4 +1,4 @@
-%% Plot the electron density obtained from the DGDFT calculation.
+%% Plot the electron density obtained from the ScalES calculation.
 %
 %  This is just a temporary code for post processing.  In future this
 %  shall be addressed by cut3d like code.

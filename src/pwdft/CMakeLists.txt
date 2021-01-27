@@ -1,3 +1,11 @@
+#
+#   This file is a part of ScalES (see LICENSE). All Right Reserved
+#
+#   Copyright (c) 2012-2021 The Regents of the University of California,
+#   through Lawrence Berkeley National Laboratory.  
+#
+#   Authors: David Williams-Young
+#
 set( DG_PWDFT_SRC
      eigensolver.cpp
      hamiltonian.cpp
@@ -6,7 +14,7 @@ set( DG_PWDFT_SRC
      scf.cpp
      spinor.cpp )
 
-if( DGDFT_ENABLE_CUDA )
+if( ScalES_ENABLE_CUDA )
 
   set( DG_PWDFT_CUDA_SRC
        device_eigensolver.cpp

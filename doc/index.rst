@@ -1,4 +1,4 @@
-Wlcome to DGDFT's documentation!
+Wlcome to ScalES's documentation!
 =================================
 
 .. toctree::

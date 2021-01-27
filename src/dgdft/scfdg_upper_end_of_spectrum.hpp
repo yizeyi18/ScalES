@@ -1,54 +1,19 @@
-/*
-   Copyright (c) 2017 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: Amartya Banerjee
 
-Author: Amartya Banerjee
-
-This file is part of DGDFT. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.
- */
 /// @file scfdg_upper_end_of_spectrum.hpp
 
 #ifndef _SCFDG_UPPER_END_SPECTRUM_HPP_
 #define _SCFDG_UPPER_END_SPECTRUM_HPP_
 
-namespace dgdft{
+namespace scales{
   
   // This should be called only by prcessors sharing the context of Hmat
-  double find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat)
+  double find_comp_subspace_UB_parallel(scales::scalapack::ScaLAPACKMatrix<Real>& Hmat)
   {
      double b_up = 0.0;  
      double alpha, beta;
@@ -65,30 +30,30 @@ namespace dgdft{
      const int scaBlockSize = Hmat.MB();
      
      // Set up v0
-     dgdft::scalapack::Descriptor vec_v0_desc;
+     scales::scalapack::Descriptor vec_v0_desc;
      vec_v0_desc.Init( ht, 1, 
 		       scaBlockSize, scaBlockSize, 
 		       0, 0, 
 		       context);   
-     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v0;
+     scales::scalapack::ScaLAPACKMatrix<Real>  vec_v0;
      vec_v0.SetDescriptor(vec_v0_desc);
      
      // Set up v
-     dgdft::scalapack::Descriptor vec_v_desc;
+     scales::scalapack::Descriptor vec_v_desc;
      vec_v_desc.Init( ht, 1, 
 		      scaBlockSize, scaBlockSize, 
 		      0, 0, 
 		      context);   
-     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v;     
+     scales::scalapack::ScaLAPACKMatrix<Real>  vec_v;     
      vec_v.SetDescriptor(vec_v_desc);
      
      // Set up f
-     dgdft::scalapack::Descriptor vec_f_desc;
+     scales::scalapack::Descriptor vec_f_desc;
      vec_f_desc.Init( ht, 1, 
 		      scaBlockSize, scaBlockSize, 
 		      0, 0, 
 		      context);   
-     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_f;    
+     scales::scalapack::ScaLAPACKMatrix<Real>  vec_f;    
      vec_f.SetDescriptor(vec_f_desc);
 
      
@@ -99,24 +64,24 @@ namespace dgdft{
      
      // Normalize this vector
      double nrm;     
-     dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_v.Data(), &I_ONE, &I_ONE, vec_v.Desc().Values(), &I_ONE);
+     scales::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_v.Data(), &I_ONE, &I_ONE, vec_v.Desc().Values(), &I_ONE);
 
      double scalar_a = 1.0 / nrm;
-     dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE);
+     scales::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE);
 
      // Compute f = H * v : use -H here 
-     dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+     scales::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
 					 vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 					 &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
 
      // alpha = dot(f,v)
-     dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+     scales::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 		                        vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
      
  
      // f = f - alpha * v;
      minus_alpha = -alpha;
-     dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+     scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 		                         vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 
      
@@ -131,37 +96,37 @@ namespace dgdft{
     for(Int j = 1; j < Num_Lanczos_Steps; j ++)
       {
 	// beta = norm2(f)
-	dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &beta, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+	scales::scalapack::SCALAPACK(pdnrm2)(&ht, &beta, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
 	 
 	// v0 = v
-	dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+	scales::scalapack::SCALAPACK(pdcopy)(&ht , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 		                            vec_v0.Data() , &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE );
    
 	// v = f / beta
-	dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+	scales::scalapack::SCALAPACK(pdcopy)(&ht , vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 		                            vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE ); // v = f
 	
 	scalar_a = (1.0 / beta);
-	dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE); // v <-- v (=f) / beta
+	scales::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE); // v <-- v (=f) / beta
 	
 	// f = H * v : use -H here 
-	dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+	scales::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
 					    vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 					    &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
 
  
 	// f = f - beta * v0
         minus_beta = -beta;
-	dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_beta , vec_v0.Data(), &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE , 
+	scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_beta , vec_v0.Data(), &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE , 
 		                            vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 	
 	// alpha = dot(f,v)
-	dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+	scales::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
 		                           vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
 
 	// f = f - alpha * v;
         minus_alpha = -alpha;
-	dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+	scales::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
 		                            vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
 
 	
@@ -180,7 +145,7 @@ namespace dgdft{
     lapack::Syevd( 'N', 'U', Num_Lanczos_Steps, mat_T.Data(), Num_Lanczos_Steps, ritz_values.Data() );
    
     // Compute the norm of f
-    dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+    scales::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
     
     // Finally compute upper bound
     b_up = ritz_values(Num_Lanczos_Steps - 1) + nrm;
@@ -192,11 +157,11 @@ namespace dgdft{
 //     statusOFS << std::endl << " Lanczos upper bound = " << b_up;
 
     
-   /* dgdft::scalapack::ScaLAPACKMatrix<Real>  Hmat_copy;   
+   /* scales::scalapack::ScaLAPACKMatrix<Real>  Hmat_copy;   
     Hmat_copy.SetDescriptor(Hmat.Desc());
     
     uplo = 'N';
-    dgdft::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
+    scales::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
                                          Hmat.Data(), &I_ONE, &I_ONE, Hmat.Desc().Values(), 
                                          Hmat_copy.Data(), &I_ONE, &I_ONE, Hmat_copy.Desc().Values() );
 
@@ -212,7 +177,7 @@ namespace dgdft{
      }
     
  
-    dgdft::scalapack::ScaLAPACKMatrix<Real>  scaZ;
+    scales::scalapack::ScaLAPACKMatrix<Real>  scaZ;
     std::vector<Real> Hmat_eigen_values;
 
     
@@ -244,8 +209,8 @@ namespace dgdft{
   }
   
   // This should be called only by prcessors sharing the context of Hmat
-  void  CheFSI_Hmat_top_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
-			         dgdft::scalapack::ScaLAPACKMatrix<Real>& Xmat,
+  void  CheFSI_Hmat_top_parallel(scales::scalapack::ScaLAPACKMatrix<Real>& Hmat,
+			         scales::scalapack::ScaLAPACKMatrix<Real>& Xmat,
 			         DblNumVec& eig_vals_Xmat,
 			         int filter_order,
 			         int num_cycles,
@@ -265,21 +230,21 @@ namespace dgdft{
      double b = upper_bound;
      
     // Set up Ymat
-     dgdft::scalapack::Descriptor Ymat_desc;
+     scales::scalapack::Descriptor Ymat_desc;
      Ymat_desc.Init( ht, wd, 
 		     scaBlockSize, scaBlockSize, 
 		     0, 0, 
 		     context);   
-     dgdft::scalapack::ScaLAPACKMatrix<Real>  Ymat;
+     scales::scalapack::ScaLAPACKMatrix<Real>  Ymat;
      Ymat.SetDescriptor(Ymat_desc);
 	
      // Set up Yt_mat
-     dgdft::scalapack::Descriptor Yt_mat_desc;
+     scales::scalapack::Descriptor Yt_mat_desc;
      Yt_mat_desc.Init( ht, wd, 
 		       scaBlockSize, scaBlockSize, 
 		       0, 0, 
 		       context);   
-     dgdft::scalapack::ScaLAPACKMatrix<Real>  Yt_mat;
+     scales::scalapack::ScaLAPACKMatrix<Real>  Yt_mat;
      Yt_mat.SetDescriptor(Yt_mat_desc);
 
     statusOFS << std::endl << "  ------- " << std::endl;
@@ -304,7 +269,7 @@ namespace dgdft{
 	// Step 1: Y = (H * X - c * X) * (sigma/e)
   
 	// Compute Y = H * X : use -H here
-	dgdft::scalapack::Gemm('N', 'N',
+	scales::scalapack::Gemm('N', 'N',
                                ht, wd, ht,
                                -1.0,
                                Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -330,7 +295,7 @@ namespace dgdft{
 	    // Step 2: Yt = (H * Y - c * Y) * (2 * sigma_new/e) - (sigma * sigma_new) * X
     
 	    // Compute Yt = H * Y : use -H here
-	    dgdft::scalapack::Gemm('N', 'N',
+	    scales::scalapack::Gemm('N', 'N',
                                    ht, wd, ht,
                                    -1.0,
                                    Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -363,17 +328,17 @@ namespace dgdft{
 	  }
        
 	// B) Orthonormalize the filtered vectors
-	dgdft::scalapack::Descriptor square_mat_desc;
+	scales::scalapack::Descriptor square_mat_desc;
         square_mat_desc.Init( wd, wd, 
 		              scaBlockSize, scaBlockSize, 
 		              0, 0, 
 		              context);   
 	
-        dgdft::scalapack::ScaLAPACKMatrix<Real> square_mat;
+        scales::scalapack::ScaLAPACKMatrix<Real> square_mat;
         square_mat.SetDescriptor(square_mat_desc);
   
 	// Compute X^T * X
-	dgdft::scalapack::Syrk('U', 'T',
+	scales::scalapack::Syrk('U', 'T',
 			       wd, ht,
 			       1.0, Xmat.Data(),
 			       I_ONE, I_ONE, Xmat.Desc().Values(),
@@ -381,18 +346,18 @@ namespace dgdft{
 			       I_ONE, I_ONE, square_mat.Desc().Values());
   
 	// Compute the Cholesky factor 
-	dgdft::scalapack::Potrf( 'U', square_mat);
+	scales::scalapack::Potrf( 'U', square_mat);
 	  
 	// Solve using the Cholesky factor
 	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
-	dgdft::scalapack::Trsm('R', 'U', 'N', 'N', 1.0,
+	scales::scalapack::Trsm('R', 'U', 'N', 'N', 1.0,
                                square_mat, 
                                Xmat);
 	
 	
 	// C) Raleigh-Ritz step
 	// Compute Y = H * X : use -H here
-	dgdft::scalapack::Gemm('N', 'N',
+	scales::scalapack::Gemm('N', 'N',
                                ht, wd, ht,
                                -1.0,
                                Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
@@ -403,7 +368,7 @@ namespace dgdft{
 
   
 	// Compute X^T * HX
-	 dgdft::scalapack::Gemm( 'T', 'N',
+	 scales::scalapack::Gemm( 'T', 'N',
                                   wd, wd, ht,
                                   1.0,
                                   Xmat.Data(), I_ONE, I_ONE,  Xmat.Desc().Values(), 
@@ -416,16 +381,16 @@ namespace dgdft{
   
 	// Solve the eigenvalue problem
 	std::vector<Real> temp_eigen_values_vector; 	
-	dgdft::scalapack::ScaLAPACKMatrix<Real>  scaZ;
+	scales::scalapack::ScaLAPACKMatrix<Real>  scaZ;
   
-	dgdft::scalapack::Syevd('U', square_mat, temp_eigen_values_vector, scaZ);
+	scales::scalapack::Syevd('U', square_mat, temp_eigen_values_vector, scaZ);
 	
 	// D) Subspace rotation step
 	// Copy X to Y
 	blas::Copy( loc_sz, Xmat.Data(), 1, Ymat.Data(), 1 );
 	
         // X = X * Q (  Here Ymat contains X)
-	dgdft::scalapack::Gemm( 'N', 'N',
+	scales::scalapack::Gemm( 'N', 'N',
                                 ht, wd, wd,
                                 1.0,
                                 Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(), 

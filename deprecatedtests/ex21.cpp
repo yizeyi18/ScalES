@@ -3,12 +3,12 @@
 ///
 /// @author Lin Lin
 /// @date 2013-01-10
-#include "dgdft.hpp"
+#include "scales.hpp"
 
-using namespace dgdft;
+using namespace scales;
 using namespace std;
-using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
+using namespace scales::esdf;
+using namespace scales::scalapack;
 
 void Usage(){
   cout << "Test for the HamiltonianDG" << endl;
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 
     ESDFInputParam  esdfParam;
 
-    ESDFReadInput( esdfParam, "dgdft.in" );
+    ESDFReadInput( esdfParam, "scales.in" );
 
     // Adjust the input parameters
     {

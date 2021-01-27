@@ -1,45 +1,10 @@
-/*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: Lin Lin
 
-Author: Lin Lin
-
-This file is part of DGDFT. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.
- */
 /// @file hamiltonian_dg_conversion.hpp
 /// @brief Various data conversion utility routines related to the DG
 /// format.
@@ -50,7 +15,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 //#define _DEBUGlevel_ 0
 
-namespace dgdft{
+namespace scales{
 
 // *********************************************************************
 // Utility routines
@@ -267,7 +232,7 @@ template<typename F>
       scalapack::ScaLAPACKMatrix<F>&                       scaMat,
       const NumTns<std::vector<Int> >&                     basisIdx,
       MPI_Comm                                               comm ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -493,7 +458,7 @@ template<typename F>
 //    MPI_Comm                                             colComm,
 //    MPI_Comm                                             commSca,
 //    const Int                                            mpisizeSca ){
-//    using namespace dgdft::scalapack;
+//    using namespace scales::scalapack;
 //
 //
 //
@@ -758,7 +723,7 @@ template<typename F>
       MPI_Comm                                               commElem,
       const std::vector<Int>&                              mpirankElemVec,
       const std::vector<Int>&                              mpirankScaVec){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
 
     // Global rank and size
@@ -1027,7 +992,7 @@ template<typename F>
       const NumTns<std::vector<Int> >&               basisIdx,
       MPI_Comm                                         comm,
       Int                                            numColKeep = -1 ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -1212,7 +1177,7 @@ template<typename F>
       const std::vector<Int>&                        mpirankElemVec,
       const std::vector<Int>&                        mpirankScaVec,
       Int                                            numColKeep = -1 ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -2990,7 +2955,7 @@ template<typename F>
       const scalapack::Descriptor&                         desc, 
       scalapack::ScaLAPACKMatrix<F>&                       scaMat,
       MPI_Comm                                               comm ){
-    using namespace dgdft::scalapack;
+    using namespace scales::scalapack;
 
     Int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -3154,6 +3119,6 @@ template<typename F>
     return;
   }  // -----  end of function DistElemMatToScaMat  ----- 
 
-} // namespace dgdft
+} // namespace scales
 
 #endif // _HAMILTONIAN_DG_CONVERSION_HPP_

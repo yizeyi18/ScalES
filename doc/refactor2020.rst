@@ -3,21 +3,21 @@ Plan for Refactor2020
 
 Last revision: 09/15/2020 
 
-This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  This has a different scope from the original plan 12/20/2019 (see below).
+This note serves as a todo list for the 3rd major refactoring of ``ScalES``.  This has a different scope from the original plan 12/20/2019 (see below).
 
 - [x] done
 - [p] in progress
 - [ ] planned but not started
 - [d] still under consideration but deferred to future developments
 
-Goal: Release DGDFT 1.0, and write a paper reporting the performance of
+Goal: Release ScalES 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 
 
 General thoughts
 ================
 
-- The key component of DGDFT is PWDFT, which has the potential of being
+- The key component of ScalES is PWDFT, which has the potential of being
   developed into a highly efficient, massively parallel code usable by a
   relatively wide audience. The features that make PWDFT standing out
   are that it has much better support of massively parallel and
@@ -61,7 +61,7 @@ General thoughts
   and can be used as a testbed for new programming models if needed
   (there may be also more benefit to be gained there)
 
-- [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
+- [p] A minimal sphinx based document for ScalES, supporting mainly the PWDFT
   module.  Do not document the parameter values yet in sphinx yet (they are
   not stable for now). Directly refer to esdf.hpp and esdf.cpp
 
@@ -114,6 +114,8 @@ Target: refactor2020 for PWDFT
 
 - [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
+- [x] Rename the project to Scalable Electronic Structure (ScalES,
+  pronounced as "scales"). Change namespace etc
 
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
@@ -151,8 +153,6 @@ Target: refactor2020 for PWDFT
 
 - [p] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
 
-- [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
-
 - [p] A consistent method to specify the input / to print the input
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
@@ -163,7 +163,7 @@ Target: refactor2020 for PWDFT
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
 
-- [ ] Remove the legacy support of the spin-orbit coupling
+- [p] Remove the legacy support of the spin-orbit coupling
   pseudopotential (not supported by UPF anyway)
 
 - [x] Add support for the HGH pseudopotential. This requires
@@ -182,11 +182,11 @@ Target: refactor2020 for PWDFT
        `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
        We may add an if statement on `D_{IJ} != 0` to skip certain I's
        to reduce cost. This may affect other parts of the code such as
-       DG. 
+       DG (discarded)
     
   Neither change is very simple, so we first need to decide whether we
   do need to support pseudopotentials where DIJ has off-diagonal
-  entries (like HGH). Currently option 1 seems easier.
+  entries (like HGH). Currently option 1 is implemented.
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization). Create a separate
@@ -203,7 +203,9 @@ Target: refactor2020 for PWDFT
 
 - [ ] Clean up the GPU part of the code to remove redundant copying.
   Also find a better way to remove the added argument `garbage` to
-  distinguish the GPU and non-GPU versions of the same function. (Weile)
+  distinguish the GPU and non-GPU versions of the same function. These
+  functions will be removed and combined into a single interface using
+  CPU/GPU (Weile)
 
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
@@ -233,48 +235,66 @@ Target: refactor2020 for PWDFT
   keep other EXXDF routines (David will first look at 2D distribution,
   and then pass to Weile)
 
-- [ ] Make a decision about the best way to proceed with row<->col
+- [x] Make a decision about the best way to proceed with row<->col
   transformation among the methods of 
   
     a. the new bdist.redistribute_col_to_row and
+
     b. the old AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+
     c. methods based on pdgemr2d (not available in GPU, but according to
     Wei may be faster on CPU).
 
     We need:
     
     1. Benchmark results about the performance of each option.
+
     2. Leave at most two options (preferably one) for such a task. 
+
     3. In case pdgemr2d is needed in the end, it needs to be
            encapsulated.
 
     a. [x] clean interface with bdist.redistribute_col_to_row (David). 
+
     b. [p] Get rid of AlltoallForward / AlltoallBackward (David)
            [x] in CPU code
            [ ] in GPU code
+
     c. [ ] test the performance of different implementations of bdist (Wei)
 
-- [ ] pcdiis: cleanup the row<->col transformation. (Wei)
+- [ ] Systematically test the cutoff values for commonly used
+  pseudopotentials and put them in the etable structure in
+  periodtable.cpp
 
-- [ ] Rename the project to Scalable Electronic Structure (ScalES,
-  pronounced as "scales"). Change namespace etc, legal part etc
+- [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
   that the overlap is not an issue (or better, implement the correction
   to the overlapping Gaussian charges in the self-interaction energy
   part c.f. Martin appendix). This may already be an issue, but would
-  DEFINITELY be needed when changing to non-orthorhombic cells (see
+  likely be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
 - [ ] The wavefun format, instead of (ir, icom, iband), maybe it is
   better to rearrange it to be (ir, iband, icom). By letting the last
   component of the tensor to be the component, we may use it for spin /
-  k-points laters.
+  k-points laters. (Wei)
 
+- [ ] Absorb localing partitioning of rows / columns into bdist (David)
+
+- [ ] ACE: VexxProj applied to only unlocked vectors? (Do it after
+  locking for eigensolver)
+
+- [ ] Simplify the legal part of each file, update author contribution
 
 Plans for further developments in PWDFT
 =======================================
+
+- [ ] Further cleaning up periodtable.cpp (absorbing etable as an
+  attribute to the PeriodTable class etc). This is not urgent.
+
+- [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
 - [d] OpenMP support? (most have been deleted so far)
 
@@ -416,3 +436,177 @@ Tests
 
 
 
+
+Citing ScalES (need to figure out a way how to do this)
+=======================================================
+
+For general usage of ScalES package for electronic structure calculation, 
+**please cite the following two papers.**::
+
+    @Article{JCP2012,
+      Title                    = {{Adaptive local basis set for Kohn-Sham density functional theory in a discontinuous Galerkin framework I: Total energy calculation}},
+      Author                   = {Lin, L. and Lu, J. and Ying, L. and E, W.},
+      Journal                  = {J. Comput. Phys.},
+      Year                     = {2012},
+      Pages                    = {2140--2154},
+      Volume                   = {231}
+    }
+    
+    @Article{JCP2015,
+      Title                    = {{DGDFT}: A massively parallel method for large scale density functional theory calculations},
+      Author                   = {W. Hu and L. Lin and C. Yang},
+      Journal                  = {J. Chem. Phys.},
+      Year                     = {2015},
+      Pages                    = {124110},
+      Volume                   = {143}
+    }
+
+For hybrid functional calculations using PWDFT, 
+**please also cite the following paper.**::
+
+    @Article{JCTC2016,
+      Title                    = {Adaptively Compressed Exchange Operator},
+      Author                   = {Lin, L.},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2016},
+      Pages                    = {2242},
+      Volume                   = {12}
+    }
+
+For large scale calculations using DGDFT and Chebyshev filtering, 
+**please also cite the following paper.**::
+
+    @Article{JCTC2018_DG,
+      Title                    = {Two-level {Chebyshev} filter based complementary subspace method for pushing the envelope of large-scale electronic structure calculations},
+      Author                   = {A. S. Banerjee and L. Lin and P. Suryanarayana and C. Yang and J. E. Pask},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2018},
+      Pages                    = {2930},
+      Volume                   = {14}
+    }
+
+For large scale RT-TDDFT calculations,
+**please also cite the following paper.**::
+
+    @Article{JCTC2018_TD,
+      Title                    = {Fast real-time time-dependent density functional theory calculations with the parallel transport gauge},
+      Author                   = {W. Jia and D. An and L.-W. Wang and L. Lin},
+      Journal                  = {J. Chem. Theory Comput.},
+      Year                     = {2018},
+      Pages                    = {5645},
+      Volume                   = {14}
+    }
+
+More references on ScalES
+=========================
+
+**Method developments:**
+
+    W. Jia, L.-W. Wang and L. Lin, Parallel transport time-dependent density
+    functional theory calculations with hybrid functional on Summit, SC '19
+    Proceedings of the International Conference for High Performance
+    Computing, Article No. 79
+
+    W. Jia and L. Lin, Fast real-time time-dependent hybrid functional
+    calculations with the parallel transport gauge and the adaptively
+    compressed exchange formulation, Comput. Phys. Commun. 240, 21, 2019
+
+    W. Hu, Y. Huang, X. Qin, L. Lin, E. Kan, X. Li, C. Yang, J. Yang,
+    Room-temperature magnetism and tunable energy gaps in
+    edge-passivated zigzag graphene quantum dots, npj 2D Mater. Appl. 3,
+    17, 2019
+
+    Y. Li and L. Lin, Globally constructed adaptive local basis set for
+    spectral projectors of second order differential operators, SIAM
+    Multiscale Model. Simul., 17, 92, 2019
+
+    A. S. Banerjee, L. Lin, P. Suryanarayana, C. Yang, J. E. Pask,
+    Two-level Chebyshev filter based complementary subspace method for
+    pushing the envelope of large-scale electronic structure
+    calculations, J. Chem. Theory Comput. 14, 2930, 2018
+
+    K. Dong, W. Hu and L. Lin, Interpolative separable density fitting
+    through centroidal Voronoi tessellation with applications to hybrid
+    functional electronic structure calculations, J. Chem. Theory
+    Comput. 14, 1311, 2018
+
+    A. Damle and L. Lin, Disentanglement via entanglement: A unified
+    method for Wannier localization, SIAM Multiscale Model. Simul., 16,
+    1392, 2018
+
+    W. Hu, L. Lin and C. Yang, Interpolative separable density fitting
+    decomposition for accelerating hybrid density functional
+    calculations with applications to defects in silicon, J. Chem.
+    Theory Comput. 13, 5420, 2017
+
+    W. Hu, L. Lin and C. Yang, Projected Commutator DIIS Method for
+    Accelerating Hybrid Functional Electronic Structure Calculations, J.
+    Chem. Theory Comput. 13, 5458, 2017
+
+    L. Lin and B. Stamm, A posteriori error estimates for discontinuous
+    Galerkin methods using non-polynomial basis functions. Part II:
+    Eigenvalue problems, Math. Model. Numer. Anal. 51, 1733, 2017
+
+    W. Hu, L. Lin, A. Banerjee, E. Vecharynski and C. Yang, Adaptively
+    compressed exchange operator for large scale hybrid density
+    functional calculations with applications to the adsorption of water
+    on silicene, J. Chem. Theory Comput. 13, 1188, 2017
+
+    G. Zhang, L. Lin, W. Hu, C. Yang and J.E. Pask, Adaptive local basis
+    set for Kohn-Sham density functional theory in a discontinuous
+    Galerkin framework II: Force, vibration, and molecular dynamics
+    calculations, J. Comput. Phys. 335, 426 2017
+
+    A. S. Banerjee, L. Lin, W. Hu, C. Yang, J. E. Pask, Chebyshev
+    polynomial filtered subspace iteration in the Discontinuous Galerkin
+    method for large-scale electronic structure calculations, J. Chem.
+    Phys. 145, 154101, 2016
+
+    L. Lin, Adaptively compressed exchange operator, J. Chem. Theory
+    Comput. 12, 2242, 2016
+
+
+    L. Lin and B. Stamm, A posteriori error estimates for discontinuous
+    Galerkin methods using non-polynomial basis functions. Part I:
+    Second order linear PDE, Math. Model. Numer. Anal. 50, 1193, 2016
+
+    A. Damle, L. Lin and L. Ying, Compressed representation of Kohn-Sham
+    orbitals via selected columns of the density matrix, J. Chem. Theory
+    Comput. 11, 1463, 2015
+
+    W. Hu, L. Lin and C. Yang, DGDFT: A massively parallel method for
+    large scale density functional theory calculations, J. Chem. Phys.
+    143, 124110, 2015
+
+    J. Kaye, L. Lin and C. Yang, A posteriori error estimator for
+    adaptive local basis functions to solve Kohn-Sham density functional
+    theory, Commun. Math. Sci. 13, 1741, 2015
+
+    L. Lin and L. Ying, Element orbitals for Kohn-Sham density
+    functional theory, Phys. Rev. B 85, 235144, 2012
+
+    L. Lin, J. Lu, L. Ying and W. E, Optimized local basis set for
+    Kohn-Sham density functional theory, J. Comput. Phys 231, 4515,
+    2012
+
+    L. Lin, J. Lu, L. Ying and W. E, Adaptive local basis set for
+    Kohn-Sham density functional theory in a discontinuous Galerkin
+    framework I: Total energy calculation, J. Comput. Phys. 231, 2140,
+    2012
+    
+**Applications:**
+
+    W. Hu, L. Lin, R. Zhang, C. Yang and J. Yang, Highly efficient
+    photocatalytic water splitting over edge-modified phosphorene
+    nanoribbons, J. Amer. Chem. Soc. 139, 15429, 2017
+
+    W. Hu, L. Lin, C. Yang, J. Dai and J. Yang, Edge-modified
+    phosphorene nanoflake heterojunctions as highly efficient solar
+    cells, Nano Lett. 16 1675, 2016
+
+    W. Hu, L. Lin and C. Yang, Edge reconstruction in armchair
+    phosphorene nanoribbons revealed by discontinuous Galerkin density
+    functional theory, Phys. Chem. Chem. Phys. 17, 31397, 2015
+
+    W. Hu, L. Lin, C. Yang and J. Yang, Electronic structure of
+    large-scale graphene nanoflakes, J. Chem. Phys. 141, 214704, 2014

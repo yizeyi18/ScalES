@@ -1,7 +1,14 @@
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: David Williams-Young
+
 #pragma once
 #include "block_distributor_decl.hpp"
 
-namespace dgdft {
+namespace scales {
 
 namespace detail {
 
@@ -103,4 +110,4 @@ void BlockDistributor<T>::redistribute_col_to_row( const NumMat<T>& col_data,
   else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
 }
 
-} // namespace dgdft
+} // namespace scales

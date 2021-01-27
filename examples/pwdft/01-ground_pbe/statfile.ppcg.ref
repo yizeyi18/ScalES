@@ -1,5 +1,5 @@
 The number of MPI processes is 6                 
-Input file = /autofs/nccs-svm1_home1/dbwy/devel/crd-dgdft/examples/pwdft/01-ground_pbe/pwdft_ppcg.in
+Input file = /autofs/nccs-svm1_home1/dbwy/devel/crd-scales/examples/pwdft/01-ground_pbe/pwdft_ppcg.in
 PBE functional is used. In LIBXC, this requires X and C to be set separately
 XC_GGA_X_PBE  XId = 101, XC_GGA_C_PBE  CId = 130
 
@@ -63,7 +63,7 @@ Type =  14   Position  = +2.5656249999999998e+00  +2.5656249999999998e+00  +2.56
 Type =  14   Position  = +2.5656249999999998e+00  +7.6968749999999995e+00  +7.6968749999999995e+00  
 Type =  14   Position  = +7.6968749999999995e+00  +7.6968749999999995e+00  +2.5656249999999998e+00  
 
- * Reading from standard UPF file located at /ccs/home/dbwy/devel/crd-dgdft/examples/pp_ONCV/Si_ONCV_PBE-1.2.upf
+ * Reading from standard UPF file located at /ccs/home/dbwy/devel/crd-scales/examples/pp_ONCV/Si_ONCV_PBE-1.2.upf
 Computing the local pseudopotential
 Time for local pseudopotential is 0.02022202599999989 [s]
 

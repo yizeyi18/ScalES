@@ -40,6 +40,6 @@ add_subdirectory( lbfgs )
 add_subdirectory( rqrcp )
 
 
-add_library( DGDFT::external INTERFACE IMPORTED GLOBAL )
+add_library( ScalES::external INTERFACE IMPORTED GLOBAL )
 
-target_link_libraries( DGDFT::external INTERFACE lbfgs rqrcp DGDFT::linalg )
+target_link_libraries( ScalES::external INTERFACE lbfgs rqrcp ScalES::linalg )
