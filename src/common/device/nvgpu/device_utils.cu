@@ -1,3 +1,10 @@
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: Weile Jia
+
 #ifndef  _CUDA_UTILS_CU_
 #define  _CUDA_UTILS_CU_
 #include "device_utils.h"
