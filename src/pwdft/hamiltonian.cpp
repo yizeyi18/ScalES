@@ -2201,9 +2201,12 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
   if( this->IsHybrid() && isEXXActive_ ){
 
+    statusOFS << "IS HYBRID" << std::endl;
     GetTime( timeSta );
 
     if( esdfParam.isHybridACE ){
+
+      statusOFS << "IS ACE" << std::endl;
 
       //      if(0)
       //      {
@@ -2312,6 +2315,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
     }
     else{
+      statusOFS << "IS NOT ACE" << std::endl;
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
           exxFraction_,  numSpin_, occupationRate_, Hpsi );
     }

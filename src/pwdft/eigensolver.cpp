@@ -610,6 +610,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute the residual  R = AX - X*(X'*AX)
 
+#if 0
     // R <- AX
     lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, 
                    Xtemp.Data(), heightLocal );
@@ -622,9 +623,43 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute the norm of the residual
     detail::row_dist_col_norm( heightLocal, width, Xtemp.Data(), heightLocal,
                                resNorm.Data(), mpi_comm );
+
     // XXX: ??
     for( Int k = 0; k < width; ++k )
       resNorm(k) /= std::max( 1.0, std::abs( XTX(k,k) ) );
+#else
+
+    
+    DblNumMat XTAXCpy( width, width, true, XTX.Data() );
+    DblNumVec RitzVal( width );
+    if( mpirank == 0 ) {
+      lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, 
+                     XTAXCpy.Data(), width, RitzVal.Data() );
+    }
+    MPI_Bcast( XTAXCpy.Data(), width*width, MPI_DOUBLE, 0, mpi_comm );
+    MPI_Bcast( RitzVal.Data(), width,       MPI_DOUBLE, 0, mpi_comm );
+
+    // R <- X * C
+    basis_update( width, width, 1.0, X.Data(), XTAXCpy.Data(), width, 0.0,
+                  Xtemp.Data() );
+
+    for( Int j = 0; j < width; ++j ) {
+      // R(:,j) = - R(:,j) * LAMBDA(j)
+      blas::scal( heightLocal, -RitzVal(j), Xtemp.VecData(j), 1 );
+    }
+
+    // R <- AX * C + R
+    basis_update( width, width, 1.0, AX.Data(), XTAXCpy.Data(), width, 1.0,
+                  Xtemp.Data() );
+
+    // Compute the norm of the residual
+    detail::row_dist_col_norm( heightLocal, width, Xtemp.Data(), heightLocal,
+                               resNorm.Data(), mpi_comm );
+
+    for( Int k = 0; k < width; ++k )
+      resNorm(k) /= std::max( 1.0, std::abs( RitzVal(k) ) );
+
+#endif
 
     resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
     resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
@@ -633,6 +668,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Determine which vectors to lock
     Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
                                [&](const auto x){ return x <= lockTolerance; } );
+    if( numSet == 2 ) nLock = 0; // disable locking on first iteration
     Int nActive = width - nLock;
 
     Int nActiveLocal   = (nActive / mpisize) + !!(mpirank < (nActive % mpisize));
@@ -678,8 +714,34 @@ EigenSolver::LOBPCGSolveReal    (
 
       ColPermute( true, heightLocal, width, Xtemp.Data(), heightLocal,
                   res_perm.data() );
+
+      // Permute P/AP
+      if( numSet == 3 ) {
+        ColPermute( true, heightLocal, width, P.Data(), heightLocal,
+                    res_perm.data() );
+        ColPermute( true, heightLocal, width, AP.Data(), heightLocal,
+                    res_perm.data() );
+      }
+
     }
 
+#if 0
+    // Project out X from R
+
+    // XTX <- X**H * R
+    profile_dist_inner( width, nActive, X.Data(), Xtemp.Data(), XTXtemp.Data() );
+
+    // R <- R - X * XTX
+    basis_update( width, nActive, -1.0, X.Data(), XTX.Data(), width, 1.0,
+                  Xtemp.Data() );
+
+    // XTX <- X**H * R
+    profile_dist_inner( width, nActive, X.Data(), Xtemp.Data(), XTXtemp.Data() );
+
+    // R <- R - X * XTX
+    basis_update( width, nActive, -1.0, X.Data(), XTX.Data(), width, 1.0,
+                  Xtemp.Data() );
+#endif
 
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
@@ -689,6 +751,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     // W <- T * R (Col format, active only) 
     profile_applyprec( nActive, nActiveLocal, Xcol, Wcol );
+    //profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
 
     // Normalize the preconditioned residual
     ColNormalize( Wcol );
@@ -707,7 +770,8 @@ EigenSolver::LOBPCGSolveReal    (
     /*** Compute AMat ***/
 
     // Compute AW = A*W (active only)
-    profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
+    //profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
+    profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
 
     // Convert W/AW from Col to Row formats
     profile_col_to_row( Wcol,  W  );
@@ -817,6 +881,16 @@ EigenSolver::LOBPCGSolveReal    (
     // Solve Rayleigh-Ritz problem
     // TODO: Handle ScaLAPACK path
     if( mpirank == 0 ) {
+#if 0
+      std::vector< double > B_cpy( numCol*numCol );
+      lapack::lacpy( lapack::MatrixType::General, numCol, numCol,
+                     B_XTX, lda, B_cpy.data(), numCol );
+      int64_t rank;
+      std::vector<int64_t> IPIV(numCol);
+      lapack::pstrf( lapack::Uplo::Upper, numCol, B_cpy.data(),
+                     numCol, IPIV.data(), &rank, -1. );
+      if( rank != numCol ) ErrorHandling("Rank Deficient Basis");
+#endif
       lapack::sygvd( 1, lapack::Job::Vec, lapack::Uplo::Upper, 
                      numCol, A_XTAX, lda, B_XTX, lda,
                      eigValS.Data() );
@@ -893,6 +967,7 @@ EigenSolver::LOBPCGSolveReal    (
     } // if ( numSet == 2 )
 
 
+    //profile_chol_qr( X, XTXtemp, mpi_comm ); // Orthogonalize X
 
 
 #if ( _DEBUGlevel_ >= 1 )
