@@ -117,9 +117,8 @@ Target: refactor2020 for PWDFT
 - [x] Rename the project to Scalable Electronic Structure (ScalES,
   pronounced as "scales"). Change namespace etc
 
-- [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
-  information in the periodic table. Remove the pointer from the `SCF`
-  class.
+- [x] Simplify the legal part of each file, update author contribution
+  (David)
 
 - [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
@@ -156,7 +155,6 @@ Target: refactor2020 for PWDFT
 - [p] A consistent method to specify the input / to print the input
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
-
 
 
 - [p] Atom positions should not be remapped back to [-0.5 a, a), where a
@@ -286,7 +284,10 @@ Target: refactor2020 for PWDFT
 - [ ] ACE: VexxProj applied to only unlocked vectors? (Do it after
   locking for eigensolver)
 
-- [ ] Simplify the legal part of each file, update author contribution
+- [ ] Make all string values of keywords to be lower case, also check
+  the input options consistently in ESDFReadInput using the new format
+  of if( not InArray(esdfParam.program, program_list) ) etc. (Weile?)
+
 
 Plans for further developments in PWDFT
 =======================================
@@ -300,8 +301,6 @@ Plans for further developments in PWDFT
 
 - [d] Add some technical aspects of GPU support to `doc/developer.tex` 
 
-- [d] Either make all string values of keywords to be lower case, or
-  make string comparison case insensitive
 
 - [d] HDF5 output of orbitals etc.
 
