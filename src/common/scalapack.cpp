@@ -671,6 +671,8 @@ Potrf( char uplo, ScaLAPACKMatrix<double>& A )
 {
   Int info;
 
+  statusOFS << "IN SCALAPACK POTRF" << std::endl;
+
   Int N = A.Height();
 
   SCALAPACK(pdpotrf)(&uplo, &N, A.Data(), &I_ONE,
@@ -760,6 +762,8 @@ void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau)
 
 void QRCPR( Int m, Int n, Int k, double* A, Int* desca, Int* piv, double* tau, Int nb_dist, Int nb_alg ) 
 {
+
+  statusOFS << "IN QRCPR" << std::endl;
 
   int nprow, npcol, myrow, mycol;
   int ictxt = desca[1]; // context
