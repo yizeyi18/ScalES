@@ -18,6 +18,8 @@
 #include  "mpi_interf.hpp"
 
 #include "block_distributor_decl.hpp"
+#include <blacspp/grid.hpp>
+#include <scalapackpp/block_cyclic.hpp>
 
 namespace scales{
 
@@ -1157,6 +1159,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       }//
 
       if(1){ // ScaLAPACL QRCP
+#if 1
         Int contxt;
         Int nprow, npcol, myrow, mycol, info;
         Cblacs_get(0, 0, &contxt);
@@ -1178,6 +1181,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         // This must be fixed.
         SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
             &icsrc, &contxt, &mb_MG, &info);
+#else
+
+        Int mb_MG = numStateTotal*numPre;
+        Int nb_MG = ntotLocalMG;
+
+        blacspp::Grid grid( domain_.comm, 1, mpisize, blacspp::GridOrder::ColMajor );
+        scalapackpp::BlockCyclicDist2D 
+          mat_dist( grid, mb_MG, nb_MG, 0, 0 );
+        auto desc_MG = mat_dist.descinit_noerror( mb_MG, ntotMG, mb_MG );
+
+#endif
 
         IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
         if( mb_MG > ntot ){
@@ -1217,9 +1231,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
             ntotMG, MPI_INT, MPI_SUM, domain_.comm );
 
+#if 1
         if(contxt >= 0) {
           Cblacs_gridexit( contxt );
         }
+#endif
       } //
 
       GetTime( timeQRCPEnd );

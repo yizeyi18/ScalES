@@ -7,17 +7,20 @@
 #   Authors: David Williams-Young
 #
 
-# BLAS / LAPACK
+include( FetchContent )
+
+# ScaLAPACK / BLAS / LAPACK
 find_package( ScaLAPACK REQUIRED )
 
-add_library( ScalES::linalg INTERFACE IMPORTED )
-#target_link_libraries( ScalES::linalg INTERFACE ScaLAPACK::ScaLAPACK )
-#if( BLAS_FORTRAN_UNDERSCORE )
-#  target_compile_definitions( ScalES::linalg INTERFACE "-D Add_" )
-#endif()
+
+# ScaLAPACK++ / BLACS++
+FetchContent_Declare( scalapackpp
+  GIT_REPOSITORY https://github.com/wavefunction91/scalapackpp.git
+  GIT_TAG        feature/gels-tradd-hemm
+)
+FetchContent_MakeAvailable( scalapackpp )
 
 # BLAS++/LAPACK++
-include( FetchContent )
 FetchContent_Declare( blaspp
   GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git 
 )
@@ -25,8 +28,13 @@ FetchContent_Declare( lapackpp
   GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git 
 )
 
+
+set( use_openmp ${ScaES_ENABLE_OPENMP} CACHE BOOL "BLAS++/LAPACK++ OpenMP Bindings" )
 FetchContent_MakeAvailable( blaspp )
 FetchContent_MakeAvailable( lapackpp )
 target_compile_definitions( lapackpp PUBLIC LAPACK_COMPLEX_CPP )
 
-target_link_libraries( ScalES::linalg INTERFACE lapackpp ScaLAPACK::ScaLAPACK ) 
+
+
+add_library( ScalES::linalg INTERFACE IMPORTED )
+target_link_libraries( ScalES::linalg INTERFACE scalapackpp::scalapackpp lapackpp ) 
