@@ -25,12 +25,23 @@
 #include "linalg_extensions.hpp"
 
 #include <numeric>
+#include <scalapackpp/wrappers/gemr2d.hpp>
+#include <scalapackpp/block_cyclic.hpp>
+#include <scalapackpp/factorizations/potrf.hpp>
+#include <scalapackpp/eigenvalue_problem/sevp.hpp>
+#include <scalapackpp/eigenvalue_problem/gevp.hpp>
 
 using namespace scales::scalapack;
 using namespace scales::esdf;
 
 
 namespace scales{
+
+inline auto to_scalapackpp_desc( const Descriptor& desc ) {
+  scalapackpp::scalapack_desc _desc;
+  std::copy_n( desc.Values(), _desc.size(), _desc.begin() );
+  return _desc;
+}
 
 namespace detail {
 
@@ -134,17 +145,21 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
 
 
 EigenSolver::EigenSolver() {
+#if 0
   // IMPORTANT: 
   // Set contxt_ here. Otherwise if an empty Eigensolver realization
   // is used, there could be error in the exit
   contxt_ = -1;
+#endif
 }
 
 EigenSolver::~EigenSolver() {
+#if 0
   // Finish Cblacs
   if(contxt_ >= 0) {
     Cblacs_gridexit( contxt_ );
   }
+#endif
 }
 
 void EigenSolver::Setup(
@@ -167,6 +182,8 @@ void EigenSolver::Setup(
   // Setup BLACS
   if( esdfParam.PWSolver == "LOBPCGScaLAPACK" || esdfParam.PWSolver == "PPCGScaLAPACK" || 
       (esdfParam.PWSolver == "CheFSI" && PWDFT_Cheby_use_scala_) ){
+
+#if 0
     for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
         i <= numProcScaLAPACK_; i++){
       nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
@@ -182,6 +199,25 @@ void EigenSolver::Setup(
     Cblacs_get(0, 0, &contxt_);
 
     Cblacs_gridmap(&contxt_, &pmap[0], nprow_, nprow_, npcol_);
+#else
+
+    Int nprow, npcol;
+    for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
+        i <= numProcScaLAPACK_; i++){
+      nprow = i; npcol = numProcScaLAPACK_ / nprow;
+      if( nprow * npcol == numProcScaLAPACK_ ) break;
+    }
+
+    std::vector<int64_t> pmap( numProcScaLAPACK_ );
+    // Take the first numProcScaLAPACK processors for diagonalization
+    for ( Int i = 0; i < numProcScaLAPACK_; i++ ){
+      pmap[i] = i;
+    }
+
+    blacs_grid_ = std::unique_ptr<blacspp::Grid>(
+      new blacspp::Grid( MPI_COMM_WORLD, nprow, npcol, pmap.data(), nprow )
+    );
+#endif
   }
 
   return;
@@ -575,7 +611,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute the residual  R = AX - X*(X'*AX)
 
-#if 0
+#if 1
     // R <- AX
     lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, 
                    Xtemp.Data(), heightLocal );
@@ -845,22 +881,54 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Solve Rayleigh-Ritz problem
     // TODO: Handle ScaLAPACK path
-    if( mpirank == 0 ) {
-#if 0
-      std::vector< double > B_cpy( numCol*numCol );
-      lapack::lacpy( lapack::MatrixType::General, numCol, numCol,
-                     B_XTX, lda, B_cpy.data(), numCol );
-      int64_t rank;
-      std::vector<int64_t> IPIV(numCol);
-      lapack::pstrf( lapack::Uplo::Upper, numCol, B_cpy.data(),
-                     numCol, IPIV.data(), &rank, -1. );
-      if( rank != numCol ) ErrorHandling("Rank Deficient Basis");
-#endif
-      lapack::sygvd( 1, lapack::Job::Vec, lapack::Uplo::Upper, 
-                     numCol, A_XTAX, lda, B_XTX, lda,
-                     eigValS.Data() );
+    if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ) {
+
+      scalapackpp::BlockCyclicDist2D 
+        mat_dist( *blacs_grid_, scaBlockSize_, scaBlockSize_, 0, 0 );
+
+      int64_t _m_loc, _n_loc;
+      std::tie( _m_loc, _n_loc ) = mat_dist.get_local_dims( numCol, numCol );
+      DblNumMat A_sca( _m_loc, _n_loc ), B_sca( _m_loc, _n_loc ),
+                RR_evec_sca( _m_loc, _n_loc );
+
+      // Scatter A/B
+      mat_dist.scatter( numCol, numCol, A_XTAX, lda, A_sca.Data(), _m_loc, 0, 0 );
+      mat_dist.scatter( numCol, numCol, B_XTX,  lda, B_sca.Data(), _m_loc, 0, 0 );
+     
+      auto desc = mat_dist.descinit_noerror( numCol, numCol, _m_loc );
+      auto info = scalapackpp::hereigd_gen( scalapackpp::VectorFlag::Vectors,
+        blacspp::Triangle::Upper, numCol, 
+        A_sca.Data(), 1, 1, desc, B_sca.Data(), 1, 1, desc, 
+        eigValS.Data(), RR_evec_sca.Data(), 1, 1, desc 
+      );
+
+      if( info ) {
+        std::stringstream msg;
+        msg << "ScaLAPACK PXSYEV FAILED WITH INFO = " << info << std::endl;
+        ErrorHandling( msg.str().c_str() );
+      }
+
+      // Gather EV into A
+      mat_dist.gather( numCol, numCol, A_XTAX, lda, RR_evec_sca.Data(), _m_loc, 0, 0 );
+
+    } else {
+
+      if( mpirank == 0 ) {
+        auto info = lapack::sygvd( 1, lapack::Job::Vec, lapack::Uplo::Upper, 
+                                   numCol, A_XTAX, lda, B_XTX, lda,
+                                   eigValS.Data() );
+      
+        if( info ) {
+          std::stringstream msg;
+          msg << "LAPCK XSYGDV FAILED WITH INFO = " << info << std::endl;
+          ErrorHandling( msg.str().c_str() );
+        }
+
+      }
+
     }
 
+    statusOFS << "EigValS " << eigValS << std::endl;
 
     // All processors synchronize the information
     MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
@@ -1642,7 +1710,7 @@ EigenSolver::FirstChebyStep    (
 
     if(PWDFT_Cheby_use_scala_ == 1)
     {
-      if( contxt_ >= 0 )
+      if( blacs_grid_->context() >= 0 )
       {
         Int numKeep = width; 
         Int lda = width;
@@ -1654,27 +1722,52 @@ EigenSolver::FirstChebyStep    (
         GetTime( timeCholScala_sta );
 
         // Leading dimension provided
-        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, blacs_grid_->context(), lda );
 
         // Automatically comptued Leading Dimension
-        descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+        descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, blacs_grid_->context() );
 
         square_mat_scala.SetDescriptor( descReducePar );
 
         // Redistribute the matrix over the process grid
+        #if 0
         SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
             &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+        #else
+        auto desc_reduce_seq  = to_scalapackpp_desc( descReduceSeq );
+        auto desc_sqmat_scala = to_scalapackpp_desc( square_mat_scala.Desc() );
+
+        scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+          square_mat.Data(),       1, 1, desc_reduce_seq,
+          square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+          blacs_grid_->context()
+        );
+        #endif
 
         // Make the ScaLAPACK call
+        #if 0
         Int info;
         char uplo = 'U';
         SCALAPACK(pdpotrf)(&uplo, &numKeep, square_mat_scala.Data(), &I_ONE,
             &I_ONE, square_mat_scala.Desc().Values(), &info);
+        #else
+        Int info = scalapackpp::ppotrf( blacspp::Triangle::Upper, numKeep,
+                     square_mat_scala.Data(), 1, 1, desc_sqmat_scala
+                   );
+        #endif
 
         // Redistribute back
         SetValue(square_mat , 0.0 );
+#if 0
         SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
             square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+#else
+        scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+          square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+          square_mat.Data(),       1, 1, desc_reduce_seq,
+          blacs_grid_->context()
+        );
+#endif
 
         GetTime( timeCholScala_end );
 
@@ -1808,7 +1901,7 @@ EigenSolver::FirstChebyStep    (
 
     if(PWDFT_Cheby_use_scala_ == 1)
     {
-      if( contxt_ >= 0 )
+      if( blacs_grid_->context() >= 0 )
       {
         Int numKeep = width; 
         Int lda = width;
@@ -1820,33 +1913,61 @@ EigenSolver::FirstChebyStep    (
         Real timeEigScala_sta, timeEigScala_end;
 
         // Leading dimension provided
-        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, blacs_grid_->context(), lda );
 
         // Automatically comptued Leading Dimension
-        descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+        descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, blacs_grid_->context() );
 
         square_mat_scala.SetDescriptor( descReducePar );
         eigvecs_scala.SetDescriptor( descReducePar );
 
 
         // Redistribute the input matrix over the process grid
+        #if 0
         SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
             &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+        #else
+        auto desc_reduce_seq  = to_scalapackpp_desc( descReduceSeq );
+        auto desc_sqmat_scala = to_scalapackpp_desc( square_mat_scala.Desc() );
+
+        scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+          square_mat.Data(),       1, 1, desc_reduce_seq,
+          square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+          blacs_grid_->context()
+        );
+        #endif
 
 
         // Make the ScaLAPACK call
-        char uplo = 'U';
         std::vector<Real> temp_eigs(lda);
-
+        #if 0
+        char uplo = 'U';
         scalapack::Syevd(uplo, square_mat_scala, temp_eigs, eigvecs_scala );
+        #else
+        auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
+        scalapackpp::hereigd( 
+          scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+          square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
+          temp_eigs.data(),
+          eigvecs_scala.Data(), 1, 1, desc_evecs_scala
+        );
+        #endif
 
         for(Int copy_iter = 0; copy_iter < lda; copy_iter ++)
           eig_vals_Raleigh_Ritz[copy_iter] = temp_eigs[copy_iter];
 
         // Redistribute back eigenvectors
         SetValue(square_mat , 0.0 );
+        #if 0
         SCALAPACK(pdgemr2d)( &numKeep, &numKeep, eigvecs_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
             square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+        #else
+        scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+          eigvecs_scala.Data(), 1, 1, desc_evecs_scala,
+          square_mat.Data(),    1, 1, desc_reduce_seq,
+          blacs_grid_->context()
+        );
+        #endif
 
         GetTime( timeEigScala_end );
 
@@ -2342,7 +2463,7 @@ EigenSolver::GeneralChebyStep    (
 
   if(PWDFT_Cheby_use_scala_ == 1)
   {
-    if( contxt_ >= 0 )
+    if( blacs_grid_->context() >= 0 )
     {
       Int numKeep = width; 
       Int lda = width;
@@ -2354,27 +2475,52 @@ EigenSolver::GeneralChebyStep    (
       GetTime( timeCholScala_sta );
 
       // Leading dimension provided
-      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, blacs_grid_->context(), lda );
 
       // Automatically comptued Leading Dimension
-      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, blacs_grid_->context() );
 
       square_mat_scala.SetDescriptor( descReducePar );
 
       // Redistribute the matrix over the process grid
+      #if 0
       SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
           &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+      #else
+      auto desc_reduce_seq  = to_scalapackpp_desc( descReduceSeq );
+      auto desc_sqmat_scala = to_scalapackpp_desc( square_mat_scala.Desc() );
+
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        square_mat.Data(),       1, 1, desc_reduce_seq,
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+        blacs_grid_->context()
+      );
+      #endif
 
       // Make the ScaLAPACK call
+      #if 0
       Int info;
       char uplo = 'U';
       SCALAPACK(pdpotrf)(&uplo, &numKeep, square_mat_scala.Data(), &I_ONE,
           &I_ONE, square_mat_scala.Desc().Values(), &info);
+      #else
+      Int info = scalapackpp::ppotrf( blacspp::Triangle::Upper, numKeep,
+                   square_mat_scala.Data(), 1, 1, desc_sqmat_scala
+                 );
+      #endif
 
       // Redistribute back
       SetValue(square_mat , 0.0 );
+      #if 0
       SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
           square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+      #else
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+        square_mat.Data(),       1, 1, desc_reduce_seq,
+        blacs_grid_->context()
+      );
+      #endif
 
       GetTime( timeCholScala_end );
 
@@ -2508,7 +2654,7 @@ EigenSolver::GeneralChebyStep    (
 
   if(PWDFT_Cheby_use_scala_ == 1)
   {
-    if( contxt_ >= 0 )
+    if( blacs_grid_->context() >= 0 )
     {
       Int numKeep = width; 
       Int lda = width;
@@ -2520,33 +2666,62 @@ EigenSolver::GeneralChebyStep    (
       Real timeEigScala_sta, timeEigScala_end;
 
       // Leading dimension provided
-      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, blacs_grid_->context(), lda );
 
       // Automatically comptued Leading Dimension
-      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, blacs_grid_->context() );
 
       square_mat_scala.SetDescriptor( descReducePar );
       eigvecs_scala.SetDescriptor( descReducePar );
 
 
       // Redistribute the input matrix over the process grid
+      #if 0
       SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
           &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+      #else
+      auto desc_reduce_seq  = to_scalapackpp_desc( descReduceSeq );
+      auto desc_sqmat_scala = to_scalapackpp_desc( square_mat_scala.Desc() );
+
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        square_mat.Data(),       1, 1, desc_reduce_seq,
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+        blacs_grid_->context()
+      );
+      #endif
 
 
       // Make the ScaLAPACK call
-      char uplo = 'U';
       std::vector<Real> temp_eigs(lda);
 
+      #if 0
+      char uplo = 'U';
       scalapack::Syevd(uplo, square_mat_scala, temp_eigs, eigvecs_scala );
+      #else
+      auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
+      scalapackpp::hereigd( 
+        scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
+        temp_eigs.data(),
+        eigvecs_scala.Data(), 1, 1, desc_evecs_scala
+      );
+      #endif
 
       for(Int copy_iter = 0; copy_iter < lda; copy_iter ++)
         eig_vals_Raleigh_Ritz[copy_iter] = temp_eigs[copy_iter];
 
       // Redistribute back eigenvectors
       SetValue(square_mat , 0.0 );
+      #if 0 
       SCALAPACK(pdgemr2d)( &numKeep, &numKeep, eigvecs_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
           square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+      #else
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        eigvecs_scala.Data(), 1, 1, desc_evecs_scala,
+        square_mat.Data(),    1, 1, desc_reduce_seq,
+        blacs_grid_->context()
+      );
+      #endif
 
       GetTime( timeEigScala_end );
 
@@ -3617,7 +3792,7 @@ EigenSolver::PPCGSolveReal    (
 
   if(esdfParam.PWSolver == "PPCGScaLAPACK")
   { 
-    if( contxt_ >= 0 )
+    if( blacs_grid_->context() >= 0 )
     {
       Int numKeep = width; 
       Int lda = width;
@@ -3629,10 +3804,10 @@ EigenSolver::PPCGSolveReal    (
       Real timeEigScala_sta, timeEigScala_end;
 
       // Leading dimension provided
-      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+      descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, blacs_grid_->context(), lda );
 
       // Automatically comptued Leading Dimension
-      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+      descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, blacs_grid_->context() );
 
       square_mat_scala.SetDescriptor( descReducePar );
       eigvecs_scala.SetDescriptor( descReducePar );
@@ -3640,16 +3815,35 @@ EigenSolver::PPCGSolveReal    (
 
       DblNumMat&  square_mat = XTX;
       // Redistribute the input matrix over the process grid
+      #if 0
       SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
           &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+      #else
+      auto desc_reduce_seq  = to_scalapackpp_desc( descReduceSeq );
+      auto desc_sqmat_scala = to_scalapackpp_desc( square_mat_scala.Desc() );
+
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        square_mat.Data(),       1, 1, desc_reduce_seq,
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala,
+        blacs_grid_->context()
+      );
+      #endif
 
 
       // Make the ScaLAPACK call
-      char uplo = 'U';
       std::vector<Real> temp_eigs(lda);
-
+      #if 0
+      char uplo = 'U';
       scalapack::Syevd(uplo, square_mat_scala, temp_eigs, eigvecs_scala );
-
+      #else
+      auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
+      scalapackpp::hereigd( 
+        scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+        square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
+        temp_eigs.data(),
+        eigvecs_scala.Data(), 1, 1, desc_evecs_scala
+      );
+      #endif
       // Copy the eigenvalues
       for(Int copy_iter = 0; copy_iter < lda; copy_iter ++){
         eigValS[copy_iter] = temp_eigs[copy_iter];
@@ -3657,8 +3851,16 @@ EigenSolver::PPCGSolveReal    (
 
       // Redistribute back eigenvectors
       SetValue(square_mat, 0.0 );
+      #if 0
       SCALAPACK(pdgemr2d)( &numKeep, &numKeep, eigvecs_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
           square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+      #else
+      scalapackpp::wrappers::pgemr2d( numKeep, numKeep, 
+        eigvecs_scala.Data(), 1, 1, desc_evecs_scala,
+        square_mat.Data(),    1, 1, desc_reduce_seq,
+        blacs_grid_->context()
+      );
+      #endif
     }
   }
   else //esdfParam.PWSolver == "PPCG"

@@ -19,6 +19,8 @@
 #include  "spinor.hpp"
 #include  "esdf.hpp"
 
+#include <blacspp/grid.hpp>
+
 namespace scales{
 
 class EigenSolver
@@ -43,8 +45,9 @@ private:
   // ScaLAPACK parameters
   Int           scaBlockSize_;
   Int           numProcScaLAPACK_;
-  Int           contxt_;
-  Int           nprow_, npcol_;
+  //Int           contxt_;
+  //Int           nprow_, npcol_;
+  std::unique_ptr<blacspp::Grid> blacs_grid_ = nullptr;
 
 
 

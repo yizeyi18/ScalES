@@ -16,7 +16,7 @@ find_package( ScaLAPACK REQUIRED )
 # ScaLAPACK++ / BLACS++
 FetchContent_Declare( scalapackpp
   GIT_REPOSITORY https://github.com/wavefunction91/scalapackpp.git
-  GIT_TAG        feature/gels-tradd-hemm
+  GIT_TAG        feature/ilp64
 )
 FetchContent_MakeAvailable( scalapackpp )
 
