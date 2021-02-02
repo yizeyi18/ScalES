@@ -16,7 +16,7 @@ find_package( ScaLAPACK REQUIRED )
 # ScaLAPACK++ / BLACS++
 FetchContent_Declare( scalapackpp
   GIT_REPOSITORY https://github.com/wavefunction91/scalapackpp.git
-  GIT_TAG        feature/ilp64
+  GIT_TAG        feature/matrix-type
 )
 FetchContent_MakeAvailable( scalapackpp )
 

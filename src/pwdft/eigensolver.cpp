@@ -883,33 +883,30 @@ EigenSolver::LOBPCGSolveReal    (
     // TODO: Handle ScaLAPACK path
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ) {
 
-      scalapackpp::BlockCyclicDist2D 
-        mat_dist( *blacs_grid_, scaBlockSize_, scaBlockSize_, 0, 0 );
-
-      int64_t _m_loc, _n_loc;
-      std::tie( _m_loc, _n_loc ) = mat_dist.get_local_dims( numCol, numCol );
-      DblNumMat A_sca( _m_loc, _n_loc ), B_sca( _m_loc, _n_loc ),
-                RR_evec_sca( _m_loc, _n_loc );
+      // Allocate ScaLAPACK Matrices
+      scalapackpp::BlockCyclicMatrix<Real> 
+        A_sca( *blacs_grid_, numCol, numCol, scaBlockSize_, scaBlockSize_ ), 
+        B_sca( *blacs_grid_, numCol, numCol, scaBlockSize_, scaBlockSize_ ), 
+        RC_sca( *blacs_grid_, numCol, numCol, scaBlockSize_, scaBlockSize_ ); 
 
       // Scatter A/B
-      mat_dist.scatter( numCol, numCol, A_XTAX, lda, A_sca.Data(), _m_loc, 0, 0 );
-      mat_dist.scatter( numCol, numCol, B_XTX,  lda, B_sca.Data(), _m_loc, 0, 0 );
-     
-      auto desc = mat_dist.descinit_noerror( numCol, numCol, _m_loc );
-      auto info = scalapackpp::hereigd_gen( scalapackpp::VectorFlag::Vectors,
-        blacspp::Triangle::Upper, numCol, 
-        A_sca.Data(), 1, 1, desc, B_sca.Data(), 1, 1, desc, 
-        eigValS.Data(), RR_evec_sca.Data(), 1, 1, desc 
+      A_sca.scatter_to( numCol, numCol, A_XTAX, lda, 0, 0 );
+      B_sca.scatter_to( numCol, numCol, B_XTX,  lda, 0, 0 );
+
+      // Solve EVP
+      auto info = scalapackpp::hereigd_gen( scalapackpp::Job::Vec,
+        scalapackpp::Uplo::Upper, A_sca, B_sca, eigValS.Data(), RC_sca
       );
 
+      // Handle Errors
       if( info ) {
         std::stringstream msg;
         msg << "ScaLAPACK PXSYEV FAILED WITH INFO = " << info << std::endl;
         ErrorHandling( msg.str().c_str() );
       }
 
-      // Gather EV into A
-      mat_dist.gather( numCol, numCol, A_XTAX, lda, RR_evec_sca.Data(), _m_loc, 0, 0 );
+      // Gather Ritz Coefficients to A
+      RC_sca.gather_from( numCol, numCol, A_XTAX, lda, 0, 0 );
 
     } else {
 
@@ -1751,7 +1748,7 @@ EigenSolver::FirstChebyStep    (
         SCALAPACK(pdpotrf)(&uplo, &numKeep, square_mat_scala.Data(), &I_ONE,
             &I_ONE, square_mat_scala.Desc().Values(), &info);
         #else
-        Int info = scalapackpp::ppotrf( blacspp::Triangle::Upper, numKeep,
+        Int info = scalapackpp::ppotrf( scalapackpp::Uplo::Upper, numKeep,
                      square_mat_scala.Data(), 1, 1, desc_sqmat_scala
                    );
         #endif
@@ -1946,7 +1943,7 @@ EigenSolver::FirstChebyStep    (
         #else
         auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
         scalapackpp::hereigd( 
-          scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+          scalapackpp::Job::Vec, scalapackpp::Uplo::Upper, numKeep,
           square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
           temp_eigs.data(),
           eigvecs_scala.Data(), 1, 1, desc_evecs_scala
@@ -2504,7 +2501,7 @@ EigenSolver::GeneralChebyStep    (
       SCALAPACK(pdpotrf)(&uplo, &numKeep, square_mat_scala.Data(), &I_ONE,
           &I_ONE, square_mat_scala.Desc().Values(), &info);
       #else
-      Int info = scalapackpp::ppotrf( blacspp::Triangle::Upper, numKeep,
+      Int info = scalapackpp::ppotrf( scalapackpp::Uplo::Upper, numKeep,
                    square_mat_scala.Data(), 1, 1, desc_sqmat_scala
                  );
       #endif
@@ -2700,7 +2697,7 @@ EigenSolver::GeneralChebyStep    (
       #else
       auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
       scalapackpp::hereigd( 
-        scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+        scalapackpp::Job::Vec, scalapackpp::Uplo::Upper, numKeep,
         square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
         temp_eigs.data(),
         eigvecs_scala.Data(), 1, 1, desc_evecs_scala
@@ -3838,7 +3835,7 @@ EigenSolver::PPCGSolveReal    (
       #else
       auto desc_evecs_scala = to_scalapackpp_desc( eigvecs_scala.Desc() );
       scalapackpp::hereigd( 
-        scalapackpp::VectorFlag::Vectors, blacspp::Triangle::Upper, numKeep,
+        scalapackpp::Job::Vec, scalapackpp::Uplo::Upper, numKeep,
         square_mat_scala.Data(), 1, 1, desc_sqmat_scala, 
         temp_eigs.data(),
         eigvecs_scala.Data(), 1, 1, desc_evecs_scala
