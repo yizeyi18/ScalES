@@ -318,18 +318,10 @@ EigenSolver::LOBPCGSolveReal    (
     ErrorHandling( msg.str().c_str() );
   }
 
-
-  // The following codes are not replaced by AlltoallForward /
-  // AlltoallBackward since they are repetitively used in the
-  // eigensolver.
-  //
-  //statusOFS << "DBWY IN LOBPCG" << std::endl;
-
   // Set up distributor
-  //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
-    make_block_distributor<double>( BlockDistAlg::HostOptPack, mpi_comm,
-                                    height, width );
+    make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
+                                  height, width );
 
   // Setup profiling wrappers
   auto profile_col_to_row = [&]( const DblNumMat& col_data, DblNumMat& row_data ) {
@@ -457,9 +449,6 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Get current format for output
     auto cur_print_prec = statusOFS.precision();
-    //std::ios_base::fmtflags ff = statusOFS.flags();
-    //auto out_is_sci     = 
-    //  (ff & std::ios_base::floatfield) == std::ios_base::scientific;
 
     // Print iteration information
     statusOFS << std::setprecision(10);
@@ -474,7 +463,6 @@ EigenSolver::LOBPCGSolveReal    (
     
     // Reset output format
     statusOFS << std::setprecision(cur_print_prec);
-    //if( not out_is_sci ) statusOFS << std::fixed; 
       
   };
 
@@ -566,8 +554,6 @@ EigenSolver::LOBPCGSolveReal    (
 
 
 
-  // Start the main loop
-  Int iter = 0;
   Real lockTolerance = std::min(1e-5,eigTolerance);
 
   bool enableLocking = true;
@@ -582,6 +568,8 @@ EigenSolver::LOBPCGSolveReal    (
   print_iter_fields( "Iter", "ResMax", "ResMin", "NLock", "NActive" );
   print_iter_fields( "====", "======", "======", "=====", "=======" );
 
+  // Start the main loop
+  Int iter = 0;
   do {
     iter++;
 
@@ -610,14 +598,13 @@ EigenSolver::LOBPCGSolveReal    (
     lapack::lacpy( lapack::MatrixType::General, width, width, XTX.Data(), width, A_XTAX, lda );
 
     // Compute the residual  R = AX - X*(X'*AX)
+    // XXX This assumes that A is diagonal in X to be correct
 
-#if 1
     // R <- AX
     lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, 
                    Xtemp.Data(), heightLocal );
 
     // R <- R - X * (X'*AX)
-    // XXX: Is this correct?!
     basis_update( width, width, -1.0, X.Data(), XTX.Data(), width, 1.0, 
                   Xtemp.Data() );
 
@@ -625,42 +612,9 @@ EigenSolver::LOBPCGSolveReal    (
     detail::row_dist_col_norm( heightLocal, width, Xtemp.Data(), heightLocal,
                                resNorm.Data(), mpi_comm );
 
-    // XXX: ??
+    // Relative Residual
     for( Int k = 0; k < width; ++k )
       resNorm(k) /= std::max( 1.0, std::abs( XTX(k,k) ) );
-#else
-
-    
-    DblNumMat XTAXCpy( width, width, true, XTX.Data() );
-    DblNumVec RitzVal( width );
-    if( mpirank == 0 ) {
-      lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, 
-                     XTAXCpy.Data(), width, RitzVal.Data() );
-    }
-    MPI_Bcast( XTAXCpy.Data(), width*width, MPI_DOUBLE, 0, mpi_comm );
-    MPI_Bcast( RitzVal.Data(), width,       MPI_DOUBLE, 0, mpi_comm );
-
-    // R <- X * C
-    basis_update( width, width, 1.0, X.Data(), XTAXCpy.Data(), width, 0.0,
-                  Xtemp.Data() );
-
-    for( Int j = 0; j < width; ++j ) {
-      // R(:,j) = - R(:,j) * LAMBDA(j)
-      blas::scal( heightLocal, -RitzVal(j), Xtemp.VecData(j), 1 );
-    }
-
-    // R <- AX * C + R
-    basis_update( width, width, 1.0, AX.Data(), XTAXCpy.Data(), width, 1.0,
-                  Xtemp.Data() );
-
-    // Compute the norm of the residual
-    detail::row_dist_col_norm( heightLocal, width, Xtemp.Data(), heightLocal,
-                               resNorm.Data(), mpi_comm );
-
-    for( Int k = 0; k < width; ++k )
-      resNorm(k) /= std::max( 1.0, std::abs( RitzVal(k) ) );
-
-#endif
 
     resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
     resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
@@ -726,24 +680,6 @@ EigenSolver::LOBPCGSolveReal    (
 
     }
 
-#if 0
-    // Project out X from R
-
-    // XTX <- X**H * R
-    profile_dist_inner( width, nActive, X.Data(), Xtemp.Data(), XTXtemp.Data() );
-
-    // R <- R - X * XTX
-    basis_update( width, nActive, -1.0, X.Data(), XTX.Data(), width, 1.0,
-                  Xtemp.Data() );
-
-    // XTX <- X**H * R
-    profile_dist_inner( width, nActive, X.Data(), Xtemp.Data(), XTXtemp.Data() );
-
-    // R <- R - X * XTX
-    basis_update( width, nActive, -1.0, X.Data(), XTX.Data(), width, 1.0,
-                  Xtemp.Data() );
-#endif
-
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
       
@@ -752,7 +688,6 @@ EigenSolver::LOBPCGSolveReal    (
 
     // W <- T * R (Col format, active only) 
     profile_applyprec( nActive, nActiveLocal, Xcol, Wcol );
-    //profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
 
     // Normalize the preconditioned residual
     ColNormalize( Wcol );
@@ -770,9 +705,14 @@ EigenSolver::LOBPCGSolveReal    (
 
     /*** Compute AMat ***/
 
+#if 0
     // Compute AW = A*W (active only)
-    //profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
+    profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
+#else
+    // Compute AW = A*W (active only)
+    // TODO: Fix ACE application to allow for this to be over active
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
+#endif
 
     // Convert W/AW from Col to Row formats
     profile_col_to_row( Wcol,  W  );
