@@ -7,9 +7,9 @@ xc_type:                PBE
 
 ecut_wavefunction:        10
 
-pw_solver: LOBPCGScaLAPACK
-num_proc_scalapack_pw: 2
-scalapack_block_size:  4
+#pw_solver: LOBPCGScaLAPACK
+#num_proc_scalapack_pw: 2
+#scalapack_block_size:  4
 
 begin upf_file
   KW:Si_ONCV_PBE-1.2

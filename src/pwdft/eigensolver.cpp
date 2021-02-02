@@ -528,8 +528,9 @@ EigenSolver::LOBPCGSolveReal    (
   SetValue( eigValS, 0.0 );
 
   // Initialize X by the data in psi
-  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, psiPtr_->Wavefun().Data(), height, 
-      Xcol.Data(), height );
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, 
+                 psiPtr_->Wavefun().Data(), height, 
+                 Xcol.Data(), height );
 
 
   // Redistribute X from Row -> Col format
@@ -556,6 +557,8 @@ EigenSolver::LOBPCGSolveReal    (
 
   Real lockTolerance = std::min(1e-5,eigTolerance);
 
+  Int nlock_saved = 0;
+  bool bdist_has_been_reset = false;
   bool enableLocking = true;
   if( not enableLocking ) {
     lockTolerance = -1.;
@@ -595,14 +598,15 @@ EigenSolver::LOBPCGSolveReal    (
     // AMat(1:width,1:width) <- X' * (AX)
     // Save a copy in XTX and A_XTAX
     profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, width, XTX.Data(), width, A_XTAX, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, width, XTX.Data(), width, 
+                   A_XTAX, lda );
 
     // Compute the residual  R = AX - X*(X'*AX)
     // XXX This assumes that A is diagonal in X to be correct
 
     // R <- AX
-    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, 
-                   Xtemp.Data(), heightLocal );
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                   AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
 
     // R <- R - X * (X'*AX)
     basis_update( width, width, -1.0, X.Data(), XTX.Data(), width, 1.0, 
@@ -628,6 +632,15 @@ EigenSolver::LOBPCGSolveReal    (
 
     Int nActiveLocal   = (nActive / mpisize) + !!(mpirank < (nActive % mpisize));
 
+    
+    // Remake the BlockDistributor to only communicate locked vectors
+    if( nlock_saved != nLock ) {
+      bdist_has_been_reset = true;
+      bdist = std::move(make_block_distributor<Real>( BlockDistAlg::HostOptPack,
+                                                      mpi_comm, height, nActive ));
+    }
+
+    nlock_saved = nLock; // Save a copy of nLock for future comparisons
 
     // Print iteration info
     print_iter_fields( iter, resMax, resMin, nLock, nActive );
@@ -683,7 +696,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
       
-    // Redistribute from Xtemp (Row) -> Xcol (Col)
+    // Redistribute from Xtemp (Row) -> Xcol (Col) (active only)
     profile_row_to_col( Xtemp, Xcol );
 
     // W <- T * R (Col format, active only) 
@@ -714,36 +727,40 @@ EigenSolver::LOBPCGSolveReal    (
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
 #endif
 
-    // Convert W/AW from Col to Row formats
+    // Convert W/AW from Col to Row formats (active only)
     profile_col_to_row( Wcol,  W  );
     profile_col_to_row( AWcol, AW );
 
+
+
     // Compute X' * AW (active only)
     profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, A_XTAW, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, nActive, 
+                   XTXtemp.Data(), width, A_XTAW, lda );
 
     // Compute W' * AW (active only)
     profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                   A_WTAW, lda );
+    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                   XTXtemp.Data(), nActive, A_WTAW, lda );
 
     if( numSet == 3 ){
 
       // Compute X' * AP (active only)
       profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, A_XTAP, lda );
+      lapack::lacpy( lapack::MatrixType::General, width, nActive, 
+                     XTXtemp.Data(), width, A_XTAP, lda );
 
       // Compute W' * AP (active only)
       profile_dist_inner( nActive, nActive, W.Data(), AP.Data(), 
                           XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                     A_WTAP, lda );
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                     XTXtemp.Data(), nActive, A_WTAP, lda );
 
       // Compute P' * AP (active only)
       profile_dist_inner( nActive, nActive, P.Data(), AP.Data(), 
                           XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                     A_PTAP, lda );
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                     XTXtemp.Data(), nActive, A_PTAP, lda );
 
     }
 
@@ -753,35 +770,38 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute X'*X
     // XXX: Isn't this I?
     profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, width, XTXtemp.Data(), width, B_XTX, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, width, 
+                   XTXtemp.Data(), width, B_XTX, lda );
 
     // Compute X'*W (active only)
     profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, B_XTW, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, nActive, 
+                   XTXtemp.Data(), width, B_XTW, lda );
 
     // Compute W'*W (active only)
     profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                   B_WTW, lda );
+    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                   XTXtemp.Data(), nActive, B_WTW, lda );
 
 
     if( numSet == 3 ) {
 
       // Compute X'*P (active only)
       profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, B_XTP, lda );
+      lapack::lacpy( lapack::MatrixType::General, width, nActive, 
+                     XTXtemp.Data(), width, B_XTP, lda );
 
       // Compute W'*P (active only)
       profile_dist_inner( nActive, nActive, W.Data(), P.Data(), 
                           XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                     B_WTP, lda );
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                     XTXtemp.Data(), nActive, B_WTP, lda );
 
       // Compute P'*P (active only)
       profile_dist_inner( nActive, nActive, P.Data(), P.Data(), 
                           XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
-                     B_PTP, lda );
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
+                     XTXtemp.Data(), nActive, B_PTP, lda );
 
     } // if( numSet == 3 )
 
@@ -865,8 +885,6 @@ EigenSolver::LOBPCGSolveReal    (
 
     }
 
-    statusOFS << "EigValS " << eigValS << std::endl;
-
     // All processors synchronize the information
     MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
     MPI_Bcast(BMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
@@ -880,12 +898,12 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
       // Save the result into X
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
-                     X.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, X.Data(), heightLocal );
 
       // P <- W 
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, W.Data(), heightLocal, 
-                     P.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, 
+                     W.Data(), heightLocal, P.Data(), heightLocal );
 
     } else { //numSet == 3
 
@@ -894,14 +912,14 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, P.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
-                     P.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, P.Data(), heightLocal );
 
       // Update the eigenvectors
       // X <- X * C_X + P
       basis_update( width, width, 1.0, X.Data(), C_X, lda, 1.0, Xtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
-                     X.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, X.Data(), heightLocal );
 
     } // if ( numSet == 2 )
 
@@ -913,12 +931,12 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( width,   width, 1.0, AX.Data(), C_X, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
-                     AX.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, AX.Data(), heightLocal );
 
       // AP <- AW
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, AW.Data(), heightLocal,
-                     AP.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, 
+                     AW.Data(), heightLocal, AP.Data(), heightLocal );
 
     } else { // numSet == 3
 
@@ -926,13 +944,13 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
-                     AP.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, AP.Data(), heightLocal );
 
       // AX <- AX * C_X + AP
       basis_update( width, width, 1.0, AX.Data(), C_X, lda, 1.0, Xtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
-                     AX.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     Xtemp.Data(), heightLocal, AX.Data(), heightLocal );
 
     } // if ( numSet == 2 )
 
@@ -944,7 +962,8 @@ EigenSolver::LOBPCGSolveReal    (
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
-  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
+  } while( (iter < (10 * eigMaxIter)) && 
+           ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -958,7 +977,8 @@ EigenSolver::LOBPCGSolveReal    (
 
   if ( mpirank == 0 ){
     GetTime( timeSta );
-    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, XTX.Data(), width, eigValS.Data() );
+    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, 
+                   XTX.Data(), width, eigValS.Data() );
     GetTime( timeEnd );
     iterMpirank0 = iterMpirank0 + 1;
     timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -972,8 +992,8 @@ EigenSolver::LOBPCGSolveReal    (
   basis_update( width, width, 1.0, X.Data(), XTX.Data(), width, 
                 0.0, Xtemp.Data() );
 
-  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
-                 X.Data(), heightLocal );
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                 Xtemp.Data(), heightLocal, X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
 
@@ -989,11 +1009,18 @@ EigenSolver::LOBPCGSolveReal    (
   eigVal_ = DblNumVec( width, true, eigValS.Data() );
   resVal_ = resNorm;
 
+  // Reset bdist
+  if( bdist_has_been_reset )
+    bdist = 
+      make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
+                                    height, width );
+
   // Redistribute X Row -> Col
   profile_row_to_col( X, Xcol );
 
-  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, Xcol.Data(), height, 
-      psiPtr_->Wavefun().Data(), height );
+  // Copy back to Wfn storage
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, 
+                 Xcol.Data(), height, psiPtr_->Wavefun().Data(), height );
 
   if( isConverged ){
     statusOFS << std::endl << "After " << iter 
