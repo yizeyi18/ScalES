@@ -410,7 +410,8 @@ EigenSolver::LOBPCGSolveReal    (
 
 
   auto profile_dist_inner = [&]( int64_t _m, int64_t _n, const Real* _X,
-                                 const Real* _Y, Real* _RES ) {
+                                 const Real* _Y, Real* _TMP, Real* _RES,
+                                 int64_t _ldRES ) {
 
 
     Real innerStart, innerEnd;
@@ -419,7 +420,8 @@ EigenSolver::LOBPCGSolveReal    (
     // All matrices in that use this code have a lead dimension / contraction
     // dimenstion of heightLocal
     detail::row_dist_inner_replicate( heightLocal, _m, _n, _X, heightLocal,
-                                      _Y, heightLocal, _RES, mpi_comm );
+                                      _Y, heightLocal, _TMP, mpi_comm );
+    lapack::lacpy( lapack::MatrixType::General, _m, _n, _TMP, _m, _RES, _ldRES );
 
     GetTime( innerEnd );
 
@@ -597,9 +599,8 @@ EigenSolver::LOBPCGSolveReal    (
 
     // AMat(1:width,1:width) <- X' * (AX)
     // Save a copy in XTX and A_XTAX
-    profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, width, XTX.Data(), width, 
-                   A_XTAX, lda );
+    profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data(), 
+                        A_XTAX, lda );
 
     // Compute the residual  R = AX - X*(X'*AX)
     // XXX This assumes that A is diagonal in X to be correct
@@ -734,33 +735,26 @@ EigenSolver::LOBPCGSolveReal    (
 
 
     // Compute X' * AW (active only)
-    profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, nActive, 
-                   XTXtemp.Data(), width, A_XTAW, lda );
+    profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data(),
+                        A_XTAW, lda );
 
     // Compute W' * AW (active only)
-    profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                   XTXtemp.Data(), nActive, A_WTAW, lda );
+    profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data(),
+                        A_WTAW, lda );
 
     if( numSet == 3 ){
 
       // Compute X' * AP (active only)
-      profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, width, nActive, 
-                     XTXtemp.Data(), width, A_XTAP, lda );
+      profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data(),
+                          A_XTAP, lda );
 
       // Compute W' * AP (active only)
       profile_dist_inner( nActive, nActive, W.Data(), AP.Data(), 
-                          XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                     XTXtemp.Data(), nActive, A_WTAP, lda );
+                          XTXtemp.Data(), A_WTAP, lda );
 
       // Compute P' * AP (active only)
       profile_dist_inner( nActive, nActive, P.Data(), AP.Data(), 
-                          XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                     XTXtemp.Data(), nActive, A_PTAP, lda );
+                          XTXtemp.Data(), A_PTAP, lda );
 
     }
 
@@ -769,39 +763,31 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute X'*X
     // XXX: Isn't this I?
-    profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, width, 
-                   XTXtemp.Data(), width, B_XTX, lda );
+    profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data(),
+                        B_XTX, lda );
 
     // Compute X'*W (active only)
-    profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, width, nActive, 
-                   XTXtemp.Data(), width, B_XTW, lda );
+    profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data(),
+                        B_XTW, lda );
 
     // Compute W'*W (active only)
-    profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data() );
-    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                   XTXtemp.Data(), nActive, B_WTW, lda );
+    profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data(),
+                        B_WTW, lda );
 
 
     if( numSet == 3 ) {
 
       // Compute X'*P (active only)
-      profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, width, nActive, 
-                     XTXtemp.Data(), width, B_XTP, lda );
+      profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data(),
+                          B_XTP, lda );
 
       // Compute W'*P (active only)
       profile_dist_inner( nActive, nActive, W.Data(), P.Data(), 
-                          XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                     XTXtemp.Data(), nActive, B_WTP, lda );
+                          XTXtemp.Data(), B_WTP, lda );
 
       // Compute P'*P (active only)
       profile_dist_inner( nActive, nActive, P.Data(), P.Data(), 
-                          XTXtemp.Data() );
-      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, 
-                     XTXtemp.Data(), nActive, B_PTP, lda );
+                          XTXtemp.Data(), B_PTP, lda );
 
     } // if( numSet == 3 )
 
@@ -998,7 +984,8 @@ EigenSolver::LOBPCGSolveReal    (
 #if ( _DEBUGlevel_ >= 2 )
 
   // Compute basis overlap
-  profile_dist_inner( width, width, X.Data(), X.Data(), XTX.Data() );
+  profile_dist_inner( width, width, X.Data(), X.Data(), XTX.Data(),
+                      XTXtemp.Data(), width );
   statusOFS << "After the LOBPCG, XTX = " << XTX << std::endl;
 
 #endif
