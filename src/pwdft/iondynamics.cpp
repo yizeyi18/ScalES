@@ -67,9 +67,9 @@ void
     }   
 
     // Grab the supercell info
-    supercell_x_ = esdfParam.domain.length[0];
-    supercell_y_ = esdfParam.domain.length[1];
-    supercell_z_ = esdfParam.domain.length[2];
+    supercell_x_ = esdfParam.domain->length[0];
+    supercell_y_ = esdfParam.domain->length[1];
+    supercell_z_ = esdfParam.domain->length[2];
 
     //if( isGeoOpt_ == false && isMD_ == false ){
     //  ErrorHandling("Neither geometry optimization nor MD is invoked.");

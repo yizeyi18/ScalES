@@ -25,9 +25,11 @@ using namespace scales::esdf;
 // Hamiltonian base class
 // *********************************************************************
 
-Hamiltonian::Hamiltonian() {
-  XCInitialized_ = false;
-}
+Hamiltonian::Hamiltonian( std::shared_ptr<Fourier> fft ) :
+  domain_       ( fft->domain ),
+  fft_          ( fft ),
+  XCInitialized_( false )
+{ }
 
 Hamiltonian::~Hamiltonian() {
   DestroyXC();
@@ -114,6 +116,7 @@ void Hamiltonian::SetupXC( std::string XCType ) {
   XCInitialized_ = true;
 }
 
+
 void Hamiltonian::DestroyXC() {
   if( XCInitialized_ ){
     if( isXCSeparate_ ){
@@ -128,10 +131,8 @@ void Hamiltonian::DestroyXC() {
 
 void
 Hamiltonian::Setup    (
-    const Domain&               dm,
     const std::vector<Atom>&    atomList )
 {
-  domain_              = dm;
   atomList_            = atomList;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
@@ -154,8 +155,8 @@ Hamiltonian::Setup    (
 
   // NOTE: NumSpin variable will be determined in derivative classes.
 
-  Int ntotCoarse = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotCoarse = domain_->NumGridTotal();
+  Int ntotFine = domain_->NumGridTotalFine();
 
   density_.Resize( ntotFine, numDensityComponent_ );   
   SetValue( density_, 0.0 );
@@ -188,9 +189,9 @@ Hamiltonian::Setup    (
   SetValue( vxc_, 0.0 );
 
   // MPI communication 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
   int dmCol = DIM;
   int dmRow = mpisize / dmCol;
   
@@ -213,8 +214,8 @@ Hamiltonian::Setup    (
       }
     } 
 
-    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm_ );
-    //MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm_ );
+    MPI_Comm_split( domain_->comm, mpiRowMap(mpirank), mpirank, &rowComm_ );
+    //MPI_Comm_split( domain_->comm, mpiColMap(mpirank), mpirank, &colComm_ );
 
   }
 
@@ -236,19 +237,19 @@ Hamiltonian::Setup    (
 
 void
 Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
-  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotFine = domain_->NumGridTotalFine();
   Int numAtom = atomList_.size();
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   pseudo_.clear();
   pseudo_.resize( numAtom );
 
   std::vector<DblNumVec> gridpos;
-  UniformMeshFine ( domain_, gridpos );
+  UniformMeshFine ( *domain_, gridpos );
 
   // calculate the number of occupied states
   // need to distinguish the number of charges carried by the ion and that 
@@ -347,7 +348,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
     for (Int i=0; i<numAtomLocal; i++) {
       int a = numAtomIdx[i];
-      ptable.CalculateVLocal( atomList_[a], domain_, 
+      ptable.CalculateVLocal( atomList_[a], *domain_, 
           gridpos, pseudo_[a].vLocalSR, pseudo_[a].pseudoCharge );
 
 #if ( _DEBUGlevel_ >= 1 )
@@ -391,8 +392,8 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
     SetValue( pseudoCharge_, 0.0 );
     SetValue( vLocalSR_, 0.0 );
-    MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
-    MPI_Allreduce( vLocalSRLocal.Data(), vLocalSR_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_->comm );
+    MPI_Allreduce( vLocalSRLocal.Data(), vLocalSR_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_->comm );
 
     for (Int a=0; a<numAtom; a++) {
 
@@ -408,7 +409,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
         vStreamSize = Size( vStream );
       }
 
-      MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+      MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_->comm );
 
       std::vector<char> sstr;
       sstr.resize( vStreamSize );
@@ -417,7 +418,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
         vStream.read( &sstr[0], vStreamSize );
       }
 
-      MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+      MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_->comm );
 
       vStreamTemp.write( &sstr[0], vStreamSize );
 
@@ -463,13 +464,13 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   for (Int i=0; i<numAtomLocal; i++) {
     int a = numAtomIdx[i];
     // Introduce the nonlocal pseudopotential on the fine grid.
-    ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+    ptable.CalculateNonlocalPP( atomList_[a], *domain_, gridpos,
         pseudo_[a].vnlList ); 
     cntLocal = cntLocal + pseudo_[a].vnlList.size();
   }
 
   cnt = 0; // the total number of PS used
-  MPI_Allreduce( &cntLocal, &cnt, 1, MPI_INT, MPI_SUM, domain_.comm );
+  MPI_Allreduce( &cntLocal, &cnt, 1, MPI_INT, MPI_SUM, domain_->comm );
   
   Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
@@ -490,7 +491,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
       vStream1Size = Size( vStream1 );
     }
 
-    MPI_Bcast( &vStream1Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &vStream1Size, 1, MPI_INT, numAtomMpirank[a], domain_->comm );
 
     std::vector<char> sstr1;
     sstr1.resize( vStream1Size );
@@ -499,7 +500,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
       vStream1.read( &sstr1[0], vStream1Size );
     }
 
-    MPI_Bcast( &sstr1[0], vStream1Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &sstr1[0], vStream1Size, MPI_BYTE, numAtomMpirank[a], domain_->comm );
 
     vStream1Temp.write( &sstr1[0], vStream1Size );
 
@@ -524,12 +525,12 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   return ;
 }         // -----  end of method Hamiltonian::CalculatePseudoPotential ----- 
 
-void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
-  Int ntotFine = domain_.NumGridTotalFine();
+void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable ){
+  Int ntotFine = domain_->NumGridTotalFine();
   Int numAtom = atomList_.size();
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
   std::vector<DblNumVec> gridpos;
-  UniformMeshFine ( domain_, gridpos );
+  UniformMeshFine ( *domain_, gridpos );
 
   // The number of electrons for normalization purpose. 
   Int nelec = 0;
@@ -570,18 +571,18 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     Int atype = *itype;
     Atom fakeAtom;
     fakeAtom.type = atype;
-    fakeAtom.pos = domain_.posStart;
+    fakeAtom.pos = domain_->posStart;
 
-    ptable.CalculateAtomDensity( fakeAtom, domain_, gridpos, atomDensityR );
+    ptable.CalculateAtomDensity( fakeAtom, *domain_, gridpos, atomDensityR );
 
     // Compute the structure factor
     CpxNumVec ccvec(ntotFine);
     SetValue( ccvec, Z_ZERO );
 
     Complex* ccvecPtr = ccvec.Data();
-    Complex* ikxPtr = fft.ikFine[0].Data();
-    Complex* ikyPtr = fft.ikFine[1].Data();
-    Complex* ikzPtr = fft.ikFine[2].Data();
+    Complex* ikxPtr = fft_->ikFine[0].Data();
+    Complex* ikyPtr = fft_->ikFine[1].Data();
+    Complex* ikzPtr = fft_->ikFine[2].Data();
     Real xx, yy, zz;
     Complex phase;
 
@@ -600,15 +601,15 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     // Transfer the atomic charge from real space to Fourier space, and
     // multiply with the structure factor
     for(Int i = 0; i < ntotFine; i++){
-      fft.inputComplexVecFine[i] = Complex( atomDensityR[i], 0.0 ); 
+      fft_->inputComplexVecFine[i] = Complex( atomDensityR[i], 0.0 ); 
     }
 
-    FFTWExecute ( fft, fft.forwardPlanFine );
+    FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
     for( Int i = 0; i < ntotFine; i++ ){
       // Make it smoother: AGGREESIVELY truncate components beyond EcutWavefunction
-      if( fft.gkkFine[i] < esdfParam.ecutWavefunction ){
-        atomDensityG[i] += fft.outputComplexVecFine[i] * ccvec[i];
+      if( fft_->gkkFine[i] < esdfParam.ecutWavefunction ){
+        atomDensityG[i] += fft_->outputComplexVecFine[i] * ccvec[i];
       }
     }
   }
@@ -616,13 +617,13 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   // Transfer back to the real space and add to atomDensity_ 
   {
     for(Int i = 0; i < ntotFine; i++){
-      fft.outputComplexVecFine[i] = atomDensityG[i];
+      fft_->outputComplexVecFine[i] = atomDensityG[i];
     }
   
-    FFTWExecute ( fft, fft.backwardPlanFine );
+    FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
     for( Int i = 0; i < ntotFine; i++ ){
-      atomDensity_[i] = fft.inputComplexVecFine[i].real();
+      atomDensity_[i] = fft_->inputComplexVecFine[i].real();
     }
   }
 
@@ -646,18 +647,18 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
 }         // -----  end of method Hamiltonian::CalculateAtomDensity  ----- 
 
 void
-Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
+Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val)
 {
   Int ntot  = psi.NumGridTotal();
   Int ncom  = psi.NumComponent();
   Int nocc  = psi.NumState();
-  Real vol  = domain_.Volume();
+  Real vol  = domain_->Volume();
 
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   //  IntNumVec& wavefunIdx = psi.WavefunIdx();
 
@@ -671,29 +672,29 @@ Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Rea
     for (Int j=0; j<ncom; j++) {
 
       for( Int i = 0; i < ntot; i++ ){
-        fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
+        fft_->inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
       }
 
-      FFTWExecute ( fft, fft.forwardPlan );
+      FFTWExecute ( *fft_, fft_->forwardPlan );
 
       // fft Coarse to Fine 
 
-      SetValue( fft.outputComplexVecFine, Z_ZERO );
+      SetValue( fft_->outputComplexVecFine, Z_ZERO );
       for( Int i = 0; i < ntot; i++ ){
-        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i) * 
+        fft_->outputComplexVecFine(fft_->idxFineGrid(i)) = fft_->outputComplexVec(i) * 
           sqrt( double(ntot) / double(ntotFine) );
       } 
 
-      FFTWExecute ( fft, fft.backwardPlanFine );
+      FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
       Real fac = numSpin_ * occrate(psi.WavefunIdx(k));
       for( Int i = 0; i < ntotFine; i++ ){
-        densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
+        densityLocal(i,RHO) +=  pow( std::abs(fft_->inputComplexVecFine(i).real()), 2.0 ) * fac;
       }
     }
   }
 
-  mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
+  mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_->comm );
 
   val = 0.0; // sum of density
   for (Int i=0; i<ntotFine; i++) {
@@ -725,33 +726,33 @@ Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Rea
 }         // -----  end of method Hamiltonian::CalculateDensity  ----- 
 
 void
-Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
+Hamiltonian::CalculateGradDensity ( bool garbage)
 {
-  Int ntotFine  = fft.domain.NumGridTotalFine();
-  Real vol  = domain_.Volume();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
+  Real vol  = domain_->Volume();
   
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
   int dmCol = DIM;
   int dmRow = mpisize / dmCol;
-  Int ntotLocal = fft.numGridLocal;
+  Int ntotLocal = fft_->numGridLocal;
   CpxNumVec  cpxVec( ntotLocal );
 
 
-  if( fft.isMPIFFTW ) {
+  if( fft_->isMPIFFTW ) {
    
     for( Int i = 0; i < ntotLocal; i++ ){
-      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-      fft.inputComplexVecLocal(i) = Complex( density_(j,RHO), 0.0 );
+      Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+      fft_->inputComplexVecLocal(i) = Complex( density_(j,RHO), 0.0 );
     }
    
-    fftw_execute( fft.mpiforwardPlanFine );
+    fftw_execute( fft_->mpiforwardPlanFine );
 
     Real fac = vol / double(ntotFine);
-    blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft_->outputComplexVecLocal.Data(), 1);
 
-    blas::copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+    blas::copy( ntotLocal, fft_->outputComplexVecLocal.Data(), 1,
         cpxVec.Data(), 1 );
   }
 
@@ -764,20 +765,20 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
       statusOFS << " Sequential FFTW calculateGradDensity" << std::endl;
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensity = gradDensity_[d];
-        CpxNumVec& ik = fft.ikFine[d];
+        CpxNumVec& ik = fft_->ikFine[d];
         for( Int i = 0; i < ntotFine; i++ ){
-          if( fft.gkkFine(i) == 0 ){
-            fft.outputComplexVecFine(i) = Z_ZERO;
+          if( fft_->gkkFine(i) == 0 ){
+            fft_->outputComplexVecFine(i) = Z_ZERO;
           }
           else{
-            fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+            fft_->outputComplexVecFine(i) = cpxVec(i) * ik(i); 
           }
         }
 
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
         for( Int i = 0; i < ntotFine; i++ ){
-          gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
+          gradDensity(i, RHO) = fft_->inputComplexVecFine(i).real();
         }
       } // for d
 
@@ -785,31 +786,31 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
     else { // mpisize > 3
       statusOFS << " MPI FFTW calculateGradDensity, use "<< esdfParam.fftwMPISize << " MPIs " << std::endl << std::flush;
   
-      if( fft.isMPIFFTW ) {
+      if( fft_->isMPIFFTW ) {
         DblNumVec temp(ntotLocal);  
         for( d = 0; d < DIM; d++ ){
           DblNumMat& gradDensity = gradDensity_[d];
-          CpxNumVec& ik = fft.ikFine[d];
+          CpxNumVec& ik = fft_->ikFine[d];
           for( Int i = 0; i < ntotLocal; i++ ){
-            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-            if( fft.gkkFine(j) == 0 )
-              fft.outputComplexVecLocal(i) = Z_ZERO;
+            Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+            if( fft_->gkkFine(j) == 0 )
+              fft_->outputComplexVecLocal(i) = Z_ZERO;
             else
-              fft.outputComplexVecLocal(i) = cpxVec(i) * ik(j);
+              fft_->outputComplexVecLocal(i) = cpxVec(i) * ik(j);
           }
 
-          fftw_execute( fft.mpibackwardPlanFine );
+          fftw_execute( fft_->mpibackwardPlanFine );
           Real fac = 1.0 / vol;
-          blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft_->inputComplexVecLocal.Data(), 1);
           
           for( Int i = 0; i < ntotLocal; i++ )
-            temp(i) = fft.inputComplexVecLocal(i).real();
+            temp(i) = fft_->inputComplexVecLocal(i).real();
           
 #ifdef _PROFILING_
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-      MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+      MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft_->comm );
 
 #ifdef _PROFILING_
       GetTime( timeEnd );
@@ -821,9 +822,9 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-      MPI_Bcast( gradDensity_[0].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
-      MPI_Bcast( gradDensity_[1].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
-      MPI_Bcast( gradDensity_[2].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( gradDensity_[0].Data(), ntotFine, MPI_DOUBLE, 0, domain_->comm );
+      MPI_Bcast( gradDensity_[1].Data(), ntotFine, MPI_DOUBLE, 0, domain_->comm );
+      MPI_Bcast( gradDensity_[2].Data(), ntotFine, MPI_DOUBLE, 0, domain_->comm );
 #ifdef _PROFILING_
       GetTime( timeEnd );
       mpi::bcastTime += timeEnd - timeSta;
@@ -839,25 +840,25 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
 
 
 void
-Hamiltonian::CalculateGradDensity ( Fourier& fft )
+Hamiltonian::CalculateGradDensity ( )
 {
-  Int ntotFine  = fft.domain.NumGridTotalFine();
-  Real vol  = domain_.Volume();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
+  Real vol  = domain_->Volume();
   
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
   int dmCol = DIM;
   int dmRow = mpisize / dmCol;
 
   for( Int i = 0; i < ntotFine; i++ ){
-    fft.inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
+    fft_->inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
   }
 
-  FFTWExecute ( fft, fft.forwardPlanFine );
+  FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
   CpxNumVec  cpxVec( ntotFine );
-  blas::copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+  blas::copy( ntotFine, fft_->outputComplexVecFine.Data(), 1,
       cpxVec.Data(), 1 );
 
   // Compute the derivative of the Density via Fourier
@@ -865,22 +866,22 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft )
   if(0){
 
     for( Int d = 0; d < DIM; d++ ){
-      CpxNumVec& ik = fft.ikFine[d];
+      CpxNumVec& ik = fft_->ikFine[d];
 
       for( Int i = 0; i < ntotFine; i++ ){
-        if( fft.gkkFine(i) == 0 ){
-          fft.outputComplexVecFine(i) = Z_ZERO;
+        if( fft_->gkkFine(i) == 0 ){
+          fft_->outputComplexVecFine(i) = Z_ZERO;
         }
         else{
-          fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+          fft_->outputComplexVecFine(i) = cpxVec(i) * ik(i); 
         }
       }
 
-      FFTWExecute ( fft, fft.backwardPlanFine );
+      FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
       DblNumMat& gradDensity = gradDensity_[d];
       for( Int i = 0; i < ntotFine; i++ ){
-        gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
+        gradDensity(i, RHO) = fft_->inputComplexVecFine(i).real();
       }
     } // for d
 
@@ -892,20 +893,20 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft )
     if( mpisize < DIM ){ // mpisize < 3
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensity = gradDensity_[d];
-        CpxNumVec& ik = fft.ikFine[d];
+        CpxNumVec& ik = fft_->ikFine[d];
         for( Int i = 0; i < ntotFine; i++ ){
-          if( fft.gkkFine(i) == 0 ){
-            fft.outputComplexVecFine(i) = Z_ZERO;
+          if( fft_->gkkFine(i) == 0 ){
+            fft_->outputComplexVecFine(i) = Z_ZERO;
           }
           else{
-            fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+            fft_->outputComplexVecFine(i) = cpxVec(i) * ik(i); 
           }
         }
 
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
         for( Int i = 0; i < ntotFine; i++ ){
-          gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
+          gradDensity(i, RHO) = fft_->inputComplexVecFine(i).real();
         }
       } // for d
 
@@ -915,20 +916,20 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft )
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensity = gradDensity_[d];
         if ( d == mpirank % dmCol ){ 
-          CpxNumVec& ik = fft.ikFine[d];
+          CpxNumVec& ik = fft_->ikFine[d];
           for( Int i = 0; i < ntotFine; i++ ){
-            if( fft.gkkFine(i) == 0 ){
-              fft.outputComplexVecFine(i) = Z_ZERO;
+            if( fft_->gkkFine(i) == 0 ){
+              fft_->outputComplexVecFine(i) = Z_ZERO;
             }
             else{
-              fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+              fft_->outputComplexVecFine(i) = cpxVec(i) * ik(i); 
             }
           }
 
-          FFTWExecute ( fft, fft.backwardPlanFine );
+          FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
           for( Int i = 0; i < ntotFine; i++ ){
-            gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
+            gradDensity(i, RHO) = fft_->inputComplexVecFine(i).real();
           }
         } // d == mpirank
       } // for d
@@ -946,14 +947,14 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft )
 }         // -----  end of method Hamiltonian::CalculateGradDensity  ----- 
 
 // FIXME same format as in the other CalculateXC
-void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
+void Hamiltonian::CalculateXC    ( Real &val, bool garbage)
 {
-  Int ntot = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
+  Int ntot = domain_->NumGridTotalFine();
+  Real vol = domain_->Volume();
 
-  //MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  //MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
   int dmCol = DIM;
   int dmRow = mpisize / dmCol;
   
@@ -966,7 +967,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
   IntNumVec localSizeDispls(mpisize);
   SetValue( localSize, 0 );
   SetValue( localSizeDispls, 0 );
-  MPI_Allgather( &ntotLocal, 1, MPI_INT, localSize.Data(), 1, MPI_INT, domain_.comm );
+  MPI_Allgather( &ntotLocal, 1, MPI_INT, localSize.Data(), 1, MPI_INT, domain_->comm );
 
   for (Int i = 1; i < mpisize; i++ ){
     localSizeDispls[i] = localSizeDispls[i-1] + localSize[i-1];
@@ -1052,11 +1053,11 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 
 
     MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc1Temp.Data(), ntotLocal, MPI_DOUBLE, vxc1.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc2Temp.Data(), ntotLocal, MPI_DOUBLE, vxc2.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1075,27 +1076,27 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensityd = gradDensity_[d];
         for(Int i = 0; i < ntot; i++){
-          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+          fft_->inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
         }
 
-        FFTWExecute ( fft, fft.forwardPlanFine );
+        FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
-        CpxNumVec& ik = fft.ikFine[d];
+        CpxNumVec& ik = fft_->ikFine[d];
 
         for( Int i = 0; i < ntot; i++ ){
-          if( fft.gkkFine(i) == 0 ){
-            fft.outputComplexVecFine(i) = Z_ZERO;
+          if( fft_->gkkFine(i) == 0 ){
+            fft_->outputComplexVecFine(i) = Z_ZERO;
           }
           else{
-            fft.outputComplexVecFine(i) *= ik(i);
+            fft_->outputComplexVecFine(i) *= ik(i);
           }
         }
 
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
         GetTime( timeSta );
         for( Int i = 0; i < ntot; i++ ){
-          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+          vxc_( i, RHO ) -= fft_->inputComplexVecFine(i).real();
         }
         GetTime( timeEnd );
         timeOther = timeOther + ( timeEnd - timeSta );
@@ -1106,11 +1107,11 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
     else { // mpisize > 3
 
       GetTime( timeSta );
-      if( fft.isMPIFFTW ) {
+      if( fft_->isMPIFFTW ) {
         std::vector<DblNumVec>      vxcTemp3d;
         DblNumVec temp;
         vxcTemp3d.resize( DIM );
-        ntotLocal = fft.numGridLocal;
+        ntotLocal = fft_->numGridLocal;
         for( Int d = 0; d < DIM; d++ ){
           vxcTemp3d[d].Resize(ntotLocal);
           //SetValue (vxcTemp3d[d], 0.0);
@@ -1118,7 +1119,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 
         temp.Resize(ntotLocal);
         for(Int i = 0; i < ntotLocal; i++){
-          Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+          Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
           temp(i) = vxc1(j);
         }
   
@@ -1127,37 +1128,37 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
           DblNumMat& gradDensityd = gradDensity_[d];
           DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
           for(Int i = 0; i < ntotLocal; i++){
-            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-            fft.inputComplexVecLocal(i) = Complex( gradDensityd( j, RHO ) * 2.0 * vxc2(j), 0.0 ); 
+            Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+            fft_->inputComplexVecLocal(i) = Complex( gradDensityd( j, RHO ) * 2.0 * vxc2(j), 0.0 ); 
           }
 
-          fftw_execute( fft.mpiforwardPlanFine );
+          fftw_execute( fft_->mpiforwardPlanFine );
           fac = vol / double(ntot);
-          blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft_->outputComplexVecLocal.Data(), 1);
 
-          CpxNumVec& ik = fft.ikFine[d];
+          CpxNumVec& ik = fft_->ikFine[d];
 
           for( Int i = 0; i < ntotLocal; i++ ){
-            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-            if( fft.gkkFine(j) == 0 )
-              fft.outputComplexVecLocal(i) = Z_ZERO;
+            Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+            if( fft_->gkkFine(j) == 0 )
+              fft_->outputComplexVecLocal(i) = Z_ZERO;
             else
-              fft.outputComplexVecLocal(i) *= ik(j);
+              fft_->outputComplexVecLocal(i) *= ik(j);
           }
 
-          fftw_execute( fft.mpibackwardPlanFine );
+          fftw_execute( fft_->mpibackwardPlanFine );
           fac = 1.0 / vol;
-          blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft_->inputComplexVecLocal.Data(), 1);
 
           for( Int i = 0; i < ntotLocal; i++ ){
-            vxcTemp3(i) = fft.inputComplexVecLocal(i).real();
+            vxcTemp3(i) = fft_->inputComplexVecLocal(i).real();
           }
 
           //SetValue (temp, 0.0);
-          //MPI_Gather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm);
-          //MPI_Allgather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, fft.comm);
+          //MPI_Gather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, 0, fft_->comm);
+          //MPI_Allgather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, fft_->comm);
           for( Int i = 0; i < ntotLocal; i++ ){
-            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+            Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
             temp(i) -= vxcTemp3(i);
           }
         } // for d
@@ -1165,7 +1166,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-        MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vxc_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm);
+        MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vxc_.Data(), ntotLocal, MPI_DOUBLE, 0, fft_->comm);
 #ifdef _PROFILING_
       GetTime( timeEnd );
       mpi::allgatherTime += timeEnd - timeSta;
@@ -1176,7 +1177,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-      MPI_Bcast( &vxc_(1,RHO), ntot, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( &vxc_(1,RHO), ntot, MPI_DOUBLE, 0, domain_->comm );
 
 #ifdef _PROFILING_
       GetTime( timeEnd );
@@ -1207,14 +1208,14 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 
 
 void
-Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
+Hamiltonian::CalculateXC    ( Real &val )
 {
-  Int ntot = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
+  Int ntot = domain_->NumGridTotalFine();
+  Real vol = domain_->Volume();
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
   int dmCol = DIM;
   int dmRow = mpisize / dmCol;
   
@@ -1227,7 +1228,7 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
   IntNumVec localSizeDispls(mpisize);
   SetValue( localSize, 0 );
   SetValue( localSizeDispls, 0 );
-  MPI_Allgather( &ntotLocal, 1, MPI_INT, localSize.Data(), 1, MPI_INT, domain_.comm );
+  MPI_Allgather( &ntotLocal, 1, MPI_INT, localSize.Data(), 1, MPI_INT, domain_->comm );
 
   for (Int i = 1; i < mpisize; i++ ){
     localSizeDispls[i] = localSizeDispls[i-1] + localSize[i-1];
@@ -1341,11 +1342,11 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
     GetTime( timeSta );
 
     MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc1.Data(), ntotLocal, MPI_DOUBLE, vxcTemp.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc2.Data(), ntotLocal, MPI_DOUBLE, vxc2Temp2.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 1 )
@@ -1362,26 +1363,26 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
       for( Int d = 0; d < DIM; d++ ){
         DblNumMat& gradDensityd = gradDensity_[d];
         for(Int i = 0; i < ntot; i++){
-          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
+          fft_->inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
         }
 
-        FFTWExecute ( fft, fft.forwardPlanFine );
+        FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
-        CpxNumVec& ik = fft.ikFine[d];
+        CpxNumVec& ik = fft_->ikFine[d];
 
         for( Int i = 0; i < ntot; i++ ){
-          if( fft.gkkFine(i) == 0 ){
-            fft.outputComplexVecFine(i) = Z_ZERO;
+          if( fft_->gkkFine(i) == 0 ){
+            fft_->outputComplexVecFine(i) = Z_ZERO;
           }
           else{
-            fft.outputComplexVecFine(i) *= ik(i);
+            fft_->outputComplexVecFine(i) *= ik(i);
           }
         }
 
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
         for( Int i = 0; i < ntot; i++ ){
-          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+          vxc_( i, RHO ) -= fft_->inputComplexVecFine(i).real();
         }
 
       } // for d
@@ -1401,26 +1402,26 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
         DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
         if ( d == mpirank % dmCol ){ 
           for(Int i = 0; i < ntot; i++){
-            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
+            fft_->inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
           }
 
-          FFTWExecute ( fft, fft.forwardPlanFine );
+          FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
-          CpxNumVec& ik = fft.ikFine[d];
+          CpxNumVec& ik = fft_->ikFine[d];
 
           for( Int i = 0; i < ntot; i++ ){
-            if( fft.gkkFine(i) == 0 ){
-              fft.outputComplexVecFine(i) = Z_ZERO;
+            if( fft_->gkkFine(i) == 0 ){
+              fft_->outputComplexVecFine(i) = Z_ZERO;
             }
             else{
-              fft.outputComplexVecFine(i) *= ik(i);
+              fft_->outputComplexVecFine(i) *= ik(i);
             }
           }
 
-          FFTWExecute ( fft, fft.backwardPlanFine );
+          FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
           for( Int i = 0; i < ntot; i++ ){
-            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+            vxcTemp3(i) = fft_->inputComplexVecFine(i).real();
           }
         } // d == mpirank
       } // for d
@@ -1505,11 +1506,11 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
     GetTime( timeSta );
 
     MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc1Temp.Data(), ntotLocal, MPI_DOUBLE, vxc1.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
     MPI_Allgatherv( vxc2Temp.Data(), ntotLocal, MPI_DOUBLE, vxc2.Data(), 
-        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_->comm );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1527,27 +1528,27 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensityd = gradDensity_[d];
         for(Int i = 0; i < ntot; i++){
-          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+          fft_->inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
         }
 
-        FFTWExecute ( fft, fft.forwardPlanFine );
+        FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
-        CpxNumVec& ik = fft.ikFine[d];
+        CpxNumVec& ik = fft_->ikFine[d];
 
         for( Int i = 0; i < ntot; i++ ){
-          if( fft.gkkFine(i) == 0 ){
-            fft.outputComplexVecFine(i) = Z_ZERO;
+          if( fft_->gkkFine(i) == 0 ){
+            fft_->outputComplexVecFine(i) = Z_ZERO;
           }
           else{
-            fft.outputComplexVecFine(i) *= ik(i);
+            fft_->outputComplexVecFine(i) *= ik(i);
           }
         }
 
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
         GetTime( timeSta );
         for( Int i = 0; i < ntot; i++ ){
-          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+          vxc_( i, RHO ) -= fft_->inputComplexVecFine(i).real();
         }
         GetTime( timeEnd );
         timeOther = timeOther + ( timeEnd - timeSta );
@@ -1569,26 +1570,26 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
         DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
         if ( d == mpirank % dmCol ){ 
           for(Int i = 0; i < ntot; i++){
-            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+            fft_->inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
           }
 
-          FFTWExecute ( fft, fft.forwardPlanFine );
+          FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
-          CpxNumVec& ik = fft.ikFine[d];
+          CpxNumVec& ik = fft_->ikFine[d];
 
           for( Int i = 0; i < ntot; i++ ){
-            if( fft.gkkFine(i) == 0 ){
-              fft.outputComplexVecFine(i) = Z_ZERO;
+            if( fft_->gkkFine(i) == 0 ){
+              fft_->outputComplexVecFine(i) = Z_ZERO;
             }
             else{
-              fft.outputComplexVecFine(i) *= ik(i);
+              fft_->outputComplexVecFine(i) *= ik(i);
             }
           }
 
-          FFTWExecute ( fft, fft.backwardPlanFine );
+          FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
           for( Int i = 0; i < ntot; i++ ){
-            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+            vxcTemp3(i) = fft_->inputComplexVecFine(i).real();
           }
 
         } // d == mpirank
@@ -1622,63 +1623,63 @@ Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
   return ;
 }         // -----  end of method Hamiltonian::CalculateXC  ----- 
 
-void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
-  if( !fft.isInitialized ){
+void Hamiltonian::CalculateHartree( bool extra) {
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
-  Int ntot = domain_.NumGridTotalFine();
-  if( fft.domain.NumGridTotalFine() != ntot ){
+  Int ntot = domain_->NumGridTotalFine();
+  if( fft_->domain->NumGridTotalFine() != ntot ){
     ErrorHandling( "Grid size does not match!" );
   }
 
-  Real vol  = domain_.Volume();
-  Int ntotLocal = fft.numGridLocal;
+  Real vol  = domain_->Volume();
+  Int ntotLocal = fft_->numGridLocal;
   // The contribution of the pseudoCharge is subtracted. So the Poisson
   // equation is well defined for neutral system.
   
-  if( fft.isMPIFFTW) {
+  if( fft_->isMPIFFTW) {
 
     for( Int i = 0; i < ntotLocal; i++ ){
-      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-      fft.inputComplexVecLocal(i) = Complex( 
+      Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+      fft_->inputComplexVecLocal(i) = Complex( 
           density_(j,RHO) - pseudoCharge_(j), 0.0 );
     }
   
-    fftw_execute( fft.mpiforwardPlanFine );
+    fftw_execute( fft_->mpiforwardPlanFine );
     Real fac = vol / double(ntot);
-    blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft_->outputComplexVecLocal.Data(), 1);
   
-    //FFTWExecute ( fft, fft.forwardPlanFine );
+    //FFTWExecute ( *fft_, fft_->forwardPlanFine );
   
     for( Int i = 0; i < ntotLocal; i++ ){
-      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
-      if( fft.gkkFine(j) == 0 ){
-        fft.outputComplexVecLocal(i) = Z_ZERO;
+      Int j = i + fft_->localNzStart * domain_->numGridFine[0] * domain_->numGridFine[1];
+      if( fft_->gkkFine(j) == 0 ){
+        fft_->outputComplexVecLocal(i) = Z_ZERO;
       }
       else{
         // NOTE: gkk already contains the factor 1/2.
-        fft.outputComplexVecLocal(i) *= 2.0 * PI / fft.gkkFine(j);
+        fft_->outputComplexVecLocal(i) *= 2.0 * PI / fft_->gkkFine(j);
       }
     }
   
-    //FFTWExecute ( fft, fft.backwardPlanFine );
-    fftw_execute( fft.mpibackwardPlanFine );
+    //FFTWExecute ( *fft_, fft_->backwardPlanFine );
+    fftw_execute( fft_->mpibackwardPlanFine );
     fac = 1.0 / vol;
-    blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft_->inputComplexVecLocal.Data(), 1);
   
     DblNumVec temp;
     temp.Resize(ntotLocal);
   
     for( Int i = 0; i < ntotLocal; i++ ){
-      temp(i) = fft.inputComplexVecLocal(i).real();
+      temp(i) = fft_->inputComplexVecLocal(i).real();
     }
     
 #ifdef _PROFILING_
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-    MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vhart_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+    MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vhart_.Data(), ntotLocal, MPI_DOUBLE, 0, fft_->comm );
 #ifdef _PROFILING_
       GetTime( timeEnd );
       mpi::allgatherTime += timeEnd - timeSta;
@@ -1689,7 +1690,7 @@ void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-  MPI_Bcast( vhart_.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
+  MPI_Bcast( vhart_.Data(), ntot, MPI_DOUBLE, 0, domain_->comm );
 #ifdef _PROFILING_
       GetTime( timeEnd );
       mpi::bcastTime += timeEnd - timeSta;
@@ -1702,39 +1703,39 @@ void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
 
 
 
-void Hamiltonian::CalculateHartree( Fourier& fft ) {
-  if( !fft.isInitialized ){
+void Hamiltonian::CalculateHartree( ) {
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
-  Int ntot = domain_.NumGridTotalFine();
-  if( fft.domain.NumGridTotalFine() != ntot ){
+  Int ntot = domain_->NumGridTotalFine();
+  if( fft_->domain->NumGridTotalFine() != ntot ){
     ErrorHandling( "Grid size does not match!" );
   }
 
   // The contribution of the pseudoCharge is subtracted. So the Poisson
   // equation is well defined for neutral system.
   for( Int i = 0; i < ntot; i++ ){
-    fft.inputComplexVecFine(i) = Complex( 
+    fft_->inputComplexVecFine(i) = Complex( 
         density_(i,RHO) - pseudoCharge_(i), 0.0 );
   }
 
-  FFTWExecute ( fft, fft.forwardPlanFine );
+  FFTWExecute ( *fft_, fft_->forwardPlanFine );
 
   for( Int i = 0; i < ntot; i++ ){
-    if( fft.gkkFine(i) == 0 ){
-      fft.outputComplexVecFine(i) = Z_ZERO;
+    if( fft_->gkkFine(i) == 0 ){
+      fft_->outputComplexVecFine(i) = Z_ZERO;
     }
     else{
       // NOTE: gkk already contains the factor 1/2.
-      fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
+      fft_->outputComplexVecFine(i) *= 2.0 * PI / fft_->gkkFine(i);
     }
   }
 
-  FFTWExecute ( fft, fft.backwardPlanFine );
+  FFTWExecute ( *fft_, fft_->backwardPlanFine );
 
   for( Int i = 0; i < ntot; i++ ){
-    vhart_(i) = fft.inputComplexVecFine(i).real();
+    vhart_(i) = fft_->inputComplexVecFine(i).real();
   }
 
   return; 
@@ -1744,7 +1745,7 @@ void Hamiltonian::CalculateHartree( Fourier& fft ) {
 void
 Hamiltonian::CalculateVtot    ( DblNumVec& vtot )
 {
-  Int ntot = domain_.NumGridTotalFine();
+  Int ntot = domain_->NumGridTotalFine();
   for (int i=0; i<ntot; i++) {
     vtot(i) = vext(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
   }
@@ -1754,7 +1755,7 @@ Hamiltonian::CalculateVtot    ( DblNumVec& vtot )
 
 
 void
-Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
+Hamiltonian::CalculateForce    ( Spinor& psi  )
 {
 
   Real timeSta, timeEnd;
@@ -1762,7 +1763,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
   // DEBUG purpose: special time on FFT
   Real timeFFTSta, timeFFTEnd, timeFFTTotal = 0.0;
 
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
   Int ntot  = psi.NumGridTotal();
   Int ncom  = psi.NumComponent();
   Int numStateLocal = psi.NumState(); // Local number of states
@@ -1799,35 +1800,35 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
     CpxNumVec  totalChargeFourier( ntotFine );
 
     for( Int i = 0; i < ntotFine; i++ ){
-      fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+      fft_->inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
     }
 
     GetTime( timeFFTSta );
-    FFTWExecute ( fft, fft.forwardPlanFine );
+    FFTWExecute ( *fft_, fft_->forwardPlanFine );
     GetTime( timeFFTEnd );
     timeFFTTotal += timeFFTEnd - timeFFTSta;
 
 
-    blas::copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+    blas::copy( ntotFine, fft_->outputComplexVecFine.Data(), 1,
         totalChargeFourier.Data(), 1 );
 
     // Compute the derivative of the Hartree potential via Fourier
     // transform 
     for( Int d = 0; d < DIM; d++ ){
-      CpxNumVec& ikFine = fft.ikFine[d];
+      CpxNumVec& ikFine = fft_->ikFine[d];
       for( Int i = 0; i < ntotFine; i++ ){
-        if( fft.gkkFine(i) == 0 ){
-          fft.outputComplexVecFine(i) = Z_ZERO;
+        if( fft_->gkkFine(i) == 0 ){
+          fft_->outputComplexVecFine(i) = Z_ZERO;
         }
         else{
           // NOTE: gkk already contains the factor 1/2.
-          fft.outputComplexVecFine(i) = totalChargeFourier(i) *
-            2.0 * PI / fft.gkkFine(i) * ikFine(i);
+          fft_->outputComplexVecFine(i) = totalChargeFourier(i) *
+            2.0 * PI / fft_->gkkFine(i) * ikFine(i);
         }
       }
 
       GetTime( timeFFTSta );
-      FFTWExecute ( fft, fft.backwardPlanFine );
+      FFTWExecute ( *fft_, fft_->backwardPlanFine );
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
 
@@ -1835,7 +1836,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
       vhartDrv[d].Resize( ntotFine );
 
       for( Int i = 0; i < ntotFine; i++ ){
-        vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+        vhartDrv[d](i) = fft_->inputComplexVecFine(i).real();
       }
 
     } // for (d)
@@ -1848,7 +1849,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
       IntNumVec& idx = sp.first;
       DblNumMat& val = sp.second;
 
-      Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+      Real wgt = domain_->Volume() / domain_->NumGridTotalFine();
       Real resX = 0.0;
       Real resY = 0.0;
       Real resZ = 0.0;
@@ -1866,7 +1867,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
   
     // Second, contribution from the vLocalSR.  
     // The integration by parts formula requires the calculation of the grad density
-    CalculateGradDensity( fft );
+    CalculateGradDensity( );
 
     // FIXME This should be parallelized
     for (Int a=0; a<numAtom; a++) {
@@ -1878,7 +1879,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
 //      statusOFS << "vLocalSR = " << val << std::endl;
 //      statusOFS << "gradDensity_[0] = " << gradDensity_[0] << std::endl;
 
-      Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+      Real wgt = domain_->Volume() / domain_->NumGridTotalFine();
       Real resX = 0.0;
       Real resY = 0.0;
       Real resZ = 0.0;
@@ -1940,59 +1941,59 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
     for( Int g = 0; g < numStateLocal; g++ ){
       // Compute the derivative of the wavefunctions on a fine grid
       Real* psiPtr = psi.Wavefun().VecData(0, g);
-      for( Int i = 0; i < domain_.NumGridTotal(); i++ ){
-        fft.inputComplexVec(i) = Complex( psiPtr[i], 0.0 ); 
+      for( Int i = 0; i < domain_->NumGridTotal(); i++ ){
+        fft_->inputComplexVec(i) = Complex( psiPtr[i], 0.0 ); 
       }
 
       GetTime( timeFFTSta );
-      FFTWExecute ( fft, fft.forwardPlan );
+      FFTWExecute ( *fft_, fft_->forwardPlan );
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
       // fft Coarse to Fine 
 
       SetValue( psiFourier, Z_ZERO );
       for( Int i = 0; i < ntot; i++ ){
-        psiFourier(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+        psiFourier(fft_->idxFineGrid(i)) = fft_->outputComplexVec(i);
       }
 
       // psi on a fine grid
       for( Int i = 0; i < ntotFine; i++ ){
-        fft.outputComplexVecFine(i) = psiFourier(i);
+        fft_->outputComplexVecFine(i) = psiFourier(i);
       }
 
       GetTime( timeFFTSta );
-      FFTWExecute ( fft, fft.backwardPlanFine );
+      FFTWExecute ( *fft_, fft_->backwardPlanFine );
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
 
-      Real fac = sqrt(double(domain_.NumGridTotal())) / 
-        sqrt( double(domain_.NumGridTotalFine()) ); 
-      //      for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
-      //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac;
+      Real fac = sqrt(double(domain_->NumGridTotal())) / 
+        sqrt( double(domain_->NumGridTotalFine()) ); 
+      //      for( Int i = 0; i < domain_->NumGridTotalFine(); i++ ){
+      //        psiFine(i) = fft_->inputComplexVecFine(i).real() * fac;
       //      }
-      blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+      blas::copy( ntotFine, reinterpret_cast<Real*>(fft_->inputComplexVecFine.Data()),
           2, psiFine.Data(), 1 );
       blas::scal( ntotFine, fac, psiFine.Data(), 1 );
 
       // derivative of psi on a fine grid
       for( Int d = 0; d < DIM; d++ ){
-        Complex* ikFinePtr = fft.ikFine[d].Data();
+        Complex* ikFinePtr = fft_->ikFine[d].Data();
         Complex* psiFourierPtr    = psiFourier.Data();
-        Complex* fftOutFinePtr = fft.outputComplexVecFine.Data();
+        Complex* fftOutFinePtr = fft_->outputComplexVecFine.Data();
         for( Int i = 0; i < ntotFine; i++ ){
-          //          fft.outputComplexVecFine(i) = psiFourier(i) * ikFine(i);
+          //          fft_->outputComplexVecFine(i) = psiFourier(i) * ikFine(i);
           *(fftOutFinePtr++) = *(psiFourierPtr++) * *(ikFinePtr++);
         }
 
         GetTime( timeFFTSta );
-        FFTWExecute ( fft, fft.backwardPlanFine );
+        FFTWExecute ( *fft_, fft_->backwardPlanFine );
         GetTime( timeFFTEnd );
         timeFFTTotal += timeFFTEnd - timeFFTSta;
 
-        //        for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
-        //          psiDrvFine[d](i) = fft.inputComplexVecFine(i).real() * fac;
+        //        for( Int i = 0; i < domain_->NumGridTotalFine(); i++ ){
+        //          psiDrvFine[d](i) = fft_->inputComplexVecFine(i).real() * fac;
         //        }
-        blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+        blas::copy( ntotFine, reinterpret_cast<Real*>(fft_->inputComplexVecFine.Data()),
             2, psiDrvFine[d].Data(), 1 );
         blas::scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
 
@@ -2004,7 +2005,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
         for( Int l = 0; l < vnlList.size(); l++ ){
           SparseVec& bl = vnlList[l].first;
           Real  gamma   = vnlList[l].second;
-          Real  wgt = domain_.Volume() / domain_.NumGridTotalFine();
+          Real  wgt = domain_->Volume() / domain_->NumGridTotalFine();
           IntNumVec& idx = bl.first;
           DblNumMat& val = bl.second;
 
@@ -2053,7 +2054,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
   DblNumMat  forceTmp( numAtom, DIM );
   SetValue( forceTmp, 0.0 );
 
-  mpi::Allreduce( forceLocal.Data(), forceTmp.Data(), numAtom * DIM, MPI_SUM, domain_.comm );
+  mpi::Allreduce( forceLocal.Data(), forceTmp.Data(), numAtom * DIM, MPI_SUM, domain_->comm );
 
   for( Int a = 0; a < numAtom; a++ ){
     force( a, 0 ) = force( a, 0 ) + forceTmp( a, 0 );
@@ -2096,21 +2097,21 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
 
 
 void
-Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
+Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
 {
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  Int ntot      = fft.domain.NumGridTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int ntot      = fft_->domain->NumGridTotal();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
   Int numStateTotal = psi.NumStateTotal();
   Int numStateLocal = psi.NumState();
   NumTns<Real>& wavefun = psi.Wavefun();
   Int ncom = wavefun.n();
 
-  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2C = fft_->numGridTotalR2C;
 
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
@@ -2131,22 +2132,22 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
     for (Int k=0; k<numStateLocal; k++) {
       for (Int j=0; j<ncom; j++) {
 
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
+        SetValue( fft_->inputVecR2C, 0.0 );
+        SetValue( fft_->outputVecR2C, Z_ZERO );
 
         blas::copy( ntot, wavefun.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+            fft_->inputVecR2C.Data(), 1 );
+        FFTWExecute ( *fft_, fft_->forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
 
         for (Int i=0; i<ntotR2C; i++)
         {
-          if(fft.gkkR2C(i) > wfn_cutoff_)
-            fft.outputVecR2C(i) = Z_ZERO;
+          if(fft_->gkkR2C(i) > wfn_cutoff_)
+            fft_->outputVecR2C(i) = Z_ZERO;
         }
 
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::copy( ntot,  fft.inputVecR2C.Data(), 1,
+        FFTWExecute ( *fft_, fft_->backwardPlanR2C );
+        blas::copy( ntot,  fft_->inputVecR2C.Data(), 1,
             wavefun.VecData(j,k), 1 );
 
       }
@@ -2156,8 +2157,8 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
   GetTime( timeSta );
   // LL: change the default behavior 1/3/2021
-  // psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
-  psi.AddMultSpinor( fft, vtot_, pseudo_, Hpsi );
+  // psi.AddMultSpinorR2C( *fft_, vtot_, pseudo_, Hpsi );
+  psi.AddMultSpinor( vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for psi.AddMultSpinor is " <<
@@ -2219,7 +2220,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
         GetTime( timeSta1 );
         auto bdist = 
-          make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+          make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_->comm,
                                           ntot, numStateTotal );
         bdist.redistribute_col_to_row( psiCol,      psiRow      );
         bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
@@ -2240,7 +2241,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         DblNumMat M(numStateTotal, numStateTotal);
         SetValue( M, 0.0 );
         GetTime( timeSta1 );
-        MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_->comm );
         GetTime( timeEnd1 );
         timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
 
@@ -2281,7 +2282,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
     }
     else{
       statusOFS << "IS NOT ACE" << std::endl;
-      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+      psi.AddMultSpinorEXX( phiEXX_, exxgkkR2C_,
           exxFraction_,  numSpin_, occupationRate_, Hpsi );
     }
 
@@ -2307,22 +2308,22 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
     for (Int k=0; k<numStateLocal; k++) {
       for (Int j=0; j<ncom; j++) {
 
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
+        SetValue( fft_->inputVecR2C, 0.0 );
+        SetValue( fft_->outputVecR2C, Z_ZERO );
 
         blas::copy( ntot, Hpsi.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+            fft_->inputVecR2C.Data(), 1 );
+        FFTWExecute ( *fft_, fft_->forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
 
         for (Int i=0; i<ntotR2C; i++)
         {
-          if(fft.gkkR2C(i) > wfn_cutoff_)
-            fft.outputVecR2C(i) = Z_ZERO;
+          if(fft_->gkkR2C(i) > wfn_cutoff_)
+            fft_->outputVecR2C(i) = Z_ZERO;
         }
 
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::copy( ntot,  fft.inputVecR2C.Data(), 1,
+        FFTWExecute ( *fft_, fft_->backwardPlanR2C );
+        blas::copy( ntot,  fft_->inputVecR2C.Data(), 1,
             Hpsi.VecData(j,k), 1 );
 
       }
@@ -2336,13 +2337,13 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
 
 
-void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
 {
   const Real epsDiv = 1e-8;
 
   isEXXActive_ = false;
 
-  Int numGridTotalR2C = fft.numGridTotalR2C;
+  Int numGridTotalR2C = fft_->numGridTotalR2C;
   exxgkkR2C_.Resize(numGridTotalR2C);
   SetValue( exxgkkR2C_, 0.0 );
 
@@ -2367,8 +2368,8 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
     // Do the integration over the entire G-space rather than just the
     // R2C grid. This is because it is an integration in the G-space.
     // This implementation fully agrees with the QE result.
-    for( Int ig = 0; ig < fft.numGridTotal; ig++ ){
-      gkk2 = fft.gkk(ig) * 2.0;
+    for( Int ig = 0; ig < fft_->numGridTotal; ig++ ){
+      gkk2 = fft_->gkk(ig) * 2.0;
       if( gkk2 > epsDiv ){
         if( screenMu_ > 0.0 ){
           exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
@@ -2402,7 +2403,7 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
       }
     }
     aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
-    exxDiv_ -= domain_.Volume()*aa;
+    exxDiv_ -= domain_->Volume()*aa;
   }
 
   if(1){
@@ -2411,7 +2412,7 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
 
   for( Int ig = 0; ig < numGridTotalR2C; ig++ ){
-    gkk2 = fft.gkkR2C(ig) * 2.0;
+    gkk2 = fft_->gkkR2C(ig) * 2.0;
     if( gkk2 > epsDiv ){
       if( screenMu_ > 0 ){
         // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
@@ -2443,7 +2444,7 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
 
 void
-Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
+Hamiltonian::SetPhiEXX    (const Spinor& psi)
 {
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Real>& wavefun = psi.Wavefun();
@@ -2451,8 +2452,8 @@ Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
   Int ncom = wavefun.n();
   Int numStateLocal = wavefun.p();
   Int numStateTotal = this->NumStateTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
-  Real vol = fft.domain.Volume();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
+  Real vol = fft_->domain->Volume();
 
   phiEXX_.Resize( ntot, ncom, numStateLocal );
   SetValue( phiEXX_, 0.0 );
@@ -2481,7 +2482,7 @@ Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 
 
 void
-Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateVexxACE ( Spinor& psi )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2489,20 +2490,20 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   // Since this is a projector, it should be done on the COARSE grid,
   // i.e. to the wavefunction directly
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   // Only works for single processor
-  Int ntot      = fft.domain.NumGridTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int ntot      = fft_->domain->NumGridTotal();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
   Int numStateTotal = psi.NumStateTotal();
   Int numStateLocal = psi.NumState();
   NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
 
   // VexxPsi = V_{exx}*Phi.
   SetValue( vexxPsi, 0.0 );
-  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+  psi.AddMultSpinorEXX( phiEXX_, exxgkkR2C_,
       exxFraction_,  numSpin_, occupationRate_, vexxPsi );
 
   // Implementation based on SVD
@@ -2598,7 +2599,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
     auto bdist = 
-      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_->comm,
                                       ntot, numStateTotal );
     bdist.redistribute_col_to_row( localPsiCol,     localPsiRow     );
     bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
@@ -2612,13 +2613,13 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
         MTemp.Data(), numStateTotal );
 
     SetValue( M, 0.0 );
-    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_->comm );
 
     if ( mpirank == 0) {
       lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
     }
 
-    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_->comm);
 
     blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntotLocal, numStateTotal, 1.0, 
         M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
@@ -2663,7 +2664,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 }         // -----  end of method Hamiltonian::CalculateVexxACE  ----- 
 
 void
-Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+Hamiltonian::CalculateVexxACEDF ( Spinor& psi, bool isFixColumnDF )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2671,13 +2672,13 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
   // Since this is a projector, it should be done on the COARSE grid,
   // i.e. to the wavefunction directly
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   // Only works for single processor
-  Int ntot      = fft.domain.NumGridTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int ntot      = fft_->domain->NumGridTotal();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
   Int numStateTotal = psi.NumStateTotal();
   Int numStateLocal = psi.NumState();
   NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
@@ -2688,7 +2689,7 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF7( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+  psi.AddMultSpinorEXXDF7( phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, hybridDFType_, hybridDFKmeansTolerance_, 
       hybridDFKmeansMaxIter_, hybridDFNumMu_, hybridDFNumGaussianRandom_,
       hybridDFNumProcScaLAPACK_, hybridDFTolerance_, BlockSizeScaLAPACK_,
@@ -2732,7 +2733,7 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
     auto bdist = 
-      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_->comm,
                                       ntot, numStateTotal );
     bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
 
@@ -2740,7 +2741,7 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
       lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
     }
 
-    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_->comm);
 
     blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntotLocal, numStateTotal, 1.0, 
         M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
@@ -2756,12 +2757,12 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
 
 // This comes from exxenergy2() function in exx.f90 in QE.
 Real
-Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateEXXEnergy    ( Spinor& psi )
 {
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   Real fockEnergy = 0.0;
   Real fockEnergyLocal = 0.0;
@@ -2773,16 +2774,16 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
   // FIXME Should be combined better with the addition of exchange part in spinor
   NumTns<Real>& wavefun = psi.Wavefun();
 
-  if( !fft.isInitialized ){
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
-  Index3& numGrid = fft.domain.numGrid;
-  Index3& numGridFine = fft.domain.numGridFine;
-  Int ntot      = fft.domain.NumGridTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Index3& numGrid = fft_->domain->numGrid;
+  Index3& numGridFine = fft_->domain->numGridFine;
+  Int ntot      = fft_->domain->NumGridTotal();
+  Int ntotFine  = fft_->domain->NumGridTotalFine();
   Int numStateTotal = psi.NumStateTotal();
   Int numStateLocal = psi.NumState();
-  Real vol = fft.domain.Volume();
+  Real vol = fft_->domain->Volume();
   Int ncom = wavefun.n();
   NumTns<Real>& phi = phiEXX_;
   Int ncomPhi = phi.n();
@@ -2791,7 +2792,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
   }
   Int numStateLocalPhi = phi.p();
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft_->domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -2866,7 +2867,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
       auto bdist = 
-        make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+        make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_->comm,
                                         ntot, numStateTotal );
       bdist.redistribute_col_to_row( psiCol,      psiRow      );
       bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
@@ -2882,7 +2883,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       DblNumMat M(numStateTotal, numStateTotal);
       SetValue( M, 0.0 );
 
-      MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_->comm );
 
       blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numStateTotal, numStateTotal, -1.0,
           vexxProjRow.Data(), ntotLocal, M.Data(), numStateTotal,
@@ -2900,13 +2901,13 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
           }
         }
       }
-      mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
+      mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_->comm );
     } //if(1) 
   }
   else{
     NumTns<Real>  vexxPsi( ntot, 1, numStateLocalPhi );
     SetValue( vexxPsi, 0.0 );
-    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_, 
+    psi.AddMultSpinorEXX( phiEXX_, exxgkkR2C_, 
         exxFraction_,  numSpin_, occupationRate_, 
         vexxPsi );
     // Compute the exchange energy:
@@ -2921,7 +2922,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
         }
       }
     }
-    mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
+    mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_->comm );
   }
 
 
@@ -2931,7 +2932,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 
 
 //void
-//Hamiltonian::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
+//Hamiltonian::UpdateHybrid ( Int phiIter, const Spinor& psi, Real Efock )
 //{
 //
 //
@@ -2952,7 +2953,7 @@ Hamiltonian::CalculateVdwEnergyAndForce    ()
 
   Int numAtom = atomList.size();
 
-  const Domain& dm = domain_;
+  const Domain& dm = *domain_;
 
   if( esdfParam.VDWType == "DFT-D2"){
 
@@ -3174,7 +3175,7 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
   forceIonSR_.Resize( atomList.size(), DIM );
   SetValue(forceIonSR_, 0.0);
   {
-    const Domain& dm = domain_;
+    const Domain& dm = *domain_;
 
     for(Int a=0; a< atomList.size() ; a++) {
       Int type_a = atomList[a].type;
@@ -3248,5 +3249,181 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 
   return ;
 }         // -----  end of method Hamiltonian::CalculateIonSelfEnergyAndForce  ----- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+// This emulates Hamiltonian::InitializeEXX
+EXXOperator::EXXOperator( Domain domain, Int exxDivType, Real screenMu, 
+                          Real exxFraction, Real ecutWavefunction, Fourier& fft ) :
+  domain_           ( domain              ),
+  numGridTotalR2C_  ( fft.numGridTotalR2C ),
+  exxDivergenceType_( exxDivType          ),
+  screenMu_         ( screenMu            ),
+  exxFraction_      ( exxFraction         )
+{
+
+  const Real epsDiv = 1e-8;
+
+  exxgkkR2C_.Resize( numGridTotalR2C_ );
+  SetValue( exxgkkR2C_, 0.0 );
+
+  // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
+  // tpiba2 in QE is just a unit for G^2. Do not include it here
+  const Real exxAlpha = 10.0 / (ecutWavefunction * 2.0);
+
+  // Gygi-Baldereschi regularization. Currently set to zero and compare
+  // with QE without the regularization 
+  // Set exxdiv_treatment to "none"
+  // NOTE: I do not quite understand the detailed derivation
+  // Compute the divergent term for G=0
+  Real gkk2;
+  if(exxDivergenceType_ == 0){
+    exxDiv_ = 0.0;
+  }
+  else if (exxDivergenceType_ == 1){
+    exxDiv_ = 0.0;
+    // no q-point
+    // NOTE: Compared to the QE implementation, it is easier to do below.
+    // Do the integration over the entire G-space rather than just the
+    // R2C grid. This is because it is an integration in the G-space.
+    // This implementation fully agrees with the QE result.
+    for( Int ig = 0; ig < fft.numGridTotalTotal; ig++ ){
+      gkk2 = fft.gkk(ig) * 2.0;
+      if( gkk2 > epsDiv ){
+        if( screenMu_ > 0.0 ){
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
+            (1.0 - std::exp(-gkk2 / (4.0*screenMu_*screenMu_)));
+        }
+        else{
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2;
+        }
+      }
+    } // for (ig)
+
+    if( screenMu_ > 0.0 ){
+      exxDiv_ += 1.0 / (4.0*screenMu_*screenMu_);
+    }
+    else{
+      exxDiv_ -= exxAlpha;
+    }
+    exxDiv_ *= 4.0 * PI;
+
+
+    Int nqq = 100000;
+    Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
+    Real aa = 0.0;
+    Real qt, qt2;
+    for( Int iq = 0; iq < nqq; iq++ ){
+      qt = dq * (iq+0.5);
+      qt2 = qt*qt;
+      if( screenMu_ > 0.0 ){
+        aa -= std::exp(-exxAlpha *qt2) * 
+          std::exp(-qt2 / (4.0*screenMu_*screenMu_)) * dq;
+      }
+    }
+    aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
+    exxDiv_ -= domain_->Volume()*aa;
+  }
+
+  statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
+
+  for( Int ig = 0; ig < numGridTotalR2C_; ig++ ){
+    gkk2 = fft.gkkR2C(ig) * 2.0;
+    if( gkk2 > epsDiv ){
+      if( screenMu_ > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkkR2C_[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenMu_*screenMu_) ));
+      }
+      else{
+        exxgkkR2C_[ig] = 4.0 * PI / gkk2;
+      }
+    }
+    else{
+      exxgkkR2C_[ig] = -exxDiv_;
+      if( screenMu_ > 0 ){
+        exxgkkR2C_[ig] += PI / (screenMu_*screenMu_);
+      }
+    }
+  } // for (ig)
+
+
+  statusOFS << "Hybrid mixing parameter  = " << exxFraction_ << std::endl; 
+  statusOFS << "Hybrid screening length = " << screenMu_ << std::endl;
+
+
+}
+
+     
+// This emulates Hamiltonian::SetPhiEXX
+void EXXOperator::SetPhi( Spinor& psi, Fourier& fft ) 
+{
+
+  numGridTotal_ = psi.NumGridTotal(); 
+  numCom_        = psi.NumComponent();
+  numStateLocal_ = psi.NumState();     
+  numStateTotal_ = psi.NumStateTotal();
+
+  phiEXX_.Resize( numGridTotal_, numCom_, numStateLocal_ );
+  SetValue( phiEXX_, 0.0 );
+
+  const auto& wavefun = psi.Wavefun();
+  const Real vol = fft.domain->Volume();
+  const Real fac = std::sqrt( Real(numGridTotal_) / vol );
+
+  for( Int k = 0; k < numStateLocal_; ++k )
+  for( Int j = 0; j < numCom_;        ++j ) {
+    blas::copy( numGridTotal_, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
+    blas::scal( numGridTotal_, fac, phiEXX_.VecData(j,k), 1 );
+  }
+
+}
+      
+
+void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi,
+                                 Fourier& fft ) {
+
+
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
+
+  auto& gridDim     = domain_->numGrid;
+  auto& gridDimFine = domain_->numGridFine;
+
+}
+#endif
+
+
+
 
 } // namespace scales

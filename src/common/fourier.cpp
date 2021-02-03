@@ -22,12 +22,11 @@ using namespace scales::esdf;
 // Sequential FFTW
 // *********************************************************************
 
-Fourier::Fourier () : 
+Fourier::Fourier( std::shared_ptr<Domain> dm) : 
+  domain(dm),
   isInitialized(false),
-  numGridTotal(0),
-  numGridTotalFine(0),
-  //plannerFlag(FFTW_MEASURE | FFTW_UNALIGNED )
-  plannerFlag(FFTW_ESTIMATE)
+  //plannerFlag(FFTW_MEASURE | FFTW_UNALIGNED)
+  plannerFlag(FFTW_ESTIMATE | FFTW_UNALIGNED)
   {
     backwardPlan  = NULL;
     forwardPlan   = NULL;
@@ -62,7 +61,7 @@ Fourier::~Fourier ()
   if( mpibackwardPlanFine ) fftw_destroy_plan( mpibackwardPlanFine );
 }
 
-void Fourier::Initialize ( const Domain& dm )
+void Fourier::Initialize ( )
 {
 
 
@@ -70,11 +69,10 @@ void Fourier::Initialize ( const Domain& dm )
     ErrorHandling("Fourier has been initialized.");
   }
 
-  domain = dm;
-  Index3& numGrid = domain.numGrid;
-  Point3& length  = domain.length;
+  Index3& numGrid = domain->numGrid;
+  Point3& length  = domain->length;
 
-  numGridTotal = domain.NumGridTotal();
+  numGridTotal = domain->NumGridTotal();
 
   inputComplexVec.Resize( numGridTotal );
   outputComplexVec.Resize( numGridTotal );
@@ -102,12 +100,12 @@ void Fourier::Initialize ( const Domain& dm )
     }
   }
 
-  gkk.Resize( dm.NumGridTotal() );
-  TeterPrecond.Resize( dm.NumGridTotal() );
+  gkk.Resize( domain->NumGridTotal() );
+  TeterPrecond.Resize( domain->NumGridTotal() );
   ik.resize(DIM);
-  ik[0].Resize( dm.NumGridTotal() );
-  ik[1].Resize( dm.NumGridTotal() );
-  ik[2].Resize( dm.NumGridTotal() );
+  ik[0].Resize( domain->NumGridTotal() );
+  ik[1].Resize( domain->NumGridTotal() );
+  ik[2].Resize( domain->NumGridTotal() );
 
   Real*     gkkPtr = gkk.Data();
   Complex*  ikXPtr = ik[0].Data();
@@ -134,7 +132,7 @@ void Fourier::Initialize ( const Domain& dm )
 
   // TeterPreconditioner
   Real  a, b;
-  for( Int i = 0; i < domain.NumGridTotal(); i++ ){
+  for( Int i = 0; i < domain->NumGridTotal(); i++ ){
     a = gkk[i] * 2.0;
     b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
     TeterPrecond[i] = b / ( b + 16.0 * pow(a, 4.0) );
@@ -211,7 +209,7 @@ void Fourier::Initialize ( const Domain& dm )
       Int mpirankFFT, mpisizeFFT;
       MPI_Comm_rank( comm, &mpirankFFT );
       MPI_Comm_size( comm, &mpisizeFFT );
-      Index3& numGrid = domain.numGridFine;
+      Index3& numGrid = domain->numGridFine;
       if( numGrid[2] < mpisizeFFT ){
         ErrorHandling( " MPI FFTW initialization  error, reduce FFTW_MPI_Size.");
       }
@@ -258,7 +256,7 @@ void Fourier::Initialize ( const Domain& dm )
 }        // -----  end of function Fourier::Initialize  ----- 
 
 
-void Fourier::InitializeFine ( const Domain& dm )
+void Fourier::InitializeFine ( )
 {
 
   //  if( isInitialized ) {
@@ -266,12 +264,11 @@ void Fourier::InitializeFine ( const Domain& dm )
   //    }
 
 
-  domain = dm;
   // FIXME Problematic definition
-  Index3& numGrid = domain.numGridFine;
-  Point3& length  = domain.length;
+  Index3& numGrid = domain->numGridFine;
+  Point3& length  = domain->length;
 
-  numGridTotalFine = domain.NumGridTotalFine();
+  numGridTotalFine = domain->NumGridTotalFine();
 
   inputComplexVecFine.Resize( numGridTotalFine );
   outputComplexVecFine.Resize( numGridTotalFine );
@@ -299,12 +296,12 @@ void Fourier::InitializeFine ( const Domain& dm )
     }
   }
 
-  gkkFine.Resize( dm.NumGridTotalFine() );
-  TeterPrecondFine.Resize( dm.NumGridTotalFine() );
+  gkkFine.Resize( domain->NumGridTotalFine() );
+  TeterPrecondFine.Resize( domain->NumGridTotalFine() );
   ikFine.resize(DIM);
-  ikFine[0].Resize( dm.NumGridTotalFine() );
-  ikFine[1].Resize( dm.NumGridTotalFine() );
-  ikFine[2].Resize( dm.NumGridTotalFine() );
+  ikFine[0].Resize( domain->NumGridTotalFine() );
+  ikFine[1].Resize( domain->NumGridTotalFine() );
+  ikFine[2].Resize( domain->NumGridTotalFine() );
 
   Real*     gkkPtr = gkkFine.Data();
   Complex*  ikXPtr = ikFine[0].Data();
@@ -330,7 +327,7 @@ void Fourier::InitializeFine ( const Domain& dm )
 
   // TeterPreconditioner
   Real  a, b;
-  for( Int i = 0; i < domain.NumGridTotalFine(); i++ ){
+  for( Int i = 0; i < domain->NumGridTotalFine(); i++ ){
     a = gkkFine[i] * 2.0;
     b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
     TeterPrecondFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
@@ -338,15 +335,15 @@ void Fourier::InitializeFine ( const Domain& dm )
 
 
   // Compute the index for mapping coarse to fine grid
-  idxFineGrid.Resize(domain.NumGridTotal());
+  idxFineGrid.Resize(domain->NumGridTotal());
   SetValue( idxFineGrid, 0 );
   {
     Int PtrC, PtrF, iF, jF, kF;
-    for( Int kk = 0; kk < domain.numGrid[2]; kk++ ){
-      for( Int jj = 0; jj < domain.numGrid[1]; jj++ ){
-        for( Int ii = 0; ii < domain.numGrid[0]; ii++ ){
+    for( Int kk = 0; kk < domain->numGrid[2]; kk++ ){
+      for( Int jj = 0; jj < domain->numGrid[1]; jj++ ){
+        for( Int ii = 0; ii < domain->numGrid[0]; ii++ ){
 
-          PtrC = ii + jj * domain.numGrid[0] + kk * domain.numGrid[0] * domain.numGrid[1];
+          PtrC = ii + jj * domain->numGrid[0] + kk * domain->numGrid[0] * domain->numGrid[1];
 
 //          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
 //          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
@@ -360,16 +357,16 @@ void Fourier::InitializeFine ( const Domain& dm )
 //          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
 //          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
 
-          if ( (0 <= ii) && (ii <= domain.numGrid[0] / 2) ) { iF = ii; } 
-          else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
+          if ( (0 <= ii) && (ii <= domain->numGrid[0] / 2) ) { iF = ii; } 
+          else { iF = domain->numGridFine[0] - domain->numGrid[0] + ii; } 
 
-          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
-          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+          if ( (0 <= jj) && (jj <= domain->numGrid[1] / 2) ) { jF = jj; } 
+          else { jF = domain->numGridFine[1] - domain->numGrid[1] + jj; } 
 
-          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
-          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+          if ( (0 <= kk) && (kk <= domain->numGrid[2] / 2) ) { kF = kk; } 
+          else { kF = domain->numGridFine[2] - domain->numGrid[2] + kk; } 
 
-          PtrF = iF + jF * domain.numGridFine[0] + kF * domain.numGridFine[0] * domain.numGridFine[1];
+          PtrF = iF + jF * domain->numGridFine[0] + kF * domain->numGridFine[0] * domain->numGridFine[1];
 
           idxFineGrid[PtrC] = PtrF;
         } 
@@ -381,8 +378,8 @@ void Fourier::InitializeFine ( const Domain& dm )
   // R2C transform
 
   // LL: 1/6/2016 IMPORTANT: fix a bug
-  numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
-  numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
+  numGridTotalR2C = (domain->numGrid[0]/2+1) * domain->numGrid[1] * domain->numGrid[2];
+  numGridTotalR2CFine = (domain->numGridFine[0]/2+1) * domain->numGridFine[1] * domain->numGridFine[2];
 
   inputVecR2CFine.Resize( numGridTotalFine );
   outputVecR2CFine.Resize( numGridTotalR2CFine );
@@ -428,33 +425,33 @@ void Fourier::InitializeFine ( const Domain& dm )
   SetValue( idxFineGridR2C, 0 );
   {
     Int PtrC, PtrF, iF, jF, kF;
-    for( Int kk = 0; kk < domain.numGrid[2]; kk++ ){
-      for( Int jj = 0; jj < domain.numGrid[1]; jj++ ){
-        for( Int ii = 0; ii < (domain.numGrid[0]/2+1); ii++ ){
+    for( Int kk = 0; kk < domain->numGrid[2]; kk++ ){
+      for( Int jj = 0; jj < domain->numGrid[1]; jj++ ){
+        for( Int ii = 0; ii < (domain->numGrid[0]/2+1); ii++ ){
 
-          PtrC = ii + jj * (domain.numGrid[0]/2+1) + kk * (domain.numGrid[0]/2+1) * domain.numGrid[1];
+          PtrC = ii + jj * (domain->numGrid[0]/2+1) + kk * (domain->numGrid[0]/2+1) * domain->numGrid[1];
 
-//          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
-//          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
-//          else { iF = (domain.numGridFine[0]/2+1) - (domain.numGrid[0]/2+1) + ii; } 
+//          if ( (0 <= ii) && (ii < domain->numGrid[0] / 2) ) { iF = ii; } 
+//          else if ( (ii == domain->numGrid[0] / 2) ) { iF = domain->numGridFine[0] / 2; } 
+//          else { iF = (domain->numGridFine[0]/2+1) - (domain->numGrid[0]/2+1) + ii; } 
 //
-//          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
-//          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
-//          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+//          if ( (0 <= jj) && (jj < domain->numGrid[1] / 2) ) { jF = jj; } 
+//          else if ( (jj == domain->numGrid[1] / 2) ) { jF = domain->numGridFine[1] / 2; } 
+//          else { jF = domain->numGridFine[1] - domain->numGrid[1] + jj; } 
 //
-//          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
-//          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
-//          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+//          if ( (0 <= kk) && (kk < domain->numGrid[2] / 2) ) { kF = kk; } 
+//          else if ( (kk == domain->numGrid[2] / 2) ) { kF = domain->numGridFine[2] / 2; } 
+//          else { kF = domain->numGridFine[2] - domain->numGrid[2] + kk; } 
 
           iF = ii;
 
-          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
-          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+          if ( (0 <= jj) && (jj <= domain->numGrid[1] / 2) ) { jF = jj; } 
+          else { jF = domain->numGridFine[1] - domain->numGrid[1] + jj; } 
 
-          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
-          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+          if ( (0 <= kk) && (kk <= domain->numGrid[2] / 2) ) { kF = kk; } 
+          else { kF = domain->numGridFine[2] - domain->numGrid[2] + kk; } 
 
-          PtrF = iF + jF * (domain.numGridFine[0]/2+1) + kF * (domain.numGridFine[0]/2+1) * domain.numGridFine[1];
+          PtrF = iF + jF * (domain->numGridFine[0]/2+1) + kF * (domain->numGridFine[0]/2+1) * domain->numGridFine[1];
 
           idxFineGridR2C[PtrC] = PtrF;
         } 
@@ -471,11 +468,11 @@ void Fourier::InitializeFine ( const Domain& dm )
 
 void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
 
-  Index3& numGrid = fft.domain.numGrid;
-  Index3& numGridFine = fft.domain.numGridFine;
-  Int ntot      = fft.domain.NumGridTotal();
-  Int ntotFine  = fft.domain.NumGridTotalFine();
-  Real vol      = fft.domain.Volume();
+  Index3& numGrid = fft.domain->numGrid;
+  Index3& numGridFine = fft.domain->numGridFine;
+  Int ntot      = fft.domain->NumGridTotal();
+  Int ntotFine  = fft.domain->NumGridTotalFine();
+  Real vol      = fft.domain->Volume();
   Real fac;
 
   Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];

@@ -15,6 +15,7 @@
 #ifndef _ESDF_HPP_
 #define _ESDF_HPP_
 
+#include <memory>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,6 +90,9 @@ char *strupr(char *);
 /// This struct is a bit messy, since all input parameters are passed
 /// through this struct
 struct ESDFInputParam{
+
+  ESDFInputParam(); // Define a constructor to initialize sharable objects
+
   /// @brief Program mode 
   ///
   /// Default: pwdft
@@ -101,7 +105,7 @@ struct ESDFInputParam{
   /// @brief Global computational domain.
   ///
   /// Not an input parameter by the user.
-  Domain              domain;
+  std::shared_ptr<Domain> domain = nullptr;
   /// @brief Types and positions of all atoms in the global
   /// computational domain.
   ///

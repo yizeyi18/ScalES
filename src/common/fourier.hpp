@@ -13,6 +13,7 @@
 #ifndef _FOURIER_HPP_
 #define _FOURIER_HPP_
 
+#include <memory>
 #include  "environment.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
@@ -26,7 +27,7 @@ namespace scales{
 /// @struct Fourier
 /// @brief Sequential FFTW interface.
 struct Fourier {
-  Domain           domain;
+  std::shared_ptr<Domain> domain = nullptr;
   bool             isInitialized;
   Int              numGridTotal;
   Int              numGridTotalFine;
@@ -95,11 +96,12 @@ struct Fourier {
   IntNumVec                idxFineGridR2C;
 
 
-  Fourier();
+  Fourier() = delete;
+  Fourier( std::shared_ptr<Domain> domain );
   ~Fourier();
 
-  void Initialize( const Domain& dm );
-  void InitializeFine( const Domain& dm );
+  void Initialize();
+  void InitializeFine();
 
 
 };

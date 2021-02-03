@@ -32,7 +32,11 @@ namespace scales{
 
 class Spinor {
 private:
-  Domain            domain_;                // mesh should be used here for general cases 
+  //Domain            domain_;                // mesh should be used here for general cases 
+  std::shared_ptr<Domain> domain_ = nullptr;
+  std::shared_ptr<Fourier> fft_   = nullptr;
+
+
   NumTns<Real>      wavefun_;               // Local data of the wavefunction 
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
@@ -52,13 +56,13 @@ public:
   // *********************************************************************
   // Constructor and destructor
   // *********************************************************************
-  Spinor(); 
+  Spinor() = delete; 
   ~Spinor();
 
-  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+  Spinor( std::shared_ptr<Fourier> fft, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const Real val = static_cast<Real>(0) );
 
-  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+  Spinor( std::shared_ptr<Fourier> fft, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data );
 #ifdef DEVICE
   // Weile, needs further consideration.
@@ -68,11 +72,13 @@ public:
       const bool owndata, Real* data );
 #endif
 
+#if 0
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const Real val = static_cast<Real>(0) ); 
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const bool owndata, Real* data );
+#endif
 
   // *********************************************************************
   // Inquiries
@@ -107,29 +113,29 @@ public:
   void Normalize();
 
   // Perform all operations of matrix vector multiplication.
-  void AddMultSpinor( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinor( const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
   
   // LL: 1/3/2021
   // This function requires the coarse grid to be an odd number along each
   // direction, and therefore should be deprecated in the future.
-  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinorR2C( const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
 
 #ifdef DEVICE 
-  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinorR2C( const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi );
-  void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& Hpsi );
+  void AddTeterPrecond( deviceNumTns<Real>& Hpsi );
 #endif
 
-  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& Hpsi );
+  void AddTeterPrecond( NumTns<Real>& Hpsi );
 
   /// @brief Apply the exchange operator to the spinor by solving
   /// Poisson like equations
   /// EXX: Spinor with exact exchange. 
   /// Keeping the names separate is good for now, since the new
   /// algorithm requires a different set of input parameters for AddMultSpinor
-  void AddMultSpinorEXX ( Fourier& fft,
+  void AddMultSpinorEXX ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2CFine,
       Real  exxFraction,
@@ -143,7 +149,7 @@ public:
   /// EXX: Spinor with exact exchange. 
   /// Keeping the names separate is good for now, since the new
   /// algorithm requires a different set of input parameters for AddMultSpinor
-  void AddMultSpinorEXX ( Fourier& fft,
+  void AddMultSpinorEXX ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2CFine,
       Real  exxFraction,
@@ -160,7 +166,7 @@ public:
   /// Comput. Phys. 302 (2015) 329–335. 
   ///
   /// Only sequential version is implemented
-  void AddMultSpinorEXXDF ( Fourier& fft, 
+  void AddMultSpinorEXXDF ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2C,
       Real  exxFraction,
@@ -175,7 +181,7 @@ public:
       bool isFixColumnDF );
 
 
-//  void AddMultSpinorEXXDF2 ( Fourier& fft, 
+//  void AddMultSpinorEXXDF2 ( 
 //      const NumTns<Real>& phi,
 //      const DblNumVec& exxgkkR2C,
 //      Real  exxFraction,
@@ -189,7 +195,7 @@ public:
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
-//  void AddMultSpinorEXXDF3 ( Fourier& fft, 
+//  void AddMultSpinorEXXDF3 ( 
 //      const NumTns<Real>& phi,
 //      const DblNumVec& exxgkkR2C,
 //      Real  exxFraction,
@@ -203,7 +209,7 @@ public:
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
-//  void AddMultSpinorEXXDF4 ( Fourier& fft, 
+//  void AddMultSpinorEXXDF4 ( 
 //      const NumTns<Real>& phi,
 //      const DblNumVec& exxgkkR2C,
 //      Real  exxFraction,
@@ -217,7 +223,7 @@ public:
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
-//  void AddMultSpinorEXXDF5 ( Fourier& fft, 
+//  void AddMultSpinorEXXDF5 ( 
 //      const NumTns<Real>& phi,
 //      const DblNumVec& exxgkkR2C,
 //      Real  exxFraction,
@@ -231,7 +237,7 @@ public:
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
   
-  void AddMultSpinorEXXDF6 ( Fourier& fft, 
+  void AddMultSpinorEXXDF6 ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2C,
       Real  exxFraction,
@@ -246,7 +252,7 @@ public:
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
-  void AddMultSpinorEXXDF7 ( Fourier& fft, 
+  void AddMultSpinorEXXDF7 ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2C,
       Real  exxFraction,
@@ -264,7 +270,7 @@ public:
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 #ifdef DEVICE
-  void AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
+  void AddMultSpinorEXXDF3_GPU ( 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2C,
       Real  exxFraction,

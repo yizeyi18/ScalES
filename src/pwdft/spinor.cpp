@@ -27,11 +27,12 @@ using namespace scales::scalapack;
 
 using namespace scales::PseudoComponent;
 
-Spinor::Spinor () { }         
 Spinor::~Spinor    () {}
 
+#if 0
 Spinor::Spinor ( 
-    const Domain &dm, 
+    std::shared_ptr<Domain> domain,
+    std::shared_ptr<Fourier> fourier,
     const Int     numComponent,
     const Int     numStateTotal,
     Int     numStateLocal,
@@ -50,18 +51,21 @@ Spinor::Spinor ( const Domain &dm,
   this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 
 }         // -----  end of method Spinor::Spinor  ----- 
+#endif
 
-void Spinor::Setup ( 
-    const Domain &dm, 
+Spinor::Spinor ( 
+    std::shared_ptr<Fourier> fft,
     const Int     numComponent,
     const Int     numStateTotal,
     Int     numStateLocal,
-    const Real  val ) {
+    const Real  val ) :
+  domain_( fft->domain ),
+  fft_( fft )
+{
 
-  domain_       = dm;
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
   Int blocksize;
 
@@ -86,25 +90,27 @@ void Spinor::Setup (
     wavefunIdx_[i] = i * mpisize + mpirank ;
   }
 
-  wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
+  wavefun_.Resize( domain_->NumGridTotal(), numComponent, numStateLocal );
   SetValue( wavefun_, val );
 
 }         // -----  end of method Spinor::Setup  ----- 
 
-void Spinor::Setup ( const Domain &dm, 
+Spinor::Spinor ( 
+    std::shared_ptr<Fourier> fft,
     const Int numComponent, 
     const Int numStateTotal,
     Int numStateLocal,
     const bool owndata, 
-    Real* data )
+    Real* data ) :
+  domain_( fft->domain ),
+  fft_( fft )
 {
 
-  domain_       = dm;
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  wavefun_      = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
+  wavefun_      = NumTns<Real>( domain_->NumGridTotal(), numComponent, numStateLocal,
       owndata, data );
 
   Int blocksize;
@@ -155,17 +161,17 @@ Spinor::Normalize    ( )
 
 
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
+Spinor::AddTeterPrecond (NumTns<Real>& Hpsi)
 {
-  Fourier& fft = *fftPtr;
-  if( !fftPtr->isInitialized ){
+  auto& fft = *fft_;
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
   Int ntot = wavefun_.m();
   Int ncom = wavefun_.n();
   Int nocc = wavefun_.p();
 
-  if( fftPtr->domain.NumGridTotal() != ntot ){
+  if( fft_->domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -173,7 +179,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
   //#pragma omp parallel
   //  {
   //#endif
-  Int ntothalf = fftPtr->numGridTotalR2C;
+  Int ntothalf = fft_->numGridTotalR2C;
   // These two are private variables in the OpenMP context
 
   //#ifdef _USE_OPENMP_
@@ -188,7 +194,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 
       FFTWExecute ( fft, fft.forwardPlanR2C );
 
-      Real*    ptr1d   = fftPtr->TeterPrecondR2C.Data();
+      Real*    ptr1d   = fft_->TeterPrecondR2C.Data();
       Complex* ptr2    = fft.outputVecR2C.Data();
       for (Int i=0; i<ntothalf; i++) 
         *(ptr2++) *= *(ptr1d++);
@@ -207,20 +213,20 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 }         // -----  end of method Spinor::AddTeterPrecond ----- 
 
 void
-Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot, 
+Spinor::AddMultSpinor ( const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
-
-  if( !fft.isInitialized ){
+  auto& fft = *fft_;
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
   auto ntot = wavefun_.m();
   auto ncom = wavefun_.n();
   auto numStateLocal = wavefun_.p();
-  auto ntotFine = domain_.NumGridTotalFine();
-  auto vol = domain_.Volume();
+  auto ntotFine = domain_->NumGridTotalFine();
+  auto vol = domain_->Volume();
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft_->domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -234,26 +240,26 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       SetValue( psiFine, 0.0 );
       SetValue( psiUpdateFine, 0.0 );
 
-      SetValue( fft.inputComplexVec, Z_ZERO );
+      SetValue( fft_->inputComplexVec, Z_ZERO );
       blas::copy( ntot, wavefun_.VecData(j,k), 1,
-          reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
+          reinterpret_cast<Real*>(fft_->inputComplexVec.Data()), 2 );
 
-      // Fourier transform of wavefunction saved in fft.outputComplexVec
-      FFTWExecute( fft, fft.forwardPlan );
+      // Fourier transform of wavefunction saved in fft_->outputComplexVec
+      FFTWExecute( fft, fft_->forwardPlan );
 
       // Interpolate wavefunction from coarse to fine grid
       {
         auto fac = sqrt( double(ntot) / double(ntotFine) );
-        SetValue( fft.outputComplexVecFine, Z_ZERO ); 
-        auto idxPtr = fft.idxFineGrid.Data();
-        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
-        auto fftOutPtr = fft.outputComplexVec.Data();
+        SetValue( fft_->outputComplexVecFine, Z_ZERO ); 
+        auto idxPtr = fft_->idxFineGrid.Data();
+        auto fftOutFinePtr = fft_->outputComplexVecFine.Data();
+        auto fftOutPtr = fft_->outputComplexVec.Data();
         for( auto i = 0; i < ntot; i++ ){
           fftOutFinePtr[idxPtr[i]] = fftOutPtr[i] * fac;
         }
-        FFTWExecute( fft, fft.backwardPlanFine );
+        FFTWExecute( fft, fft_->backwardPlanFine );
 
-        blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+        blas::copy( ntotFine, reinterpret_cast<Real*>(fft_->inputComplexVecFine.Data()),
             2, psiFine.Data(), 1 );
       }
 
@@ -298,7 +304,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       // Laplacian operator. Perform inverse Fourier transform in the end
       {
         for (auto i=0; i<ntot; i++) 
-          fft.outputComplexVec[i] *= fft.gkk[i];
+          fft_->outputComplexVec[i] *= fft_->gkk[i];
       }
 
       // Restrict psiUpdateFine from fine grid in the real space to
@@ -308,15 +314,15 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
       {
-        SetValue( fft.inputComplexVecFine, Z_ZERO ); // Do not forget this
+        SetValue( fft_->inputComplexVecFine, Z_ZERO ); // Do not forget this
         blas::copy( ntotFine, psiUpdateFine.Data(), 1,
-            reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
-        FFTWExecute( fft, fft.forwardPlanFine );
+            reinterpret_cast<Real*>(fft_->inputComplexVecFine.Data()), 2 );
+        FFTWExecute( fft, fft_->forwardPlanFine );
 
         auto fac = sqrt( double(ntotFine) / double(ntot) );
-        auto idxPtr = fft.idxFineGrid.Data();
-        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
-        auto fftOutPtr = fft.outputComplexVec.Data();
+        auto idxPtr = fft_->idxFineGrid.Data();
+        auto fftOutFinePtr = fft_->outputComplexVecFine.Data();
+        auto fftOutPtr = fft_->outputComplexVec.Data();
 
         for( auto i = 0; i < ntot; i++ ){
           fftOutPtr[i] += fftOutFinePtr[idxPtr[i]] * fac;
@@ -324,9 +330,9 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       }
 
       // Inverse Fourier transform to save back to the output vector
-      FFTWExecute( fft, fft.backwardPlan );
+      FFTWExecute( fft, fft_->backwardPlan );
 
-      blas::axpy( ntot, 1.0, reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
+      blas::axpy( ntot, 1.0, reinterpret_cast<Real*>(fft_->inputComplexVec.Data()), 2,
           Hpsi.VecData(j,k), 1 );
     }
   }
@@ -347,18 +353,18 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
+  Index3& numGrid = domain_->numGrid;
+  Index3& numGridFine = domain_->numGridFine;
   Int ntot = wavefun_.m();
   Int ncom = wavefun_.n();
   Int numStateLocal = wavefun_.p();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
+  Int ntotFine = domain_->NumGridTotalFine();
+  Real vol = domain_->Volume();
 
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft.domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -563,7 +569,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
 }        // -----  end of method Spinor::AddMultSpinorR2C  ----- 
 */
 
-void Spinor::AddMultSpinorEXX ( Fourier& fft, 
+void Spinor::AddMultSpinorEXX ( 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
     Real  exxFraction,
@@ -571,34 +577,35 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     const DblNumVec& occupationRate,
     NumTns<Real>& Hpsi )
 {
-  if( !fft.isInitialized ){
+  auto& fft = *fft_;
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
+  Index3& numGrid = domain_->numGrid;
+  Index3& numGridFine = domain_->numGridFine;
 
-  Int ntot     = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Int ntotR2C = fft.numGridTotalR2C;
-  Int ntotR2CFine = fft.numGridTotalR2CFine;
+  Int ntot     = domain_->NumGridTotal();
+  Int ntotFine = domain_->NumGridTotalFine();
+  Int ntotR2C = fft_->numGridTotalR2C;
+  Int ntotR2CFine = fft_->numGridTotalR2CFine;
   Int ncom = wavefun_.n();
   Int numStateLocal = wavefun_.p();
   Int numStateTotal = numStateTotal_;
 
   Int ncomPhi = phi.n();
 
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
 
   if( ncomPhi != 1 || ncom != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft_->domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -607,21 +614,21 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   Int numStateLocalTemp;
 
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain_->comm);
 
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 
     if( iproc == mpirank )
       numStateLocalTemp = numStateLocal;
 
-    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_->comm );
 
     IntNumVec wavefunIdxTemp(numStateLocalTemp);
     if( iproc == mpirank ){
       wavefunIdxTemp = wavefunIdx_;
     }
 
-    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_.comm );
+    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_->comm );
 
     // FIXME OpenMP does not work since all variables are shared
     for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
@@ -637,35 +644,35 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
           }
         }
 
-        MPI_Bcast( phiTemp.Data(), ntot, MPI_DOUBLE, iproc, domain_.comm );
+        MPI_Bcast( phiTemp.Data(), ntot, MPI_DOUBLE, iproc, domain_->comm );
 
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
 
             Real* psiPtr = wavefun_.VecData(j,k);
             for( Int ir = 0; ir < ntot; ir++ ){
-              fft.inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
+              fft_->inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
             }
 
-            FFTWExecute ( fft, fft.forwardPlanR2C );
+            FFTWExecute ( fft, fft_->forwardPlanR2C );
 
             // Solve the Poisson-like problem for exchange
             for( Int ig = 0; ig < ntotR2C; ig++ ){
-              fft.outputVecR2C(ig) *= exxgkkR2C(ig);
+              fft_->outputVecR2C(ig) *= exxgkkR2C(ig);
             }
 
-            FFTWExecute ( fft, fft.backwardPlanR2C );
+            FFTWExecute ( fft, fft_->backwardPlanR2C );
 
             Real* HpsiPtr = Hpsi.VecData(j,k);
             Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
             for( Int ir = 0; ir < ntot; ir++ ){
-              HpsiPtr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
+              HpsiPtr[ir] += fft_->inputVecR2C(ir) * phiTemp(ir) * fac;
             }
 
           } // for (j)
         } // for (k)
 
-        MPI_Barrier(domain_.comm);
+        MPI_Barrier(domain_->comm);
 
 
       } // for (jphi)
@@ -673,7 +680,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   } //iproc
 
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain_->comm);
 
 
   return ;
@@ -681,7 +688,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
 
 // This is the new density matrix based algorithm for compressing the Coulomb integrals
-void Spinor::AddMultSpinorEXXDF ( Fourier& fft, 
+void Spinor::AddMultSpinorEXXDF ( 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
     Real  exxFraction,
@@ -698,19 +705,20 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
 
+  auto& fft = *fft_;
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
+  Index3& numGrid = domain_->numGrid;
+  Index3& numGridFine = domain_->numGridFine;
 
-  Int ntot     = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntot     = domain_->NumGridTotal();
+  Int ntotFine = domain_->NumGridTotalFine();
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
   Int ncom = wavefun_.n();
@@ -719,13 +727,13 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
   Int ncomPhi = phi.n();
 
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
 
   if( ncomPhi != 1 || ncom != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft.domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -1071,7 +1079,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
     auto bdist = 
-      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_->comm,
                                       ntot, numStateTotal );
     bdist.redistribute_col_to_row( phiCol, phiRow );
     bdist.redistribute_col_to_row( psiCol, psiRow );
@@ -1099,7 +1107,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Orth( numStateTotal, numPre, G.Data(), numStateTotal );
       }
 
-      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_->comm);
 
       //blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
       //    phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
@@ -1186,7 +1194,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Int mb_MG = numStateTotal*numPre;
         Int nb_MG = ntotLocalMG;
 
-        blacspp::Grid grid( domain_.comm, 1, mpisize, blacspp::GridOrder::ColMajor );
+        blacspp::Grid grid( domain_->comm, 1, mpisize, blacspp::GridOrder::ColMajor );
         scalapackpp::BlockCyclicDist2D 
           mat_dist( grid, mb_MG, nb_MG, 0, 0 );
         auto desc_MG = mat_dist.descinit_noerror( mb_MG, ntotMG, mb_MG );
@@ -1229,7 +1237,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         //          }
         //        }
         MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-            ntotMG, MPI_INT, MPI_SUM, domain_.comm );
+            ntotMG, MPI_INT, MPI_SUM, domain_->comm );
 
 #if 1
         if(contxt >= 0) {
@@ -1340,9 +1348,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     GetTime( timeSta1 );
 
     MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
-        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_->comm );
     MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
-        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_->comm );
 
     GetTime( timeEnd1 );
 
@@ -1440,7 +1448,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       GetTime( timeSta1 );
 
       MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
-          numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+          numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_->comm );
 
       GetTime( timeEnd1 );
 
@@ -1530,7 +1538,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       GetTime( timeSta1 );
 
-      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_->comm);
 
       GetTime( timeEnd1 );
 
@@ -1728,7 +1736,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       SetValue( VxMat, 0.0 );
       MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, 
-          MPI_DOUBLE, MPI_SUM, domain_.comm );
+          MPI_DOUBLE, MPI_SUM, domain_->comm );
 
       Symmetrize( VxMat );
 
@@ -1741,7 +1749,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
   } //if(1) for For MPI
 
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain_->comm);
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
@@ -1750,7 +1758,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 // 2D MPI communication for matrix
 // Update: 6/26/2017
-void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft, 
+void Spinor::AddMultSpinorEXXDF6 ( 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
     Real  exxFraction,
@@ -1765,6 +1773,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
+  auto& fft = *fft_;
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
 
@@ -1772,15 +1781,15 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     ErrorHandling("Fourier is not prepared.");
   }
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
+  Index3& numGrid = domain_->numGrid;
+  Index3& numGridFine = domain_->numGridFine;
 
-  Int ntot     = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntot     = domain_->NumGridTotal();
+  Int ntotFine = domain_->NumGridTotalFine();
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
   Int ncom = wavefun_.n();
@@ -1789,13 +1798,13 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
   Int ncomPhi = phi.n();
 
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
 
   if( ncomPhi != 1 || ncom != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft.domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -2121,7 +2130,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+    MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_->comm);
 
     GetTime( timeEnd1 );
 #if ( _DEBUGlevel_ >= 0 )
@@ -2212,7 +2221,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       SCALAPACK(pdgemr2d)(&Ng, &I_ONE, MGNormLocal.Data(), &I_ONE, &I_ONE, desc_1D, 
           MGNorm.Data(), &I_ONE, &I_ONE, desc_0D, &contxt11 );
 
-      MPI_Bcast( MGNorm.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( MGNorm.Data(), ntot, MPI_DOUBLE, 0, domain_->comm );
 
 
       double MGNormMax = *(std::max_element( MGNorm.Data(), MGNorm.Data() + ntot ) );
@@ -2364,7 +2373,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       //          }
       //        }
       MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-          ntotMG, MPI_INT, MPI_SUM, domain_.comm );
+          ntotMG, MPI_INT, MPI_SUM, domain_->comm );
 
 
       if(contxt >= 0) {
@@ -2434,8 +2443,8 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
       Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
 
-      //MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
-      MPI_Comm_split( domain_.comm, mpirank % nprow2D, mpirank, &colComm );
+      //MPI_Comm_split( domain_->comm, mpirank / nprow2D, mpirank, &rowComm );
+      MPI_Comm_split( domain_->comm, mpirank % nprow2D, mpirank, &colComm );
 
       //MPI_Comm_rank(rowComm, &mpirankRow);
       //MPI_Comm_size(rowComm, &mpisizeRow);
@@ -3058,7 +3067,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
         VxMat.Data(), &I_ONE, &I_ONE, desc_NeNe0D, &contxt2 );
 
     //if(mpirank == 0){
-    //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_.comm );
+    //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_->comm );
     //}
 
   }
@@ -3084,7 +3093,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     Cblacs_gridexit( contxt2 );
   }
 
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain_->comm);
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXXDF6  ----- 
@@ -3092,7 +3101,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
 // Kmeans for ISDF
 // Update: 8/20/2017
-void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft, 
+void Spinor::AddMultSpinorEXXDF7 ( 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
     Real  exxFraction,
@@ -3113,19 +3122,20 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
 
+  auto& fft = *fft_;
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  MPI_Barrier(domain_->comm);
+  int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
+  Index3& numGrid = domain_->numGrid;
+  Index3& numGridFine = domain_->numGridFine;
 
-  Int ntot     = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntot     = domain_->NumGridTotal();
+  Int ntotFine = domain_->NumGridTotalFine();
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
   Int ncom = wavefun_.n();
@@ -3134,13 +3144,13 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
   Int ncomPhi = phi.n();
 
-  Real vol = domain_.Volume();
+  Real vol = domain_->Volume();
 
   if( ncomPhi != 1 || ncom != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
 
-  if( fft.domain.NumGridTotal() != ntot ){
+  if( fft.domain->NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
@@ -3476,7 +3486,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
         Orth( numStateTotal, numPre, G.Data(), numStateTotal );
         statusOFS << "Random projection initialzied." << std::endl << std::endl;
       }
-      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_->comm);
       G_ = G;
     } else {
       statusOFS << "Random projection reused." << std::endl;
@@ -3572,7 +3582,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       SCALAPACK(pdgemr2d)(&Ng, &I_ONE, MGNormLocal.Data(), &I_ONE, &I_ONE, desc_1D, 
           MGNorm.Data(), &I_ONE, &I_ONE, desc_0D, &contxt11 );
 
-      MPI_Bcast( MGNorm.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( MGNorm.Data(), ntot, MPI_DOUBLE, 0, domain_->comm );
 
 
       double MGNormMax = *(std::max_element( MGNorm.Data(), MGNorm.Data() + ntot ) );
@@ -3717,8 +3727,8 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
       Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
 
-      //MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
-      MPI_Comm_split( domain_.comm, mpirank % nprow2D, mpirank, &colComm );
+      //MPI_Comm_split( domain_->comm, mpirank / nprow2D, mpirank, &rowComm );
+      MPI_Comm_split( domain_->comm, mpirank % nprow2D, mpirank, &colComm );
 
       //MPI_Comm_rank(rowComm, &mpirankRow);
       //MPI_Comm_size(rowComm, &mpisizeRow);
@@ -3860,16 +3870,16 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
         phW[i] += ph[i+j*ntot]*ph[i+j*ntot];
       }
     }
-    MPI_Barrier(domain_.comm);
-    MPI_Reduce(phW, wp, ntot, MPI_DOUBLE, MPI_SUM, 0, domain_.comm);
-    MPI_Bcast(wp, ntot, MPI_DOUBLE, 0, domain_.comm);
+    MPI_Barrier(domain_->comm);
+    MPI_Reduce(phW, wp, ntot, MPI_DOUBLE, MPI_SUM, 0, domain_->comm);
+    MPI_Bcast(wp, ntot, MPI_DOUBLE, 0, domain_->comm);
     GetTime(timeW2);
     statusOFS << "Time for computing weight in Kmeans: " << timeW2-timeW1 << "[s]" << std::endl << std::endl;
 
     int rk = numMu_;
     SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
     GetTime(timeKMEANSta);
-    KMEAN(ntot, weight, rk, hybridDFKmeansTolerance, hybridDFKmeansMaxIter, hybridDFTolerance, domain_, pivQR_.Data());
+    KMEAN(ntot, weight, rk, hybridDFKmeansTolerance, hybridDFKmeansMaxIter, hybridDFTolerance, *domain_, pivQR_.Data());
     GetTime(timeKMEANEnd);
     statusOFS << "Time for Kmeans alone is " << timeKMEANEnd-timeKMEANSta << "[s]" << std::endl << std::endl;
  
@@ -4365,7 +4375,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
         VxMat.Data(), &I_ONE, &I_ONE, desc_NeNe0D, &contxt2 );
 
     //if(mpirank == 0){
-    //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_.comm );
+    //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_->comm );
     //}
 
   }
@@ -4391,7 +4401,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     Cblacs_gridexit( contxt2 );
   }
 
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain_->comm);
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXXDF7  ----- 

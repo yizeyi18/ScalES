@@ -31,6 +31,38 @@
 #endif
 namespace scales{
 
+class EXXOperator {
+
+  Int numCom_;
+  Int numStateTotal_;
+  Int numStateLocal_;
+
+  Int numGridTotalR2C_;
+  Int numGridTotalR2CFine_;
+
+  Int  exxDivergenceType_;
+  Real screenMu_;
+  Real exxDiv_;
+  Real exxFraction_;
+
+  NumTns<Real> phiEXX_;
+  DblNumMat vexxProj_;
+  DblNumVec exxgkkR2C_;
+
+public:
+
+  // Emulates Hamiltonian::InitializeEXX
+  EXXOperator( Domain, Int, Real, Real, Real, Fourier& ); // DBWY Why not const?
+  ~EXXOperator() noexcept;
+
+  // Emulates Hamiltonian::SetPhiEXX
+  void SetPhi( Spinor&, Fourier& );
+
+  // Emulates Spinor::AddMultSpinorEXX
+  void ApplyOperator( const Spinor&, NumTns<Real>&, Fourier& fft );
+
+};
+
 // *********************************************************************
 // Base Hamiltonian class 
 // *********************************************************************
@@ -40,7 +72,11 @@ namespace scales{
 /// So far only the restricted Kohn-Sham calculations are supported.
 class Hamiltonian {
 private:
-  Domain                      domain_;
+  //Domain                      domain_;
+  std::shared_ptr<Domain>       domain_ = nullptr;
+  std::shared_ptr<Fourier>      fft_    = nullptr;    
+    
+    
   // List of atoms
   std::vector<Atom>           atomList_;
   Int                         numSpin_;
@@ -167,12 +203,11 @@ public:
   // *********************************************************************
   // Lifecycle
   // *********************************************************************
-  Hamiltonian();
+  Hamiltonian() = delete;
+  Hamiltonian( std::shared_ptr<Fourier> );
   ~Hamiltonian();
 
-  void Setup (
-      const Domain&              dm,
-      const std::vector<Atom>&   atomList );
+  void Setup ( const std::vector<Atom>& atomList );
 
 
   // *********************************************************************
@@ -186,38 +221,38 @@ public:
 
   /// @brief Atomic density is implemented using the structure factor
   /// method due to the large cutoff radius
-  void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
+  void CalculateAtomDensity( PeriodTable &ptable );
 
-  void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft );
+  void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
 
-  void CalculateGradDensity( Fourier &fft );
-  void CalculateGradDensity( Fourier &fft, bool isMPIFFTW );
+  void CalculateGradDensity( );
+  void CalculateGradDensity( bool isMPIFFTW );
 
-  void CalculateXC (Real &val, Fourier& fft);
+  void CalculateXC (Real &val );
 
-  void CalculateXC (Real &val, Fourier& fft, bool extra);
+  void CalculateXC (Real &val, bool extra);
 
-  void CalculateHartree( Fourier& fft );
-  void CalculateHartree( Fourier& fft , bool extra);
+  void CalculateHartree( );
+  void CalculateHartree( bool extra);
 
   void CalculateVtot( DblNumVec& vtot );
 
 //  /// @brief Calculate the Hellmann-Feynman force for each atom.
-//  void CalculateForce ( Spinor& psi, Fourier& fft );
+//  void CalculateForce ( Spinor& psi );
 
   /// @brief Calculate the Hellmann-Feynman force for each atom.
   /// This is a clean version for computing the force.
   ///
   /// In particular it is very important to calculate the nonlocal
   /// contribution of the force on the fine grid.
-  void CalculateForce ( Spinor& psi, Fourier& fft );
+  void CalculateForce ( Spinor& psi );
 
-  void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft);
+  void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi);
 
 #ifdef DEVICE
-  void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
-  void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
-  void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi);
+  void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi);
+  void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi);
+  void ACEOperator( deviceDblNumMat& cu_psi, deviceDblNumMat& cu_Hpsi);
 #endif
   
   NumTns<Real>& PhiEXX() {return phiEXX_;}
@@ -230,25 +265,25 @@ public:
   /// while the wavefunction satisfies the normalization
   ///
   /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
-  void SetPhiEXX(const Spinor& psi, Fourier& fft);
+  void SetPhiEXX(const Spinor& psi);
 
 #ifdef DEVICE
-  void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
-  void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
+  void CalculateVexxACEGPU( Spinor& psi );
+  void CalculateVexxACEDFGPU( Spinor& psi, bool isFixColumnDF );
 #endif 
 
   /// @brief Construct the ACE operator
-  void CalculateVexxACE( Spinor& psi, Fourier& fft );
+  void CalculateVexxACE( Spinor& psi );
 
   /// @brief Construct the ACE operator in the density fitting format.
-  void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
+  void CalculateVexxACEDF( Spinor& psi, bool isFixColumnDF );
 
-  Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+  Real CalculateEXXEnergy( Spinor& psi );
 
   
-  void InitializeEXX( Real ecutWavefunction, Fourier& fft );
+  void InitializeEXX( Real ecutWavefunction );
 
-  //  void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock );
+  //  void UpdateHybrid ( Int phiIter, const Spinor& psi, Real Efock );
 
   void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
 

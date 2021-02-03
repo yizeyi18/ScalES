@@ -185,6 +185,12 @@ namespace scales{
 
 namespace esdf{
 
+// Initialize sharable params
+ESDFInputParam::ESDFInputParam() :
+  domain( std::make_shared<Domain>() ) { }
+
+
+
 // *********************************************************************
 // Constants
 // *********************************************************************
@@ -2337,7 +2343,7 @@ ESDFReadInput ( const char* filename )
 
   // Domain
   {
-    Domain& dm = esdfParam.domain;
+    Domain& dm = *esdfParam.domain;
     if( esdf_block("Super_Cell", &nlines) ){
       sscanf(block_data[0],"%lf %lf %lf",
           &dm.length[0],&dm.length[1],&dm.length[2]);
@@ -2355,7 +2361,7 @@ ESDFReadInput ( const char* filename )
   }
 
   {
-    Domain& dm = esdfParam.domain;
+    Domain& dm = *esdfParam.domain;
     if( esdf_block("UPF_File", &nlines) ){
       esdfParam.pspFile.resize(nlines);
       int m;
@@ -2390,7 +2396,7 @@ ESDFReadInput ( const char* filename )
       if( esdf_block("Atom_Bohr", &numAtom ) ){
         // Cartesian coordinate (in the unit of Bohr) 
         Point3 pos;
-        Domain& dm = esdfParam.domain;
+        Domain& dm = *esdfParam.domain;
 
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
@@ -2404,7 +2410,7 @@ ESDFReadInput ( const char* filename )
       else if( esdf_block("Atom_Angstrom", &numAtom ) ){
         // Cartesian coordinate (in the unit of angstrom) 
         Point3 pos;
-        Domain& dm = esdfParam.domain;
+        Domain& dm = *esdfParam.domain;
 
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
@@ -2420,8 +2426,8 @@ ESDFReadInput ( const char* filename )
         // atomic positions are in crystal coordinates, i.e.  
         // in relative coordinates of the supercell lattice vectors
         Point3 pos;
-        Point3 length = esdfParam.domain.length;
-        Domain& dm = esdfParam.domain;
+        Domain& dm = *esdfParam.domain;
+        Point3 length = dm.length;
 
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
@@ -2555,7 +2561,7 @@ ESDFReadInput ( const char* filename )
     //
     // N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
     {
-      Domain&  dm       = esdfParam.domain;
+      Domain&  dm       = *esdfParam.domain;
 
       for( Int d = 0; d < DIM; d++ ){
         // dm.numGrid[d] = AdjustNumGridOdd(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
@@ -2689,7 +2695,7 @@ ESDFReadInput ( const char* filename )
     // the number of elements along each dimension.
     //
     {
-      Domain&  dm       = esdfParam.domain;
+      Domain&  dm       = *esdfParam.domain;
       Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
       Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
       Index3&  numGridLGL = esdfParam.numGridLGL;
@@ -2778,7 +2784,7 @@ ESDFReadInput ( const char* filename )
             }
             else{
               esdfParam.distancePeriodize[d] = 
-                esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+                esdfParam.domain->length[d] / esdfParam.numElem[d] * 0.5;
             }
           }
         }
@@ -2834,7 +2840,7 @@ ESDFReadInput ( const char* filename )
 
     // Split MPI communicators into row and column communicators
 
-    Domain& dm = esdfParam.domain;
+    Domain& dm = *esdfParam.domain;
 
     int dmCol = numElem[0] * numElem[1] * numElem[2];
     int dmRow = mpisize / dmCol;
@@ -3018,9 +3024,9 @@ void ESDFPrintInput( ){
 
   Print(statusOFS, "Program                              = ",  esdfParam.program );
   Print(statusOFS, "");
-  Print(statusOFS, "Super cell                           = ",  esdfParam.domain.length );
-  Print(statusOFS, "Grid Wavefunction                    = ",  esdfParam.domain.numGrid ); 
-  Print(statusOFS, "Grid Density                         = ",  esdfParam.domain.numGridFine );
+  Print(statusOFS, "Super cell                           = ",  esdfParam.domain->length );
+  Print(statusOFS, "Grid Wavefunction                    = ",  esdfParam.domain->numGrid ); 
+  Print(statusOFS, "Grid Density                         = ",  esdfParam.domain->numGridFine );
   Print(statusOFS, "");
 
   Print(statusOFS, "Temperature                          = ",  au2K / esdfParam.Tbeta, "[K]");

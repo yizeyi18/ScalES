@@ -27,9 +27,9 @@ class EigenSolver
 {
 private:
 
-  Hamiltonian*        hamPtr_;
-  Fourier*            fftPtr_;
-  Spinor*             psiPtr_;
+  std::shared_ptr<Hamiltonian> hamPtr_ = nullptr;
+  std::shared_ptr<Fourier>     fftPtr_ = nullptr;
+  std::shared_ptr<Spinor>      psiPtr_ = nullptr;
 
 
   DblNumVec           eigVal_;
@@ -58,16 +58,19 @@ public:
 
   // ********************  LIFECYCLE   *******************************
 
-  EigenSolver ();
-
+  EigenSolver() = delete;
+  EigenSolver ( std::shared_ptr<Hamiltonian>, std::shared_ptr<Spinor>,
+                std::shared_ptr<Fourier>);
   ~EigenSolver();
 
   // ********************  OPERATORS   *******************************
 
+#if 0
   void Setup(
       Hamiltonian& ham,
       Spinor& psi,
       Fourier& fft );
+#endif
 
   // ********************  OPERATIONS  *******************************
 
@@ -129,6 +132,7 @@ public:
   Spinor&      Psi()  {return *psiPtr_;}
   Fourier&     FFT()  {return *fftPtr_;}
 
+  inline auto fft_ptr() { return fftPtr_; }
 }; // -----  end of class  EigenSolver  ----- 
 
 } // namespace scales

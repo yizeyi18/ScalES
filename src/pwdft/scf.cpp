@@ -53,8 +53,8 @@ SCF::~SCF    (  )
 void
 SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 {
-  int mpirank;  MPI_Comm_rank(esdfParam.domain.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(esdfParam.domain.comm, &mpisize);
+  int mpirank;  MPI_Comm_rank(esdfParam.domain->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(esdfParam.domain->comm, &mpisize);
   Real timeSta, timeEnd;
 
   // esdf parameters
@@ -101,8 +101,8 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     ptablePtr_ = &ptable;
 
     //        Int ntot = eigSolPtr_->Psi().NumGridTotal();
-    Int ntot = esdfParam.domain.NumGridTotal();
-    Int ntotFine = esdfParam.domain.NumGridTotalFine();
+    Int ntot = esdfParam.domain->NumGridTotal();
+    Int ntotFine = esdfParam.domain->NumGridTotalFine();
 
     vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
@@ -145,7 +145,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 #endif
         
         GetTime( timeSta );
-        ham.CalculateAtomDensity( *ptablePtr_, eigSolPtr_->FFT() );
+        ham.CalculateAtomDensity( *ptablePtr_ );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for calculating the atomic density = " 
@@ -153,7 +153,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 #endif
 
         // Use the superposition of atomic density as the initial guess for density
-        const Domain& dm = esdfParam.domain;
+        const Domain& dm = *esdfParam.domain;
         Int ntotFine = dm.NumGridTotalFine();
 
         SetValue( density, 0.0 );
@@ -169,7 +169,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
           << std::endl;
 #endif
         DblNumVec&  pseudoCharge = ham.PseudoCharge();
-        const Domain& dm = esdfParam.domain;
+        const Domain& dm = *esdfParam.domain;
 
         SetValue( density, 0.0 );
 
@@ -229,7 +229,7 @@ void
 SCF::Update    ( )
 {
   {
-    Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+    Int ntotFine  = eigSolPtr_->FFT().domain->NumGridTotalFine();
 
     vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
@@ -243,8 +243,8 @@ SCF::Update    ( )
 void
 SCF::Execute    ( )
 {
-  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain->comm, &mpisize);
 
   Real timeSta, timeEnd;
   Real timeIterStart(0), timeIterEnd(0);
@@ -255,12 +255,12 @@ SCF::Execute    ( )
 
   // Compute the exchange-correlation potential and energy
   if( ham.XCRequireGradDensity() ){
-    ham.CalculateGradDensity( fft );
+    ham.CalculateGradDensity( );
   }
 
   // Compute the total potential
-  ham.CalculateXC( Exc_, fft ); 
-  ham.CalculateHartree( fft );
+  ham.CalculateXC( Exc_ ); 
+  ham.CalculateHartree( );
   ham.CalculateVtot( ham.Vtot() );
 
   // FIXME: LL 1/4/2021 the right place?
@@ -311,7 +311,7 @@ SCF::Execute    ( )
 #endif
 */
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
-  ham.CalculateForce( psi, fft );
+  ham.CalculateForce( psi );
 
   // Output the information after SCF
   {
@@ -369,7 +369,7 @@ SCF::Execute    ( )
         << std::endl;
 #endif
       // Domain
-      const Domain& dm =  eigSolPtr_->FFT().domain;
+      const Domain& dm =  *eigSolPtr_->FFT().domain;
       serialize( dm.length, structStream, NO_MASK );
       serialize( dm.numGrid, structStream, NO_MASK );
       serialize( dm.numGridFine, structStream, NO_MASK );
@@ -401,7 +401,7 @@ SCF::Execute    ( )
         ErrorHandling( "Density file cannot be opened." );
       }
 
-      const Domain& dm =  eigSolPtr_->FFT().domain;
+      const Domain& dm =  *eigSolPtr_->FFT().domain;
       std::vector<DblNumVec>   gridpos(DIM);
       UniformMeshFine ( dm, gridpos );
       for( Int d = 0; d < DIM; d++ ){
@@ -424,7 +424,7 @@ SCF::Execute    ( )
         ErrorHandling( "Potential file cannot be opened." );
       }
 
-      const Domain& dm =  eigSolPtr_->FFT().domain;
+      const Domain& dm =  *eigSolPtr_->FFT().domain;
       std::vector<DblNumVec>   gridpos(DIM);
       UniformMeshFine ( dm, gridpos );
       for( Int d = 0; d < DIM; d++ ){
@@ -450,8 +450,8 @@ SCF::Execute    ( )
 void
 SCF::IterateDensity    ( )
 {
-  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain->comm, &mpisize);
 
   Real timeSta, timeEnd;
   Real timeIterStart(0), timeIterEnd(0);
@@ -548,8 +548,8 @@ SCF::IterateDensity    ( )
 void
 SCF::IterateWavefun    ( )
 {
-  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain->comm, &mpisize);
 
   Real timeSta, timeEnd;
   Real timeIterStart(0), timeIterEnd(0);
@@ -576,24 +576,24 @@ SCF::IterateWavefun    ( )
   // Evaluate the Fock energy
   // Update Phi <- Psi
   GetTime( timeSta );
-  ham.SetPhiEXX( psi, fft ); 
+  ham.SetPhiEXX( psi ); 
 
   // Construct the ACE operator
   if( esdfParam.isHybridACE ){
     if( esdfParam.isHybridDF ){
 #ifdef DEVICE
-      ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+      ham.CalculateVexxACEDFGPU( psi, isFixColumnDF );
 #else
-      ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+      ham.CalculateVexxACEDF( psi, isFixColumnDF );
 #endif
       // Fix the column after the first iteraiton
       isFixColumnDF = true;
     }
     else{
 #ifdef DEVICE
-      ham.CalculateVexxACEGPU ( psi, fft );
+      ham.CalculateVexxACEGPU ( psi );
 #else
-      ham.CalculateVexxACE ( psi, fft );
+      ham.CalculateVexxACE ( psi );
 #endif
     }
   }
@@ -603,7 +603,7 @@ SCF::IterateWavefun    ( )
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
   GetTime( timeSta );
-  fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+  fock2 = ham.CalculateEXXEnergy( psi ); 
   GetTime( timeEnd );
   statusOFS << "Time for computing the EXX energy is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -630,21 +630,21 @@ SCF::IterateWavefun    ( )
 
       // Update Phi <- Psi
       GetTime( timeSta );
-      ham.SetPhiEXX( psi, fft ); 
+      ham.SetPhiEXX( psi ); 
 
       // Update the ACE if needed
       if( esdfParam.isHybridACE ){
         if( esdfParam.isHybridDF ){
-          ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+          ham.CalculateVexxACEDF( psi, isFixColumnDF );
           // Fix the column after the first iteraiton
           isFixColumnDF = true;
         }
         else{
 #ifdef DEVICE
           statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
-          ham.CalculateVexxACEGPU1 ( psi, fft );
+          ham.CalculateVexxACEGPU1 ( psi );
 #else
-          ham.CalculateVexxACE ( psi, fft );
+          ham.CalculateVexxACE ( psi );
 #endif
         }
       }
@@ -654,7 +654,7 @@ SCF::IterateWavefun    ( )
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       GetTime( timeSta );
-      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      fock2 = ham.CalculateEXXEnergy( psi ); 
       GetTime( timeEnd );
       statusOFS << "Time for computing the EXX energy is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -701,13 +701,13 @@ SCF::IterateWavefun    ( )
     // 2) restarting wavefunction with Hybrid_Active_Init = true
     
 
-    Int ntot      = fft.domain.NumGridTotal();
-    Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int ntot      = fft.domain->NumGridTotal();
+    Int ntotFine  = fft.domain->NumGridTotalFine();
     Int numStateTotal = psi.NumStateTotal();
     Int numStateLocal = psi.NumState();
     Int numOccTotal = ham.NumOccupiedState();
 
-    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
+    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain->comm;
 
     Int I_ONE = 1, I_ZERO = 0;
     double D_ONE = 1.0;
@@ -947,12 +947,12 @@ SCF::IterateWavefun    ( )
           // Scalapack divide the Psi by blocks, and old way is continuous.  
           // this is error prone.
           Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
-          ham.MultSpinor_old( spnTemp, tnsTemp, fft );
+          ham.MultSpinor_old( spnTemp, tnsTemp );
           cu_HpsiCol.CopyTo(HpsiCol);
 
           // remember to reset the vtot
           device_reset_vtot_flag();
-          //ham.MultSpinor( psi, tnsTemp, fft );
+          //ham.MultSpinor( psi, tnsTemp );
 
           //SetValue( HpsiRow, 0.0 );
           //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
@@ -962,7 +962,7 @@ SCF::IterateWavefun    ( )
           cu_HpsiRow.CopyFrom(HpsiRow);
 
           // perform the ACE operator here
-          //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
+          //ham.ACEOperator( cu_psiRow, cu_HpsiRow );
           //cu_HpsiRow.CopyTo(HpsiRow);
 
           if(1){
@@ -1194,8 +1194,7 @@ SCF::IterateWavefun    ( )
       ham.CalculateDensity(
           spnPsiPc,
           ham.OccupationRate(),
-          totalCharge_, 
-          fft );
+          totalCharge_ );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing density in PWDFT is " <<
@@ -1205,7 +1204,7 @@ SCF::IterateWavefun    ( )
       // Compute the exchange-correlation potential and energy
       if( ham.XCRequireGradDensity() ){
         GetTime( timeSta );
-        ham.CalculateGradDensity( fft );
+        ham.CalculateGradDensity( );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for computing gradient density in PWDFT is " <<
@@ -1214,7 +1213,7 @@ SCF::IterateWavefun    ( )
       }
 
       GetTime( timeSta );
-      ham.CalculateXC( Exc_, fft ); 
+      ham.CalculateXC( Exc_ ); 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing XC potential in PWDFT is " <<
@@ -1223,7 +1222,7 @@ SCF::IterateWavefun    ( )
 
       // Compute the Hartree energy
       GetTime( timeSta );
-      ham.CalculateHartree( fft );
+      ham.CalculateHartree( );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing Hartree potential in PWDFT is " <<
@@ -1244,18 +1243,18 @@ SCF::IterateWavefun    ( )
 
       // Update Phi <- Psi
       GetTime( timeSta );
-      ham.SetPhiEXX( spnPsiPc, fft ); 
+      ham.SetPhiEXX( spnPsiPc ); 
 
       // Update the ACE if needed
       // Still use psi but phi has changed
       if( esdfParam.isHybridACE ){
         if( esdfParam.isHybridDF ){
-          ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+          ham.CalculateVexxACEDFGPU( psi,  isFixColumnDF );
           // Fix the column after the first iteraiton
           isFixColumnDF = true;
         }
         else{
-          ham.CalculateVexxACEGPU ( psi, fft );
+          ham.CalculateVexxACEGPU ( psi );
         }
       }
 
@@ -1282,20 +1281,20 @@ SCF::IterateWavefun    ( )
 
         // Update Phi <- Psi
         GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
+        ham.SetPhiEXX( psi ); 
 
         // In principle there is no need to construct ACE operator here
         // However, this makes the code more readable by directly calling 
         // the MultSpinor function later
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+            ham.CalculateVexxACEDFGPU( psi, isFixColumnDF );
             // Fix the column after the first iteraiton
             isFixColumnDF = true;
           }
           else{
             // GPU needs to be done
-            ham.CalculateVexxACEGPU ( psi, fft );
+            ham.CalculateVexxACEGPU ( psi );
           }
         }
 
@@ -1306,7 +1305,7 @@ SCF::IterateWavefun    ( )
       }//if
 
       GetTime( timeSta );
-      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      fock2 = ham.CalculateEXXEnergy( psi ); 
       GetTime( timeEnd );
       statusOFS << "Time for computing the EXX energy is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -1353,13 +1352,13 @@ SCF::IterateWavefun    ( )
     // 1) a regular SCF calculation
     // 2) restarting wavefunction with Hybrid_Active_Init = true
 
-    Int ntot      = fft.domain.NumGridTotal();
-    Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int ntot      = fft.domain->NumGridTotal();
+    Int ntotFine  = fft.domain->NumGridTotalFine();
     Int numStateTotal = psi.NumStateTotal();
     Int numStateLocal = psi.NumState();
     Int numOccTotal = ham.NumOccupiedState();
 
-    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
+    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain->comm;
 
     Int I_ONE = 1, I_ZERO = 0;
     double D_ONE = 1.0;
@@ -1550,7 +1549,7 @@ SCF::IterateWavefun    ( )
         // Compute Hpsi for all psi 
         NumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, 
             HpsiCol.Data());
-        ham.MultSpinor( psi, tnsTemp, fft );
+        ham.MultSpinor( psi, tnsTemp );
 
         SetValue( HpsiRow, 0.0 );
         //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
@@ -1737,7 +1736,7 @@ SCF::IterateWavefun    ( )
       lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
 
       // Construct the new Hamiltonian operator
-      Spinor spnPsiPc(fft.domain, 1, numStateTotal,
+      Spinor spnPsiPc(eigSolPtr_->fft_ptr(), 1, numStateTotal,
           numStateLocal, false, psiPcColTemp.Data());
 
       // Compute the electron density
@@ -1745,8 +1744,7 @@ SCF::IterateWavefun    ( )
       ham.CalculateDensity(
           spnPsiPc,
           ham.OccupationRate(),
-          totalCharge_, 
-          fft );
+          totalCharge_ ); 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing density in PWDFT is " <<
@@ -1756,7 +1754,7 @@ SCF::IterateWavefun    ( )
       // Compute the exchange-correlation potential and energy
       if( ham.XCRequireGradDensity() ){
         GetTime( timeSta );
-        ham.CalculateGradDensity( fft );
+        ham.CalculateGradDensity( );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for computing gradient density in PWDFT is " <<
@@ -1765,7 +1763,7 @@ SCF::IterateWavefun    ( )
       }
 
       GetTime( timeSta );
-      ham.CalculateXC( Exc_, fft ); 
+      ham.CalculateXC( Exc_ ); 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing XC potential in PWDFT is " <<
@@ -1774,7 +1772,7 @@ SCF::IterateWavefun    ( )
 
       // Compute the Hartree energy
       GetTime( timeSta );
-      ham.CalculateHartree( fft );
+      ham.CalculateHartree( );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing Hartree potential in PWDFT is " <<
@@ -1795,18 +1793,18 @@ SCF::IterateWavefun    ( )
 
       // Update Phi <- Psi
       GetTime( timeSta );
-      ham.SetPhiEXX( spnPsiPc, fft ); 
+      ham.SetPhiEXX( spnPsiPc ); 
 
       // Update the ACE if needed
       // Still use psi but phi has changed
       if( esdfParam.isHybridACE ){
         if( esdfParam.isHybridDF ){
-          ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+          ham.CalculateVexxACEDF( psi, isFixColumnDF );
           // Fix the column after the first iteraiton
           isFixColumnDF = true;
         }
         else{
-          ham.CalculateVexxACE ( psi, fft );
+          ham.CalculateVexxACE ( psi );
         }
       }
 
@@ -1831,19 +1829,19 @@ SCF::IterateWavefun    ( )
 
         // Update Phi <- Psi
         GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
+        ham.SetPhiEXX( psi ); 
 
         // In principle there is no need to construct ACE operator here
         // However, this makes the code more readable by directly calling 
         // the MultSpinor function later
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            ham.CalculateVexxACEDF( psi, isFixColumnDF );
             // Fix the column after the first iteraiton
             isFixColumnDF = true;
           }
           else{
-            ham.CalculateVexxACE ( psi, fft );
+            ham.CalculateVexxACE ( psi );
           }
         }
 
@@ -1854,7 +1852,7 @@ SCF::IterateWavefun    ( )
       }//if
 
       GetTime( timeSta );
-      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      fock2 = ham.CalculateEXXEnergy( psi ); 
       GetTime( timeEnd );
       statusOFS << "Time for computing the EXX energy is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -1906,8 +1904,8 @@ SCF::IterateWavefun    ( )
 void
 SCF::InnerSolve	( Int iter )
 {
-  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain->comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain->comm, &mpisize);
 
   Real timeSta, timeEnd;
   Hamiltonian& ham = eigSolPtr_->Ham();
@@ -2033,8 +2031,7 @@ SCF::InnerSolve	( Int iter )
   ham.CalculateDensity(
       psi,
       ham.OccupationRate(),
-      totalCharge_, 
-      fft );
+      totalCharge_ ); 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for computing density in PWDFT is " <<
@@ -2044,7 +2041,7 @@ SCF::InnerSolve	( Int iter )
   // Compute the exchange-correlation potential and energy
   if( ham.XCRequireGradDensity() ){
     GetTime( timeSta );
-    ham.CalculateGradDensity( fft );
+    ham.CalculateGradDensity( );
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for computing gradient density in PWDFT is " <<
@@ -2053,7 +2050,7 @@ SCF::InnerSolve	( Int iter )
   }
 
   GetTime( timeSta );
-  ham.CalculateXC( Exc_, fft ); 
+  ham.CalculateXC( Exc_ ); 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for computing XC potential in PWDFT is " <<
@@ -2062,7 +2059,7 @@ SCF::InnerSolve	( Int iter )
 
   // Compute the Hartree energy
   GetTime( timeSta );
-  ham.CalculateHartree( fft );
+  ham.CalculateHartree( );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for computing Hartree potential in PWDFT is " <<
@@ -2226,8 +2223,8 @@ SCF::CalculateEnergy    (  )
   }
 
   // Hartree and xc part
-  Int  ntot = eigSolPtr_->FFT().domain.NumGridTotalFine();
-  Real vol  = eigSolPtr_->FFT().domain.Volume();
+  Int  ntot = eigSolPtr_->FFT().domain->NumGridTotalFine();
+  Real vol  = eigSolPtr_->FFT().domain->Volume();
   DblNumMat&  density      = eigSolPtr_->Ham().Density();
   DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
   DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
@@ -2325,8 +2322,8 @@ SCF::CalculateHarrisEnergy ( )
 
   // Nonlinear correction part.  This part uses the Hartree energy and
   // XC correlation energy from the old electron density.
-  Int  ntot = eigSolPtr_->FFT().domain.NumGridTotalFine();
-  Real vol  = eigSolPtr_->FFT().domain.Volume();
+  Int  ntot = eigSolPtr_->FFT().domain->NumGridTotalFine();
+  Real vol  = eigSolPtr_->FFT().domain->Volume();
   DblNumMat&  density      = eigSolPtr_->Ham().Density();
   DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
   DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
@@ -2386,7 +2383,7 @@ SCF::AndersonMix    (
     DblNumVec&      vNew,
     DblNumMat&      dfMat,
     DblNumMat&      dvMat ) {
-  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+  Int ntot  = eigSolPtr_->FFT().domain->NumGridTotalFine();
 
   // Residual 
   DblNumVec res;
@@ -2488,7 +2485,7 @@ SCF::KerkerPrecond (
     const DblNumVec&  residual )
 {
   Fourier& fft = eigSolPtr_->FFT();
-  Int ntot  = fft.domain.NumGridTotalFine();
+  Int ntot  = fft.domain->NumGridTotalFine();
 
   // NOTE Fixed KerkerB parameter
   //

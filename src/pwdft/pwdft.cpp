@@ -115,34 +115,31 @@ int main(int argc, char **argv)
     // *********************************************************************
     SetRandomSeed(mpirank);
 
-    Domain&  dm = esdfParam.domain;
+    Domain&  dm = *esdfParam.domain;
     PeriodTable ptable;
-    Fourier fft;
-    Spinor  psi;
-    Hamiltonian ham;
-    EigenSolver eigSol;
     SCF  scf;
 
     ptable.Setup( );
 
-    fft.Initialize( dm );
-
-    fft.InitializeFine( dm );
+    auto fft = std::make_shared<Fourier>( esdfParam.domain );
+    fft->Initialize( );
+    fft->InitializeFine( );
 
     // Hamiltonian
 
-    ham.Setup( dm, esdfParam.atomList );
+    auto ham = std::make_shared<Hamiltonian>( fft );
+    ham->Setup( esdfParam.atomList );
 
-    SetValue( ham.vext, 0.0 );
+    SetValue( ham->vext, 0.0 );
 
     GetTime( timeSta );
-    ham.CalculatePseudoPotential( ptable );
+    ham->CalculatePseudoPotential( ptable );
     GetTime( timeEnd );
     statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
       << timeEnd - timeSta << " [s]" << std::endl;
 
     // Wavefunctions
-    int numStateTotal = ham.NumStateTotal();
+    int numStateTotal = ham->NumStateTotal();
     int numStateLocal, blocksize;
 
     // Safeguard for Chebyshev Filtering
@@ -187,25 +184,25 @@ int main(int argc, char **argv)
       }    
     }
 
-    psi.Setup( dm, 1, ham.NumStateTotal(), numStateLocal, D_ZERO );
+    auto psi = std::make_shared<Spinor>(fft, 1, ham->NumStateTotal(), numStateLocal, D_ZERO);
 
     statusOFS << "Spinor setup finished." << std::endl;
 
-    UniformRandom( psi.Wavefun() );
+    UniformRandom( psi->Wavefun() );
 
     // LL: FIXME 01/04/2021 This part should go to SCF
-    if( ham.IsHybrid() ){
+    if( ham->IsHybrid() ){
       GetTime( timeSta );
-      ham.InitializeEXX( esdfParam.ecutWavefunction, fft );
+      ham->InitializeEXX( esdfParam.ecutWavefunction );
       GetTime( timeEnd );
       statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
         << timeEnd - timeSta << " [s]" << std::endl;
       if( esdfParam.isHybridActiveInit )
-        ham.SetEXXActive(true);
+        ham->SetEXXActive(true);
     }
 
     // Eigensolver class
-    eigSol.Setup( ham, psi, fft );
+    EigenSolver eigSol(ham, psi, fft);
 
     statusOFS << "Eigensolver setup finished." << std::endl;
 
@@ -261,7 +258,7 @@ int main(int argc, char **argv)
     {
       IonDynamics ionDyn;
 
-      ionDyn.Setup( ham.AtomList(), ptable ); 
+      ionDyn.Setup( ham->AtomList(), ptable ); 
 
       // Change the SCF parameters if necessary
       scf.UpdateMDParameters( );
@@ -274,15 +271,15 @@ int main(int argc, char **argv)
       if( esdfParam.MDExtrapolationVariable == "density" ){
         // densityHist[0] is the lastest density
         for( Int l = 0; l < maxHist; l++ ){
-          densityHist[l] = ham.Density();
+          densityHist[l] = ham->Density();
         } // for (l)
       }
       if( esdfParam.MDExtrapolationVariable == "wavefun" ){
         // wavefunHist[0] is the lastest density
         for( Int l = 0; l < maxHist; l++ ){
-          wavefunHist[l] = psi.Wavefun();
+          wavefunHist[l] = psi->Wavefun();
         } // for (l)
-        wavefunPre = psi.Wavefun();
+        wavefunPre = psi->Wavefun();
       }
 
       // Main loop for geometry optimization or molecular dynamics
@@ -307,15 +304,15 @@ int main(int argc, char **argv)
         ionDyn.MoveIons(ionIter);
 
         GetTime( timeSta );
-        ham.UpdateHamiltonian( ham.AtomList() );
-        ham.CalculatePseudoPotential( ptable );
+        ham->UpdateHamiltonian( ham->AtomList() );
+        ham->CalculatePseudoPotential( ptable );
 
         // Reset wavefunctions to random values for geometry optimization
         // Except for CheFSI. 
         // LL: Not used 10/19/2020
 //        if((ionDyn.IsGeoOpt() == true) && (esdfParam.PWSolver != "CheFSI")){
 //          statusOFS << std::endl << " Resetting to random wavefunctions ... \n" << std::endl ; 
-//          UniformRandom( psi.Wavefun() );
+//          UniformRandom( psi->Wavefun() );
 //        }
 
         scf.Update( ); 
@@ -332,12 +329,12 @@ int main(int argc, char **argv)
           for( Int l = maxHist-1; l > 0; l-- ){
             densityHist[l]     = densityHist[l-1];
           } // for (l)
-          densityHist[0] = ham.Density();
+          densityHist[0] = ham->Density();
           // FIXME add damping factor, currently for aspc2
-          // densityHist[0] = omega*ham.Density()+(1.0-omega)*densityHist[0];
+          // densityHist[0] = omega*ham->Density()+(1.0-omega)*densityHist[0];
           //                    Real omega = 4.0/7.0;
           //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
-          //                    blas::axpy( densityHist[0].Size(), omega, ham.Density().Data(),
+          //                    blas::axpy( densityHist[0].Size(), omega, ham->Density().Data(),
           //                            1, densityHist[0].Data(), 1 );
 
           // Compute the extrapolation coefficient
@@ -346,7 +343,7 @@ int main(int argc, char **argv)
           statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
 
           // Update the electron density
-          DblNumMat& denCurVec  = ham.Density();
+          DblNumMat& denCurVec  = ham->Density();
           SetValue( denCurVec, 0.0 );
           for( Int l = 0; l < maxHist; l++ ){
             blas::axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
@@ -365,12 +362,12 @@ int main(int argc, char **argv)
 
               statusOFS << "Extrapolating the Wavefunctions for XL-BOMD." << std::endl;
 
-              Int ntot = psi.NumGridTotal();
-              Int ncom = psi.NumComponent(); 
+              Int ntot = psi->NumGridTotal();
+              Int ncom = psi->NumComponent(); 
 
-              Int numStateTotal = psi.NumStateTotal();
-              Int numStateLocal = psi.NumState();
-              Int numOccTotal = ham.NumOccupiedState();
+              Int numStateTotal = psi->NumStateTotal();
+              Int numStateLocal = psi->NumState();
+              Int numOccTotal = ham->NumOccupiedState();
 
               Real dt = esdfParam.MDTimeStep;
               Real kappa = esdfParam.kappaXLBOMD;
@@ -488,7 +485,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numStateTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi->Wavefun().Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -587,29 +584,28 @@ int main(int argc, char **argv)
                 //AlltoallBackward (psiRow, psiCol, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
                     psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi->Wavefun().Data(), ntot );
               } // if
 
 
               // Compute the extrapolated density
               Real totalCharge;
-              ham.CalculateDensity(
-                  psi,
-                  ham.OccupationRate(),
-                  totalCharge, 
-                  fft );
+              ham->CalculateDensity(
+                  *psi,
+                  ham->OccupationRate(),
+                  totalCharge ); 
 
             } //if Extrapolating using xlbomd
             else { 
 
               statusOFS << "Extrapolating the Wavefunctions using ASPC." << std::endl;
 
-              Int ntot = psi.NumGridTotal();
-              Int ncom = psi.NumComponent(); 
+              Int ntot = psi->NumGridTotal();
+              Int ncom = psi->NumComponent(); 
 
-              Int numStateTotal = psi.NumStateTotal();
-              Int numStateLocal = psi.NumState();
-              Int numOccTotal = ham.NumOccupiedState();
+              Int numStateTotal = psi->NumStateTotal();
+              Int numStateLocal = psi->NumState();
+              Int numOccTotal = ham->NumOccupiedState();
 
               Real dt = esdfParam.MDTimeStep;
               Real kappa = esdfParam.kappaXLBOMD;
@@ -727,7 +723,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numStateTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi->Wavefun().Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -845,17 +841,16 @@ int main(int argc, char **argv)
                 //AlltoallBackward (psiRow, psiCol, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
                     psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi->Wavefun().Data(), ntot );
               } // if
 
 
               // Compute the extrapolated density
               Real totalCharge;
-              ham.CalculateDensity(
-                  psi,
-                  ham.OccupationRate(),
-                  totalCharge, 
-                  fft );
+              ham->CalculateDensity(
+                  *psi,
+                  ham->OccupationRate(),
+                  totalCharge ); 
 
             } //if Extrapolating the Wavefunctions using ASPC
 
@@ -871,7 +866,7 @@ int main(int argc, char **argv)
 
 
         // Geometry optimization
-        if( ionDyn.IsGeoOpt() and ( MaxForce( ham.AtomList() ) < esdfParam.geoOptMaxForce ) ){
+        if( ionDyn.IsGeoOpt() and ( MaxForce( ham->AtomList() ) < esdfParam.geoOptMaxForce ) ){
           statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
             << "Exit the loops for ions." << std::endl;
           break;

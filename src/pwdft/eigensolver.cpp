@@ -144,6 +144,7 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
 
 
 
+#if 0
 EigenSolver::EigenSolver() {
 #if 0
   // IMPORTANT: 
@@ -152,6 +153,7 @@ EigenSolver::EigenSolver() {
   contxt_ = -1;
 #endif
 }
+#endif
 
 EigenSolver::~EigenSolver() {
 #if 0
@@ -162,14 +164,14 @@ EigenSolver::~EigenSolver() {
 #endif
 }
 
-void EigenSolver::Setup(
-    Hamiltonian& ham,
-    Spinor& psi,
-    Fourier& fft ) {
-  hamPtr_ = &ham;
-  psiPtr_ = &psi;
-  fftPtr_ = &fft;
-
+EigenSolver::EigenSolver(
+    std::shared_ptr<Hamiltonian> ham,
+    std::shared_ptr<Spinor> psi,
+    std::shared_ptr<Fourier> fft ) :
+  hamPtr_(ham),
+  psiPtr_(psi),
+  fftPtr_(fft) 
+{
 
   eigVal_.Resize(psiPtr_->NumStateTotal());  SetValue(eigVal_, 0.0);
   resVal_.Resize(psiPtr_->NumStateTotal());  SetValue(resVal_, 0.0);
@@ -235,12 +237,12 @@ EigenSolver::LOBPCGSolveReal    (
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -325,8 +327,8 @@ EigenSolver::LOBPCGSolveReal    (
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
-  // DblNumMat  S( height, 3*widthLocal ), AS( height, 3*widthLocal ); 
   DblNumMat  S( heightLocal, 3*width ), AS( heightLocal, 3*width ); 
+
   // AMat = S' * (AS),  BMat = S' * S
   // 
   // AMat = (X'*AX   X'*AW   X'*AP)
@@ -338,14 +340,10 @@ EigenSolver::LOBPCGSolveReal    (
   //      = (  *      *    P'*P)
   //
   DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
-  DblNumMat  AMatT1( 3*width, 3*width );
-  // AMatSave and BMatSave are used for restart
   // Temporary buffer array.
   // The unpreconditioned residual will also be saved in Xtemp
   DblNumMat  XTX( width, width );
   DblNumMat  XTXtemp( width, width );
-  DblNumMat  XTXtemp1( width, width );
-
   DblNumMat  Xtemp( heightLocal, width );
 
   // Setup profiling wrappers
@@ -397,11 +395,11 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( spinorStart );
 
     // Setup temporary datastructures for Matvec
-    Spinor spnTmp( fftPtr_->domain, ncom, nS_total, nS_local, false, _X.Data() );
+    Spinor spnTmp( fftPtr_, ncom, nS_total, nS_local, false, _X.Data() );
     NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _AX.Data() );
 
     // Perform Matvec
-    hamPtr_->MultSpinor( spnTmp, tnsTmp, *fftPtr_ );
+    hamPtr_->MultSpinor( spnTmp, tnsTmp );
 
     GetTime( spinorEnd );
 
@@ -418,12 +416,12 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( precStart );
 
     // Setup temporary datastructures for Preconditioner
-    Spinor spnTmp( fftPtr_->domain, ncom, nS_total, nS_local, false, _X.Data() );
+    Spinor spnTmp( fftPtr_, ncom, nS_total, nS_local, false, _X.Data() );
     NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _TX.Data() );
 
     // Apply preconditioner
     SetValue( tnsTmp, 0. );
-    spnTmp.AddTeterPrecond( fftPtr_, tnsTmp );
+    spnTmp.AddTeterPrecond( tnsTmp );
 
     GetTime( precEnd );
 
@@ -1023,12 +1021,12 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -1045,8 +1043,7 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
   // a) Setup a temporary spinor with random numbers
   // One band on each process
-  Spinor  temp_spinor_v; 
-  temp_spinor_v.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+  Spinor  temp_spinor_v( fftPtr_, 1, mpisize, 1, 0.0 ); 
   UniformRandom( temp_spinor_v.Wavefun() );
 
   // b) Normalize this vector : Current data distribution is height * widthLocal ( = 1)
@@ -1059,11 +1056,8 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
   // Applying the Hamiltonian matrix
   GetTime( timeSta );
 
-  Spinor  temp_spinor_f; 
-  temp_spinor_f.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
-
-  Spinor  temp_spinor_v0; 
-  temp_spinor_v0.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+  Spinor temp_spinor_f( fftPtr_, 1, mpisize, 1, 0.0 ); 
+  Spinor temp_spinor_v0( fftPtr_, 1, mpisize, 1, 0.0 ); 
 
   // This is required for the  Hamiltonian * vector product
   NumTns<double> tnsTemp_spinor_f(ntot, ncom, 1, false, temp_spinor_f.Wavefun().Data());
@@ -1073,7 +1067,7 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
 
   SetValue( temp_spinor_f.Wavefun(), 0.0);
-  hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ ); // f = H * v
+  hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f ); // f = H * v
   GetTime( timeEnd );
   iterSpinor = iterSpinor + 1;
   timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -1103,7 +1097,7 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
     // f = H * v
     SetValue( temp_spinor_f.Wavefun(), 0.0);
-    hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ );
+    hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f );
 
     // f = f - beta * v0
     blas::axpy(height, (-beta), temp_spinor_v0.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
@@ -1150,12 +1144,12 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -1186,14 +1180,9 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
   // Declare some storage space
   // We will do the filtering band by band on each process.
   // So very little extra space is required
-  Spinor spinor_X;
-  spinor_X.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
-
-  Spinor  spinor_Y; 
-  spinor_Y.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
-
-  Spinor  spinor_Yt; 
-  spinor_Yt.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );   
+  Spinor spinor_X( fftPtr_, 1, mpisize, 1, 0.0 );
+  Spinor spinor_Y( fftPtr_, 1, mpisize, 1, 0.0 ); 
+  Spinor  spinor_Yt( fftPtr_, 1, mpisize, 1, 0.0 );    
 
   NumTns<double> tns_spinor_X(ntot, ncom, 1, false, spinor_X.Wavefun().Data());
   NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
@@ -1220,7 +1209,7 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     hamPtr_->set_wfn_filter(1);
 
     SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
-    hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
+    hamPtr_->MultSpinor( spinor_X, tns_spinor_Y ); // Y = H * X
 
     blas::axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
 
@@ -1234,7 +1223,7 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
 
       // Step 4: Compute Yt = (H * Y - c* Y) * (2.0 * sigma_new / e) - (sigma * sigma_new) * X
       SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
-      hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
+      hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt ); // Yt = H * Y
 
       blas::axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
 
@@ -1270,12 +1259,12 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -1306,14 +1295,9 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
   // Declare some storage space
   // We will do the filtering band by band on each process.
   // So very little extra space is required
-  Spinor spinor_X;
-  spinor_X.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
-
-  Spinor  spinor_Y; 
-  spinor_Y.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
-
-  Spinor  spinor_Yt; 
-  spinor_Yt.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );   
+  Spinor spinor_X( fftPtr_, 1, mpisize, 1, 0.0 );
+  Spinor spinor_Y( fftPtr_, 1, mpisize, 1, 0.0 ); 
+  Spinor spinor_Yt( fftPtr_, 1, mpisize, 1, 0.0 );    
 
   NumTns<double> tns_spinor_X(ntot, ncom, 1, false, spinor_X.Wavefun().Data());
   NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
@@ -1337,7 +1321,7 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
     hamPtr_->set_wfn_filter(1);
 
     SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
-    hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
+    hamPtr_->MultSpinor( spinor_X, tns_spinor_Y ); // Y = H * X
 
     blas::axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
 
@@ -1350,7 +1334,7 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
 
       // Step 4: Compute Yt = (H * Y - c* Y) * (2.0  / e) -  X
       SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
-      hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
+      hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt ); // Yt = H * Y
 
       blas::axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
 
@@ -1387,12 +1371,12 @@ EigenSolver::FirstChebyStep    (
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -1761,10 +1745,10 @@ EigenSolver::FirstChebyStep    (
     // HXcol = H * Xcol : Both are in height * local_width dimensioned format
     {
       GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+      Spinor spnTemp(fftPtr_, ncom, noccTotal, noccLocal, false, Xcol.Data());
       NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
-      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+      hamPtr_->MultSpinor( spnTemp, tnsTemp );
       GetTime( timeEnd );
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -1996,10 +1980,10 @@ EigenSolver::FirstChebyStep    (
       // HXcol = H * Xcol : Both are in height * local_width dimensioned format
       {
         GetTime( timeSta );
-        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+        Spinor spnTemp(fftPtr_, ncom, noccTotal, noccLocal, false, Xcol.Data());
         NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
-        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+        hamPtr_->MultSpinor( spnTemp, tnsTemp );
         GetTime( timeEnd );
         iterSpinor = iterSpinor + 1;
         timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -2145,12 +2129,12 @@ EigenSolver::GeneralChebyStep    (
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -2514,10 +2498,10 @@ EigenSolver::GeneralChebyStep    (
   // HXcol = H * Xcol : Both are in height * local_width dimensioned format
   {
     GetTime( timeSta );
-    Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+    Spinor spnTemp(fftPtr_, ncom, noccTotal, noccLocal, false, Xcol.Data());
     NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
-    hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+    hamPtr_->MultSpinor( spnTemp, tnsTemp );
     GetTime( timeEnd );
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -2744,10 +2728,10 @@ EigenSolver::GeneralChebyStep    (
     // HXcol = H * Xcol : Both are in height * local_width dimensioned format
     {
       GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+      Spinor spnTemp(fftPtr_, ncom, noccTotal, noccLocal, false, Xcol.Data());
       NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
-      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+      hamPtr_->MultSpinor( spnTemp, tnsTemp );
       GetTime( timeEnd );
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -2887,12 +2871,12 @@ EigenSolver::PPCGSolveReal    (
   // *********************************************************************
   // Initialization
   // *********************************************************************
-  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
   MPI_Barrier(mpi_comm);
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
-  Int ntot = psiPtr_->NumGridTotal();
+  Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
@@ -3147,10 +3131,10 @@ EigenSolver::PPCGSolveReal    (
   // Applying the Hamiltonian matrix
   {
     GetTime( timeSta );
-    Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+    Spinor spnTemp(fftPtr_, ncom, noccTotal, noccLocal, false, Xcol.Data());
     NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
 
-    hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+    hamPtr_->MultSpinor( spnTemp, tnsTemp );
     GetTime( timeEnd );
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -3250,11 +3234,11 @@ EigenSolver::PPCGSolveReal    (
     // Compute W = TW
     {
       GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
+      Spinor spnTemp(fftPtr_, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
       NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
 
       SetValue( tnsTemp, 0.0 );
-      spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
+      spnTemp.AddTeterPrecond( tnsTemp );
       GetTime( timeEnd );
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
@@ -3264,10 +3248,10 @@ EigenSolver::PPCGSolveReal    (
     // Compute AW = A*W
     {
       GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+      Spinor spnTemp(fftPtr_, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
       NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
 
-      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+      hamPtr_->MultSpinor( spnTemp, tnsTemp );
       GetTime( timeEnd );
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
