@@ -3473,7 +3473,10 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
   auto& phi     = phiEXX_;
   auto& phi_idx = wfnIdx_;
 
-  if( numCom_ != 1 || psi.NumComponent() != 1 ){
+  const auto numStateLocal_Psi = psi.NumState();
+  const auto numCom_Psi        = psi.NumComponent();
+
+  if( numCom_ != 1 || numCom_Psi != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
 
@@ -3481,8 +3484,11 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
     ErrorHandling("Domain size does not match.");
   }
 
+  const Int numGridTotal    = fft_->numGridTotal;
+  const Int numGridTotalR2C = fft_->numGridTotalR2C;
+
   // Temporary variable for saving wavefunction on a fine grid
-  DblNumVec phiTemp(fft_->numGridTotal);
+  DblNumVec phiTemp(numGridTotal);
 
 
   MPI_Barrier(domain_->comm);
@@ -3510,7 +3516,7 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
       if( iproc == mpirank ) { 
         Real* phiPtr = phi.VecData(jphi, kphi);
-        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+        for( Int ir = 0; ir < numGridTotal; ir++ ){
           phiTemp(ir) = phiPtr[ir];
         }
       }
@@ -3522,21 +3528,21 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
       for(Int j = 0; j < psi.NumComponent(); j++) {
 
         Real* psiPtr = psi_wfn.VecData(j,k);
-        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+        for( Int ir = 0; ir < numGridTotal; ir++ ){
           fft_->inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
         }
 
         FFTWExecute ( fft, fft_->forwardPlanR2C );
 
         // Solve the Poisson-like problem for exchange
-        for( Int ig = 0; ig < fft_->numGridTotalR2C; ig++ ){
+        for( Int ig = 0; ig < numGridTotalR2C; ig++ ){
           fft_->outputVecR2C(ig) *= exxgkkR2C_(ig);
         }
 
         FFTWExecute ( fft, fft_->backwardPlanR2C );
 
         Real* HpsiPtr = Hpsi.VecData(j,k);
-        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+        for( Int ir = 0; ir < numGridTotal; ir++ ){
           HpsiPtr[ir] += fft_->inputVecR2C(ir) * phiTemp(ir) * fac;
         }
 
@@ -3561,62 +3567,63 @@ VExxACEOperator::VExxACEOperator( std::shared_ptr<Fourier> fft,
 
 void VExxACEOperator::UpdatePotential( const Spinor& psi ) {
 
-  // Compute VexxPsi = V_X[Phi] * Phi
-  NumTns<Real> vexxPsi( fft_->numGridTotal, 1, numStateLocal_ );
+  // TODO: Sanity check that Phi/Psi are compatible
+  const Int numGridTotal  = fft_->numGridTotal;
+
+  // Initialize Storage for vexxProj
+  vexxProj_.Resize( numGridTotal, numStateLocal_ );
+
+
+  // Compute VexxPsi = V_X[Phi] * Psi (store in vexxProj)
+  NumTns<Real> vexxPsi( fft_->numGridTotal, 1, numStateLocal_, 
+                        false, vexxProj_.Data() );
   SetValue( vexxPsi, 0. );
   EXXOperator::ApplyOperator( psi, vexxPsi );
   
 
-  // SVD...
-  // Cholesky...
-
-  // For MPI...
-
+  // Make block distributor
+  // TODO: Cache as its constant over lifetime
   auto bdist = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
                                              domain_->comm,
-                                             fft_->numGridTotal,
+                                             numGridTotal,
                                              numStateTotal_ );
 
+  // Save dimensions to avoid dynamic lookup
+  const Int numGridLocal = bdist.MLocal();
+  if( bdist.NLocal() != numStateLocal_ )
+    ErrorHandling("Something went horribly wrong in the setup of ACE");
 
-  DblNumMat localPsiCol( bdist.M(), bdist.NLocal() ),
-            localVexxPsiCol( bdist.M(), bdist.NLocal() ),
-            localPsiRow( bdist.MLocal(), bdist.N() ),
-            localVexxPsiRow( bdist.MLocal(), bdist.N() );
+  DblNumMat localPsiRow( numGridLocal, numStateTotal_ ),
+            localVexxPsiRow( numGridLocal, numStateTotal_ );
 
-  // Initialize
-  lapack::lacpy( lapack::MatrixType::General, bdist.M(), bdist.NLocal(),
-                 psi.Wavefun().Data(), bdist.M(), 
-                 localPsiCol.Data(),   bdist.M() );
-  lapack::lacpy( lapack::MatrixType::General, bdist.M(), bdist.NLocal(),
-                 vexxPsi.Data(),           bdist.M(), 
-                 localVexxPsiCol.Data(),   bdist.M() );
+  DblNumMat psiCol( numGridTotal, numStateLocal_, false, 
+                    psi.Wavefun().Data() );
 
   // Redistribute Col -> Row
-  bdist.redistribute_col_to_row( localPsiCol,     localPsiRow     );
-  bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
+  bdist.redistribute_col_to_row( psiCol,    localPsiRow     );
+  bdist.redistribute_col_to_row( vexxProj_, localVexxPsiRow );
 
-  // Compute M = -Phi' * V_X[Phi] * Phi
-  DblNumMat M( bdist.N(), bdist.N() );
+  // Compute M = -Psi' * V_X[Phi] * Psi
+  DblNumMat M( numStateTotal_, numStateTotal_ );
   blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
-              bdist.N(), bdist.N(), bdist.MLocal(),
-              -1.0, localPsiRow.Data(),     bdist.MLocal(),
-                    localVexxPsiRow.Data(), bdist.MLocal(),
-              0.0,  M.Data(), bdist.N() );
+              numStateTotal_, numStateTotal_, numGridLocal,
+              -1.0, localPsiRow.Data(),     numGridLocal,
+                    localVexxPsiRow.Data(), numGridLocal,
+              0.0,  M.Data(), numStateTotal_ );
   MPI_Allreduce( MPI_IN_PLACE, M.Data(), M.Size(), MPI_DOUBLE, MPI_SUM,
                  domain_->comm );
 
   // Compute Cholesky factorization M <- L s.t. M = L * L**H
   // XXX This is safe to replicate
-  lapack::potrf( lapack::Uplo::Lower, bdist.N(), M.Data(), bdist.N() );
+  lapack::potrf( lapack::Uplo::Lower, numStateTotal_, M.Data(), numStateTotal_ );
 
   // Backtransform VexxPsi = VexxPsi * L**-H
   blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower,
-              blas::Op::ConjTrans, blas::Diag::NonUnit, bdist.MLocal(), bdist.N(),
-              1.0, M.Data(), bdist.N(), localVexxPsiRow.Data(), bdist.MLocal() );
+              blas::Op::ConjTrans, blas::Diag::NonUnit, numGridLocal, numStateTotal_,
+              1.0, M.Data(), numStateTotal_, localVexxPsiRow.Data(), numGridLocal );
 
 
   // Redistribute back and populate vexxProj
-  vexxProj_.Resize( bdist.M(), bdist.NLocal() );
   bdist.redistribute_row_to_col( localVexxPsiRow, vexxProj_ );
       
 }
