@@ -721,7 +721,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     /*** Compute AMat ***/
 
-#if 0
+#if 1
     // Compute AW = A*W (active only)
     profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
 #else
