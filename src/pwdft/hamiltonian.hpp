@@ -33,35 +33,63 @@ namespace scales{
 
 class EXXOperator {
 
-  Int numCom_;
-  Int numStateTotal_;
-  Int numStateLocal_;
+protected:
 
-  Int numGridTotalR2C_;
-  Int numGridTotalR2CFine_;
+  std::shared_ptr<Domain>  domain_ = nullptr;
+  std::shared_ptr<Fourier> fft_ = nullptr;
 
   Int  exxDivergenceType_;
   Real screenMu_;
   Real exxDiv_;
   Real exxFraction_;
-
-  NumTns<Real> phiEXX_;
-  DblNumMat vexxProj_;
   DblNumVec exxgkkR2C_;
+
+
+  Int numCom_;
+  Int numStateTotal_;
+  Int numStateLocal_;
+
+  IntNumVec    wfnIdx_;
+  DblNumVec    occRate_;
+  NumTns<Real> phiEXX_;
 
 public:
 
   // Emulates Hamiltonian::InitializeEXX
-  EXXOperator( Domain, Int, Real, Real, Real, Fourier& ); // DBWY Why not const?
-  ~EXXOperator() noexcept;
+  EXXOperator( std::shared_ptr<Fourier>, Int, Real, Real, Real ); 
+  ~EXXOperator() noexcept = default;
 
-  // Emulates Hamiltonian::SetPhiEXX
-  void SetPhi( Spinor&, Fourier& );
+  // Emulates Hamiltonian::SetPhiEXX + sets occ rate
+  virtual void SetPhi( const Spinor&, DblNumVec& );
 
   // Emulates Spinor::AddMultSpinorEXX
-  void ApplyOperator( const Spinor&, NumTns<Real>&, Fourier& fft );
+  virtual void ApplyOperator( const Spinor&, NumTns<Real>& );
+
+  auto& Phi() { return phiEXX_;    }
+  auto& GKK() { return exxgkkR2C_; }
 
 };
+
+class VExxACEOperator : public EXXOperator {
+
+  DblNumMat vexxProj_;
+
+public:
+
+  VExxACEOperator( std::shared_ptr<Fourier>, Int, Real, Real, Real ); 
+  ~VExxACEOperator() noexcept;
+
+  // Emulates Hamiltonian::CalculateVexxACE
+  //virtual void SetPhi( const Spinor&, DblNumVec& ) override;
+  void UpdatePotential( const Spinor& );
+
+  // Emulates ACE paths in Hamiltonian::MultSpinor
+  void ApplyOperator( const Spinor&, NumTns<Real>& ) override ;
+
+  auto& VexxProj() { return vexxProj_; } 
+
+};
+
 
 // *********************************************************************
 // Base Hamiltonian class 
@@ -76,6 +104,8 @@ private:
   std::shared_ptr<Domain>       domain_ = nullptr;
   std::shared_ptr<Fourier>      fft_    = nullptr;    
     
+  // Operators
+  std::unique_ptr< EXXOperator > exx_op_ = nullptr;
     
   // List of atoms
   std::vector<Atom>           atomList_;

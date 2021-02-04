@@ -110,4 +110,36 @@ void BlockDistributor<T>::redistribute_col_to_row( const NumMat<T>& col_data,
   else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
 }
 
+
+
+
+
+
+
+template <typename T>
+Int BlockDistributor<T>::M() const {
+  if( impl_ ) return impl_->M();
+  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
+}
+template <typename T>
+Int BlockDistributor<T>::N() const {
+  if( impl_ ) return impl_->N();
+  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
+}
+template <typename T>
+Int BlockDistributor<T>::MLocal() const {
+  if( impl_ ) return impl_->MLocal();
+  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
+}
+template <typename T>
+Int BlockDistributor<T>::NLocal() const {
+  if( impl_ ) return impl_->NLocal();
+  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
+}
+
+
+
+
+
+
 } // namespace scales

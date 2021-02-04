@@ -52,6 +52,11 @@ public:
   void redistribute_row_to_col( const NumMat<T>& row_data, NumMat<T>& col_data );
   void redistribute_col_to_row( const NumMat<T>& col_data, NumMat<T>& row_data );
 
+  Int M() const;
+  Int N() const;
+  Int MLocal() const;
+  Int NLocal() const;
+
 };
 
 

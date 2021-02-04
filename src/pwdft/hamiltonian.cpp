@@ -2339,6 +2339,8 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
 
 void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
 {
+
+
   const Real epsDiv = 1e-8;
 
   isEXXActive_ = false;
@@ -2438,6 +2440,20 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
   }
 
 
+  // Setup Operator
+  exx_op_ = std::unique_ptr< EXXOperator >(
+    new VExxACEOperator( fft_, exxDivergenceType_, screenMu_, exxFraction_,
+                         ecutWavefunction )
+    //new EXXOperator( fft_, exxDivergenceType_, screenMu_, exxFraction_,
+    //                 ecutWavefunction )
+  );
+
+  Real max_diff = 0;
+  for( auto i = 0; i < fft_->numGridTotalR2C; ++i ) {
+    max_diff = std::max( max_diff, std::abs( exx_op_->GKK()(i) - exxgkkR2C_(i) ) );
+  }
+  statusOFS << "MAX DIFF GKK = " << max_diff << std::endl;
+
   return ;
 }        // -----  end of function Hamiltonian::InitializeEXX  ----- 
 
@@ -2476,6 +2492,21 @@ Hamiltonian::SetPhiEXX    (const Spinor& psi)
   } // for (k)
 
 
+
+  // Do the same thing with exx_op_ + ACE setup if necessacary
+  exx_op_->SetPhi( psi, occupationRate_ );
+  Real max_diff = 0.;
+  for (Int k=0; k<numStateLocal; k++) {
+  for (Int j=0; j<ncom; j++) {
+  for (Int i=0; i<ntot; ++i) {
+    max_diff = std::max( max_diff, std::abs( phiEXX_(i,j,k) - exx_op_->Phi()(i,j,k) ) );
+  }
+  }
+  }
+
+  statusOFS << "MAX DIFF PHI = " << max_diff << std::endl;
+
+
   return ;
 }         // -----  end of method Hamiltonian::SetPhiEXX  ----- 
 
@@ -2490,6 +2521,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi )
   // Since this is a projector, it should be done on the COARSE grid,
   // i.e. to the wavefunction directly
 
+  statusOFS << "COMPUTING ACE" << std::endl;
   MPI_Barrier(domain_->comm);
   int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
@@ -2501,10 +2533,12 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi )
   Int numStateLocal = psi.NumState();
   NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
 
+
   // VexxPsi = V_{exx}*Phi.
   SetValue( vexxPsi, 0.0 );
   psi.AddMultSpinorEXX( phiEXX_, exxgkkR2C_,
       exxFraction_,  numSpin_, occupationRate_, vexxPsi );
+
 
   // Implementation based on SVD
   DblNumMat  M(numStateTotal, numStateTotal);
@@ -2660,12 +2694,28 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi )
   //  }
 
 
+  // Update potential through new code
+  auto* ace_op = dynamic_cast<VExxACEOperator*>(exx_op_.get());
+  ace_op->UpdatePotential(psi);
+  {
+  // Check correctness
+  Real max_diff = 0;
+  for( Int j = 0; j < vexxProj_.n(); ++j )
+  for( Int i = 0; i < vexxProj_.m(); ++i ) {
+    max_diff = std::max( max_diff, std::abs(
+      vexxProj_(i,j) - ace_op->VexxProj()(i,j)
+    ));
+  }
+  statusOFS << "MAX DIFF VEXX PROJ = " << max_diff << std::endl;
+  }
+
   return ;
 }         // -----  end of method Hamiltonian::CalculateVexxACE  ----- 
 
 void
 Hamiltonian::CalculateVexxACEDF ( Spinor& psi, bool isFixColumnDF )
 {
+  statusOFS << "COMPUTING ACE-DF" << std::endl;
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
 
@@ -3276,20 +3326,20 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 
 
 
-#if 0
 // This emulates Hamiltonian::InitializeEXX
-EXXOperator::EXXOperator( Domain domain, Int exxDivType, Real screenMu, 
-                          Real exxFraction, Real ecutWavefunction, Fourier& fft ) :
-  domain_           ( domain              ),
-  numGridTotalR2C_  ( fft.numGridTotalR2C ),
-  exxDivergenceType_( exxDivType          ),
-  screenMu_         ( screenMu            ),
-  exxFraction_      ( exxFraction         )
+EXXOperator::EXXOperator( std::shared_ptr<Fourier> fft, 
+                          Int exxDivType, Real screenMu, 
+                          Real exxFraction, Real ecutWavefunction ) :
+  domain_           ( fft->domain ),
+  fft_              ( fft         ),
+  exxDivergenceType_( exxDivType  ),
+  screenMu_         ( screenMu    ),
+  exxFraction_      ( exxFraction )
 {
 
   const Real epsDiv = 1e-8;
 
-  exxgkkR2C_.Resize( numGridTotalR2C_ );
+  exxgkkR2C_.Resize( fft_->numGridTotalR2C );
   SetValue( exxgkkR2C_, 0.0 );
 
   // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
@@ -3312,8 +3362,8 @@ EXXOperator::EXXOperator( Domain domain, Int exxDivType, Real screenMu,
     // Do the integration over the entire G-space rather than just the
     // R2C grid. This is because it is an integration in the G-space.
     // This implementation fully agrees with the QE result.
-    for( Int ig = 0; ig < fft.numGridTotalTotal; ig++ ){
-      gkk2 = fft.gkk(ig) * 2.0;
+    for( Int ig = 0; ig < fft->numGridTotal; ig++ ){
+      gkk2 = fft->gkk(ig) * 2.0;
       if( gkk2 > epsDiv ){
         if( screenMu_ > 0.0 ){
           exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
@@ -3352,8 +3402,8 @@ EXXOperator::EXXOperator( Domain domain, Int exxDivType, Real screenMu,
 
   statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
 
-  for( Int ig = 0; ig < numGridTotalR2C_; ig++ ){
-    gkk2 = fft.gkkR2C(ig) * 2.0;
+  for( Int ig = 0; ig < fft_->numGridTotalR2C; ig++ ){
+    gkk2 = fft_->gkkR2C(ig) * 2.0;
     if( gkk2 > epsDiv ){
       if( screenMu_ > 0 ){
         // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
@@ -3381,35 +3431,37 @@ EXXOperator::EXXOperator( Domain domain, Int exxDivType, Real screenMu,
 
      
 // This emulates Hamiltonian::SetPhiEXX
-void EXXOperator::SetPhi( Spinor& psi, Fourier& fft ) 
+void EXXOperator::SetPhi( const Spinor& psi, DblNumVec& occRate ) 
 {
 
-  numGridTotal_ = psi.NumGridTotal(); 
+  // TODO: Sanity check numGridTotal agrees with psi
+
+  occRate_       = occRate;
+  wfnIdx_        = psi.WavefunIdx();
   numCom_        = psi.NumComponent();
   numStateLocal_ = psi.NumState();     
   numStateTotal_ = psi.NumStateTotal();
 
-  phiEXX_.Resize( numGridTotal_, numCom_, numStateLocal_ );
+  phiEXX_.Resize( fft_->numGridTotal, numCom_, numStateLocal_ );
   SetValue( phiEXX_, 0.0 );
 
   const auto& wavefun = psi.Wavefun();
-  const Real vol = fft.domain->Volume();
-  const Real fac = std::sqrt( Real(numGridTotal_) / vol );
+  const Real vol = domain_->Volume();
+  const Real fac = std::sqrt( Real(fft_->numGridTotal) / vol );
 
   for( Int k = 0; k < numStateLocal_; ++k )
   for( Int j = 0; j < numCom_;        ++j ) {
-    blas::copy( numGridTotal_, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
-    blas::scal( numGridTotal_, fac, phiEXX_.VecData(j,k), 1 );
+    blas::copy( fft_->numGridTotal, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
+    blas::scal( fft_->numGridTotal, fac, phiEXX_.VecData(j,k), 1 );
   }
 
 }
       
 
-void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi,
-                                 Fourier& fft ) {
+void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
-
-  if( !fft.isInitialized ){
+  auto& fft = *fft_;
+  if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
 
@@ -3417,13 +3469,202 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi,
   int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
-  auto& gridDim     = domain_->numGrid;
-  auto& gridDimFine = domain_->numGridFine;
+  auto& psi_wfn = psi.Wavefun();
+  auto& phi     = phiEXX_;
+  auto& phi_idx = wfnIdx_;
+
+  if( numCom_ != 1 || psi.NumComponent() != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+
+  if( fft_->domain->NumGridTotal() != psi.NumGridTotal() ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  DblNumVec phiTemp(fft_->numGridTotal);
+
+
+  MPI_Barrier(domain_->comm);
+
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+
+    // Process Phi wave function components residing on the iproc MPI rank
+    Int numStateLocal_Phi = numStateLocal_;
+    MPI_Bcast( &numStateLocal_Phi, 1, MPI_INT, iproc, domain_->comm );
+
+    IntNumVec phi_idx_temp(numStateLocal_Phi);
+    if( iproc == mpirank ){
+      phi_idx_temp = phi_idx;
+    }
+
+    MPI_Bcast( phi_idx_temp.Data(), numStateLocal_Phi, MPI_INT, iproc, 
+               domain_->comm );
+
+    // Loop over local Phi wave functions
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocal_Phi; kphi++ ){
+    for( Int jphi = 0; jphi < numCom_;           jphi++ ){
+
+      SetValue( phiTemp, 0.0 );
+
+      if( iproc == mpirank ) { 
+        Real* phiPtr = phi.VecData(jphi, kphi);
+        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+          phiTemp(ir) = phiPtr[ir];
+        }
+      }
+
+      MPI_Bcast( phiTemp.Data(), phiTemp.Size(), MPI_DOUBLE, iproc, domain_->comm );
+
+      const Real fac = -exxFraction_ * occRate_[phi_idx_temp(kphi)];  
+      for(Int k = 0; k < psi.NumState();     k++) {
+      for(Int j = 0; j < psi.NumComponent(); j++) {
+
+        Real* psiPtr = psi_wfn.VecData(j,k);
+        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+          fft_->inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
+        }
+
+        FFTWExecute ( fft, fft_->forwardPlanR2C );
+
+        // Solve the Poisson-like problem for exchange
+        for( Int ig = 0; ig < fft_->numGridTotalR2C; ig++ ){
+          fft_->outputVecR2C(ig) *= exxgkkR2C_(ig);
+        }
+
+        FFTWExecute ( fft, fft_->backwardPlanR2C );
+
+        Real* HpsiPtr = Hpsi.VecData(j,k);
+        for( Int ir = 0; ir < fft_->numGridTotal; ir++ ){
+          HpsiPtr[ir] += fft_->inputVecR2C(ir) * phiTemp(ir) * fac;
+        }
+
+      } // for (j)
+      } // for (k)
+
+      MPI_Barrier(domain_->comm);
+
+
+    } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  MPI_Barrier(domain_->comm);
+}
+
+VExxACEOperator::VExxACEOperator( std::shared_ptr<Fourier> fft, 
+                                  Int exxDivType, Real screenMu, 
+                                  Real exxFraction, Real ecutWavefunction ) :
+  EXXOperator( fft, exxDivType, screenMu, exxFraction, ecutWavefunction ) { }
+
+void VExxACEOperator::UpdatePotential( const Spinor& psi ) {
+
+  // Compute VexxPsi = V_X[Phi] * Phi
+  NumTns<Real> vexxPsi( fft_->numGridTotal, 1, numStateLocal_ );
+  SetValue( vexxPsi, 0. );
+  EXXOperator::ApplyOperator( psi, vexxPsi );
+  
+
+  // SVD...
+  // Cholesky...
+
+  // For MPI...
+
+  auto bdist = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
+                                             domain_->comm,
+                                             fft_->numGridTotal,
+                                             numStateTotal_ );
+
+
+  DblNumMat localPsiCol( bdist.M(), bdist.NLocal() ),
+            localVexxPsiCol( bdist.M(), bdist.NLocal() ),
+            localPsiRow( bdist.MLocal(), bdist.N() ),
+            localVexxPsiRow( bdist.MLocal(), bdist.N() );
+
+  // Initialize
+  lapack::lacpy( lapack::MatrixType::General, bdist.M(), bdist.NLocal(),
+                 psi.Wavefun().Data(), bdist.M(), 
+                 localPsiCol.Data(),   bdist.M() );
+  lapack::lacpy( lapack::MatrixType::General, bdist.M(), bdist.NLocal(),
+                 vexxPsi.Data(),           bdist.M(), 
+                 localVexxPsiCol.Data(),   bdist.M() );
+
+  // Redistribute Col -> Row
+  bdist.redistribute_col_to_row( localPsiCol,     localPsiRow     );
+  bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
+
+  // Compute M = -Phi' * V_X[Phi] * Phi
+  DblNumMat M( bdist.N(), bdist.N() );
+  blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
+              bdist.N(), bdist.N(), bdist.MLocal(),
+              -1.0, localPsiRow.Data(),     bdist.MLocal(),
+                    localVexxPsiRow.Data(), bdist.MLocal(),
+              0.0,  M.Data(), bdist.N() );
+  MPI_Allreduce( MPI_IN_PLACE, M.Data(), M.Size(), MPI_DOUBLE, MPI_SUM,
+                 domain_->comm );
+
+  // Compute Cholesky factorization M <- L s.t. M = L * L**H
+  // XXX This is safe to replicate
+  lapack::potrf( lapack::Uplo::Lower, bdist.N(), M.Data(), bdist.N() );
+
+  // Backtransform VexxPsi = VexxPsi * L**-H
+  blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower,
+              blas::Op::ConjTrans, blas::Diag::NonUnit, bdist.MLocal(), bdist.N(),
+              1.0, M.Data(), bdist.N(), localVexxPsiRow.Data(), bdist.MLocal() );
+
+
+  // Redistribute back and populate vexxProj
+  vexxProj_.Resize( bdist.M(), bdist.NLocal() );
+  bdist.redistribute_row_to_col( localVexxPsiRow, vexxProj_ );
+      
+}
+
+void VExxACEOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
+
+  ErrorHandling( "DIE DIE DIE" );
+
+  auto bdist_psi = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
+                                                 domain_->comm,
+                                                 psi.NumGridTotal(),
+                                                 psi.NumStateTotal() );
+
+  DblNumMat psiCol( bdist_psi.M(), bdist_psi.NLocal() ),
+            psiRow( bdist_psi.MLocal(), bdist_psi.N() ),
+            VexxPsiRow( bdist_psi.MLocal(), bdist_psi.N() );
+
+  lapack::lacpy( lapack::MatrixType::General, psiCol.m(), psiCol.n(), 
+                 psi.Wavefun().Data(), psiCol.m(), psiCol.Data(), psiCol.m() );
+
+  bdist_psi.redistribute_col_to_row( psiCol, psiRow );
+
+  
+  auto bdist_vexx = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
+                                                  domain_->comm,
+                                                  fft_->numGridTotal,
+                                                  numStateTotal_ );
+  DblNumMat vexxRow( bdist_psi.MLocal(), bdist_psi.N() );
+  bdist_vexx.redistribute_col_to_row( vexxProj_, vexxRow );
+
+
+  // Compute M = Vexx' * Psi
+  DblNumMat M( bdist_vexx.N(), bdist_psi.N() );
+  blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
+              M.m(), M.n(), bdist_vexx.MLocal(),
+              1.0, vexxRow.Data(), vexxRow.m(), psiRow.Data(), psiRow.m(),
+              0.0, M.Data(), M.m() );
+  MPI_Allreduce( MPI_IN_PLACE, M.Data(), M.Size(), MPI_DOUBLE, MPI_SUM, 
+                 domain_->comm );
+
+  // Compute VexxPsi = - Vexx * M
+  blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+              psiRow.m(), M.n(), M.m(),
+              -1.0, vexxRow.Data(), vexxRow.m(), M.Data(), M.m(),
+              0.0,  VexxPsiRow.Data(), VexxPsiRow.m() );
+
+  // Populate VexxPsi locally
 
 }
-#endif
-
-
-
 
 } // namespace scales
