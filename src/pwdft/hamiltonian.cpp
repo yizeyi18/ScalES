@@ -2344,10 +2344,12 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
 void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
 {
 
+  isEXXActive_ = false;
+
+#if 0
 
   const Real epsDiv = 1e-8;
 
-  isEXXActive_ = false;
 
   Int numGridTotalR2C = fft_->numGridTotalR2C;
   exxgkkR2C_.Resize(numGridTotalR2C);
@@ -2459,6 +2461,21 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
   statusOFS << "MAX DIFF GKK = " << max_diff << std::endl;
 
   return ;
+#else
+  // Setup Operator
+  // TODO Delegate based on esdfParam
+  exx_op_ = std::unique_ptr< EXXOperator >(
+    new VExxACEOperator( fft_, exxDivergenceType_, screenMu_, exxFraction_,
+                         ecutWavefunction )
+    //new EXXOperator( fft_, exxDivergenceType_, screenMu_, exxFraction_,
+    //                 ecutWavefunction )
+  );
+
+  // Populate local vars
+  // TODO Reference explicitly in the main drivers
+  //exxDiv_ = exx_op_->EXXDiv();
+  //exxgkkR2C_ = exx_op_->GKK();
+#endif
 }        // -----  end of function Hamiltonian::InitializeEXX  ----- 
 
 
@@ -2466,6 +2483,7 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
 void
 Hamiltonian::SetPhiEXX    (const Spinor& psi)
 {
+#if 0
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Real>& wavefun = psi.Wavefun();
   Int ntot = wavefun.m();
@@ -2512,6 +2530,9 @@ Hamiltonian::SetPhiEXX    (const Spinor& psi)
 
 
   return ;
+#else
+  exx_op_->SetPhi( psi, occupationRate_ );
+#endif
 }         // -----  end of method Hamiltonian::SetPhiEXX  ----- 
 
 
@@ -2527,6 +2548,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi )
 
   statusOFS << "COMPUTING ACE" << std::endl;
   MPI_Barrier(domain_->comm);
+#if 0
   int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
@@ -2714,6 +2736,10 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi )
   }
 
   return ;
+#else
+  auto* ace_op = dynamic_cast<VExxACEOperator*>(exx_op_.get());
+  ace_op->UpdatePotential(psi);
+#endif
 }         // -----  end of method Hamiltonian::CalculateVexxACE  ----- 
 
 void

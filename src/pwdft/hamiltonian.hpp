@@ -60,15 +60,18 @@ public:
   ~EXXOperator() noexcept = default;
 
   // Emulates Hamiltonian::SetPhiEXX + sets occ rate
-  virtual void SetPhi( const Spinor&, DblNumVec& );
+  void SetPhi( const Spinor&, DblNumVec& );
 
   // Emulates Spinor::AddMultSpinorEXX
   virtual void ApplyOperator( const Spinor&, NumTns<Real>& );
 
-  virtual Real ComputeEnergy( const Spinor& );
+  // Emulates Hamiltonian::ComputeEXXEnergy
+  Real ComputeEnergy( const Spinor& );
 
+  // TODO Remove Getters
   auto& Phi() { return phiEXX_;    }
   auto& GKK() { return exxgkkR2C_; }
+  auto  EXXDiv() { return exxDiv_; }
 
 };
 
@@ -82,7 +85,6 @@ public:
   ~VExxACEOperator() noexcept;
 
   // Emulates Hamiltonian::CalculateVexxACE
-  //virtual void SetPhi( const Spinor&, DblNumVec& ) override;
   void UpdatePotential( const Spinor& );
 
   // Emulates ACE paths in Hamiltonian::MultSpinor
