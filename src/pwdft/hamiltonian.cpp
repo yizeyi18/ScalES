@@ -2170,6 +2170,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
     statusOFS << "IS HYBRID" << std::endl;
     GetTime( timeSta );
 
+#if 0
     if( esdfParam.isHybridACE ){
 
       statusOFS << "IS ACE" << std::endl;
@@ -2285,6 +2286,9 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
       psi.AddMultSpinorEXX( phiEXX_, exxgkkR2C_,
           exxFraction_,  numSpin_, occupationRate_, Hpsi );
     }
+#else
+    exx_op_->ApplyOperator( psi, Hpsi );
+#endif
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -3460,6 +3464,7 @@ void EXXOperator::SetPhi( const Spinor& psi, DblNumVec& occRate )
 
 void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
+  statusOFS << "NEW EXX APPLY OPERATOR" << std::endl;
   auto& fft = *fft_;
   if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -3630,47 +3635,67 @@ void VExxACEOperator::UpdatePotential( const Spinor& psi ) {
 
 void VExxACEOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
-  ErrorHandling( "DIE DIE DIE" );
+  statusOFS << "NEW ACE APPLY OPERATOR" << std::endl;
+
+  //ErrorHandling( "DIE DIE DIE" );
+  // TODO: Sanity check that Phi/Psi are compatible
+  const Int numGridTotal      = fft_->numGridTotal;
+  const Int numStateLocal_Psi = psi.NumState();
+  const Int numStateTotal_Psi = psi.NumStateTotal();
 
   auto bdist_psi = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
                                                  domain_->comm,
-                                                 psi.NumGridTotal(),
-                                                 psi.NumStateTotal() );
+                                                 numGridTotal,
+                                                 numStateTotal_Psi );
+  const Int numGridLocal = bdist_psi.MLocal();
 
-  DblNumMat psiCol( bdist_psi.M(), bdist_psi.NLocal() ),
-            psiRow( bdist_psi.MLocal(), bdist_psi.N() ),
-            VexxPsiRow( bdist_psi.MLocal(), bdist_psi.N() );
+  if( bdist_psi.NLocal() != numStateLocal_Psi )
+    ErrorHandling("BlockDistributor yielded local states different than specified in Psi");
 
-  lapack::lacpy( lapack::MatrixType::General, psiCol.m(), psiCol.n(), 
-                 psi.Wavefun().Data(), psiCol.m(), psiCol.Data(), psiCol.m() );
+  DblNumMat psiRow( numGridLocal, numStateTotal_Psi ),
+            VexxPsiRow( numGridLocal, numStateTotal_Psi );
+
+  DblNumMat psiCol( numGridTotal, numStateLocal_Psi, false,
+                    psi.Wavefun().Data() );
 
   bdist_psi.redistribute_col_to_row( psiCol, psiRow );
 
   
   auto bdist_vexx = make_block_distributor<Real>( BlockDistAlg::HostOptPack,
                                                   domain_->comm,
-                                                  fft_->numGridTotal,
+                                                  numGridTotal,
                                                   numStateTotal_ );
-  DblNumMat vexxRow( bdist_psi.MLocal(), bdist_psi.N() );
+  // Save dimensions to avoid dynamic lookup
+  if( bdist_vexx.NLocal() != numStateLocal_ )
+    ErrorHandling("Something went horribly wrong in the setup of ACE");
+
+  DblNumMat vexxRow( numGridLocal, numStateTotal_ );
   bdist_vexx.redistribute_col_to_row( vexxProj_, vexxRow );
 
 
   // Compute M = Vexx' * Psi
-  DblNumMat M( bdist_vexx.N(), bdist_psi.N() );
+  DblNumMat M( numStateTotal_, numStateTotal_Psi );
   blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
-              M.m(), M.n(), bdist_vexx.MLocal(),
-              1.0, vexxRow.Data(), vexxRow.m(), psiRow.Data(), psiRow.m(),
-              0.0, M.Data(), M.m() );
+              numStateTotal_, numStateTotal_Psi, numGridLocal,
+              1.0, vexxRow.Data(), numGridLocal, psiRow.Data(), numGridLocal,
+              0.0, M.Data(), numStateTotal_ );
   MPI_Allreduce( MPI_IN_PLACE, M.Data(), M.Size(), MPI_DOUBLE, MPI_SUM, 
                  domain_->comm );
 
   // Compute VexxPsi = - Vexx * M
   blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-              psiRow.m(), M.n(), M.m(),
-              -1.0, vexxRow.Data(), vexxRow.m(), M.Data(), M.m(),
-              0.0,  VexxPsiRow.Data(), VexxPsiRow.m() );
+              numGridLocal, numStateTotal_Psi, numStateTotal_,
+              -1.0, vexxRow.Data(), numGridLocal, M.Data(), numStateTotal_,
+              0.0,  VexxPsiRow.Data(), numGridLocal );
 
   // Populate VexxPsi locally
+  DblNumMat HPsiTemp( numGridTotal, numStateLocal_Psi );
+  bdist_psi.redistribute_row_to_col( VexxPsiRow, HPsiTemp );
+
+  // Increment result
+  for( Int j = 0; j < numStateLocal_Psi; ++j )
+  for( Int i = 0; i < numGridTotal;      ++i )
+    Hpsi(i,0,j) += HPsiTemp(i,j);
 
 }
 
