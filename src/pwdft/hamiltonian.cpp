@@ -2815,6 +2815,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi )
 {
 
   MPI_Barrier(domain_->comm);
+#if 0
   int mpirank;  MPI_Comm_rank(domain_->comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_->comm, &mpisize);
 
@@ -2979,8 +2980,13 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi )
     mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_->comm );
   }
 
+  statusOFS << "DIFF EXX_ENERGY = " << std::abs(fockEnergy - exx_op_->ComputeEnergy(psi)) << std::endl;
+
 
   return fockEnergy;
+#else
+  return exx_op_->ComputeEnergy(psi);
+#endif
 }         // -----  end of method Hamiltonian::CalculateEXXEnergy  ----- 
 
 
@@ -3563,6 +3569,37 @@ void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
   } //iproc
 
   MPI_Barrier(domain_->comm);
+}
+
+
+Real EXXOperator::ComputeEnergy( const Spinor& psi ) {
+
+  // TODO: Sanity check that Phi/Psi are compatible
+  const Int numGridTotal      = fft_->numGridTotal;
+  
+  statusOFS << "IN NEW EXX ENERGY" << std::endl;
+  NumTns<Real> vexxPsi( numGridTotal, 1, numStateLocal_ );
+  SetValue( vexxPsi, 0. );
+  this->ApplyOperator( psi, vexxPsi );
+
+  Real exxEnergy = 0.;
+
+  auto& psi_wfn = psi.Wavefun();
+  auto& psi_idx = psi.WavefunIdx();
+
+  for( Int k = 0; k < numStateLocal_; ++k ) {
+    const auto occVal = occRate_[psi_idx(k)];
+    Real eTmp = 0.;
+    for( Int j = 0; j < numCom_;        ++j )
+    for( Int i = 0; i < numGridTotal;   ++i )
+      eTmp += vexxPsi( i, j, k ) * psi_wfn( i, j, k );
+    exxEnergy += eTmp * occVal;
+  }
+
+  MPI_Allreduce( MPI_IN_PLACE, &exxEnergy, 1, MPI_DOUBLE, MPI_SUM, domain_->comm );
+
+  return exxEnergy;
+
 }
 
 VExxACEOperator::VExxACEOperator( std::shared_ptr<Fourier> fft, 

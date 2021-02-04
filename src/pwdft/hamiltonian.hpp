@@ -65,6 +65,8 @@ public:
   // Emulates Spinor::AddMultSpinorEXX
   virtual void ApplyOperator( const Spinor&, NumTns<Real>& );
 
+  virtual Real ComputeEnergy( const Spinor& );
+
   auto& Phi() { return phiEXX_;    }
   auto& GKK() { return exxgkkR2C_; }
 
