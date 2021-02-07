@@ -289,6 +289,7 @@ public:
   void ACEOperator( deviceDblNumMat& cu_psi, deviceDblNumMat& cu_Hpsi);
 #endif
   
+  //TODO Remove
   NumTns<Real>& PhiEXX() {return phiEXX_;}
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in

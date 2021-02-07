@@ -2462,7 +2462,7 @@ void Hamiltonian::InitializeEXX ( Real ecutWavefunction )
 
   return ;
 #else
-  // Setup Operator
+  // Setup EXX Operator
   // TODO Delegate based on esdfParam
   exx_op_ = std::unique_ptr< EXXOperator >(
     new VExxACEOperator( fft_, exxDivergenceType_, screenMu_, exxFraction_,
@@ -3606,6 +3606,9 @@ Real EXXOperator::ComputeEnergy( const Spinor& psi ) {
   statusOFS << "IN NEW EXX ENERGY" << std::endl;
   NumTns<Real> vexxPsi( numGridTotal, 1, numStateLocal_ );
   SetValue( vexxPsi, 0. );
+
+  // This will call the correct (possibly derived) instance of ApplyOperator 
+  // based on the original initialization
   this->ApplyOperator( psi, vexxPsi );
 
   Real exxEnergy = 0.;
