@@ -86,4 +86,12 @@ void Orth( Int m, Int n, T* A, Int lda ){
 
 
 
+
+template <typename T>
+void SingularValues( Int m, Int n, T* A, Int lda, T* s ) {
+  if( not (m and n) ) return;
+  lapack::gesvd( lapack::Job::NoVec, lapack::Job::NoVec,
+                 m, n, A, lda, s, A, 1, A, 1 );
+}
+
 }

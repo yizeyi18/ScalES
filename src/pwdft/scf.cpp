@@ -30,6 +30,8 @@
 #endif
 #endif
 
+#include "linalg_extensions.hpp"
+
 namespace  scales{
 
 using namespace scales::DensityComponent;
@@ -908,7 +910,7 @@ SCF::IterateWavefun    ( )
           // the selected columns
           DblNumMat tmp = psiMuT;
           DblNumVec s(numOccTotal);
-          lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
+          SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
           statusOFS << "Spsi = " << s << std::endl;
         }
 #endif
@@ -1527,7 +1529,7 @@ SCF::IterateWavefun    ( )
         // the selected columns
         DblNumMat tmp = psiMuT;
         DblNumVec s(numOccTotal);
-        lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
+        SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
         statusOFS << "Spsi = " << s << std::endl;
       }
 #endif
