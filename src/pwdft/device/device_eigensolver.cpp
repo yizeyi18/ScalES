@@ -10,12 +10,12 @@
 /// @date 2020-08-21
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
-#include  "blas.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
 #include  "device_blas.hpp"
 #include  "device_utils.h"
 #include  "device_nummat_impl.hpp"
 #include  "device_numvec_impl.hpp"
-#include  "lapack.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 #ifdef USE_MAGMA
@@ -349,7 +349,7 @@ EigenSolver::devicePPCGSolveReal (
   // Initialize X by the data in psi
   GetTime( timeSta );
 #if 0
-  lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+  lapack::lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
 #endif
   GetTime( timeEnd );
@@ -574,7 +574,7 @@ EigenSolver::devicePPCGSolveReal (
     GetTime( timeSta );
     cu_Xtemp.CopyFrom ( cu_AX );
 #if 0
-    lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
+    lapack::lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
 #endif
     GetTime( timeEnd );
     iterCopy = iterCopy + 1;
@@ -1074,15 +1074,16 @@ EigenSolver::devicePPCGSolveReal (
       // small eigensolve
       GetTime( timeSta );
 
-      lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
-      lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
+      lapack::lacpy( lapack::MatrixType::General, 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
+      lapack::lacpy( lapack::MatrixType::General, 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
       GetTime( timeEnd );
       iterCopy = iterCopy + 2;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
       Int dim = (numSet == 3) ? 3*sbSize : 2*sbSize;
       GetTime( timeSta );
-      lapack::Sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
+      //lapack::sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
+      lapack::sygvd(1, lapack::Job::Vec, lapack::Uplo::Upper, dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
       GetTime( timeEnd );
       iterSygvd = iterSygvd + 1;
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
@@ -1107,8 +1108,8 @@ EigenSolver::devicePPCGSolveReal (
       device_memcpy_HOST2DEVICE( cu_cx.Data(), &AMat(0,0), sbSize *sbSize*sizeof(Real));
       device_memcpy_HOST2DEVICE( cu_cw.Data(), &AMat(sbSize,0), sbSize *sbSize*sizeof(Real));
 
-      lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
-      lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
+      lapack::lacpy( lapack::MatrixType::General, sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
+      lapack::lacpy( lapack::MatrixType::General, sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
       GetTime( timeEnd );
       iterCopy = iterCopy + 2;
       timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -1119,7 +1120,7 @@ EigenSolver::devicePPCGSolveReal (
         GetTime( timeSta );
         device_memcpy_HOST2DEVICE( cu_cp.Data(), &AMat(2*sbSize,0), sbSize *sbSize*sizeof(Real));
 #if 0
-        lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
+        lapack::lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
 #endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
@@ -1154,7 +1155,7 @@ EigenSolver::devicePPCGSolveReal (
         GetTime( timeSta );
         device_memcpy_DEVICE2DEVICE( cu_p.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
 #if 0
-        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
+        lapack::lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
 #endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
@@ -1188,7 +1189,7 @@ EigenSolver::devicePPCGSolveReal (
         GetTime( timeSta );
         device_memcpy_DEVICE2DEVICE( cu_ap.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
 #if 0
-        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
+        lapack::lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
 #endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
@@ -1226,7 +1227,7 @@ EigenSolver::devicePPCGSolveReal (
       GetTime( timeSta );
       device_memcpy_DEVICE2DEVICE( cu_tmp.Data(), cu_p.Data(), heightLocal*sizeof(Real));
 #if 0
-      lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
+      lapack::lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
 #endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
@@ -1247,7 +1248,7 @@ EigenSolver::devicePPCGSolveReal (
       GetTime( timeSta );
       device_memcpy_DEVICE2DEVICE( cu_x.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
 #if 0
-      lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
+      lapack::lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
 #endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
@@ -1258,7 +1259,7 @@ EigenSolver::devicePPCGSolveReal (
       device_memcpy_DEVICE2DEVICE( cu_tmp.Data(), cu_ap.Data(), heightLocal*sizeof(Real));
 
 #if 0
-      lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
+      lapack::lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
 #endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
@@ -1279,7 +1280,7 @@ EigenSolver::devicePPCGSolveReal (
       GetTime( timeSta );
       device_memcpy_DEVICE2DEVICE( cu_ax.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
 #if 0
-      lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
+      lapack::lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
 #endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
@@ -1493,7 +1494,7 @@ EigenSolver::devicePPCGSolveReal (
 
 #if 0
   GetTime( timeSta );
-  lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+  lapack::lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       X.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
@@ -1514,7 +1515,7 @@ EigenSolver::devicePPCGSolveReal (
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 #if 0
   GetTime( timeSta );
-  lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+  lapack::lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       AX.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
@@ -1678,7 +1679,7 @@ EigenSolver::devicePPCGSolveReal (
 
   GetTime( timeSta );
 #if 0
-  lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+  lapack::lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
 #endif
   GetTime( timeEnd );

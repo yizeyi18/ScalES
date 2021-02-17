@@ -11,8 +11,9 @@
 /// @date 2020-08-12
 #include  "spinor.hpp"
 #include  "utility.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
+#include "linalg_extensions.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
@@ -300,7 +301,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
   Real timeNonlocal = 0.0;
 
   GetTime( timeSta1 );
- 
+#if 0 
   if(0)
   {
     for (Int k=0; k<numStateLocal; k++) {
@@ -327,6 +328,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
       }
     }
   }
+#endif
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -746,7 +748,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       // multiplication with orthonormalized random Gaussian matrices
       if ( mpirank == 0) {
         GaussianRandom(G);
-        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
       }
 
       MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
@@ -794,12 +796,12 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       GetTime( timeQRCPSta );
 
 
-
+#if 0
       if(0){  
         lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
             pivQR_.Data(), tau.Data() );
       }//
-
+#endif
 
       if(1){ // ScaLAPACL QRCP
         Int contxt;
@@ -1133,7 +1135,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
       if(0){
         if ( mpirank == 0) {
-          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+          lapack::potrf( lapack::Uplo::Lower, numMu_, PcolMuNu.Data(), numMu_ );
         }
       } // if(0)
 

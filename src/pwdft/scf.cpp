@@ -644,7 +644,7 @@ SCF::IterateWavefun    ( )
         else{
 #ifdef DEVICE
           statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
-          ham.CalculateVexxACEGPU1 ( psi, fft );
+          ham.CalculateVexxACEGPU  ( psi, fft );
 #else
           ham.CalculateVexxACE ( psi, fft );
 #endif

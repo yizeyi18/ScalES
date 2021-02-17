@@ -9,9 +9,11 @@
 /// @brief device_hamiltonian class for planewave basis diagonalization method.
 /// @date 2020-08-21
 #include  "hamiltonian.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
 #include  "device_utility.hpp"
+
+#include "block_distributor_decl.hpp"
 
 namespace scales{
 
@@ -75,6 +77,7 @@ Hamiltonian::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMa
     }
   }
 }
+
 void
 Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 {
@@ -137,14 +140,19 @@ Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier&
         // for the Project VexxProj 
         DblNumMat vexxProjCol( ntot, numStateLocal );
         DblNumMat vexxProjRow( ntotLocal, numStateTotal );
-        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+        lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
         // MPI_Alltoall for the data redistribution.
         DblNumMat psiRow( ntotLocal, numStateTotal );
-        AlltoallForward (psiCol, psiRow, domain_.comm);
+        auto bdist = 
+          make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                          ntot, numStateTotal );
+        bdist.redistribute_col_to_row( psiCol,      psiRow      );
+        bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
 
         // MPI_Alltoall for data redistribution.
-        AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+        //AlltoallForward (psiCol, psiRow, domain_.comm);
+        //AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
 
         // GPU data for the G-para
         deviceDblNumMat cu_vexxProjRow ( ntotLocal, numStateTotal );
@@ -185,7 +193,8 @@ Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier&
         // HpsiRow to HpsiCol
         DblNumMat HpsiCol( ntot, numStateLocal );
         deviceDblNumMat cu_HpsiCol( ntot, numStateLocal );
-        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
+        bdist.redistribute_row_to_col(HpsiRow, HpsiCol);
+        //AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
 
 	//Copy HpsiCol to GPU.
         device_memcpy_HOST2DEVICE( cu_HpsiCol.Data(), HpsiCol.Data(), numStateLocal*ntot*sizeof(Real) );
@@ -219,8 +228,7 @@ Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier&
 
 
   return ;
-}         // -----  end of method Hamiltonian::MultSpinor  ----- 
-
+}         // -----  end of method Hamiltonian::MultSpinor_old  ----- 
 
 
 void
@@ -285,14 +293,20 @@ Hamiltonian::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft
         // for the Project VexxProj 
         DblNumMat vexxProjCol( ntot, numStateLocal );
         DblNumMat vexxProjRow( ntotLocal, numStateTotal );
-        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+        lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
         // MPI_Alltoall for the data redistribution.
         DblNumMat psiRow( ntotLocal, numStateTotal );
-        AlltoallForward (psiCol, psiRow, domain_.comm);
 
+        auto bdist = 
+          make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                          ntot, numStateTotal );
+        bdist.redistribute_col_to_row( psiCol,      psiRow      );
+        bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
+        
         // MPI_Alltoall for data redistribution.
-        AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+        //AlltoallForward (psiCol, psiRow, domain_.comm);
+        //AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
 
         // GPU data for the G-para
         deviceDblNumMat cu_vexxProjRow ( ntotLocal, numStateTotal );
@@ -333,7 +347,8 @@ Hamiltonian::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft
         // HpsiRow to HpsiCol
         DblNumMat HpsiCol( ntot, numStateLocal );
         deviceDblNumMat cu_HpsiCol( ntot, numStateLocal );
-        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
+        //AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
+        bdist.redistribute_row_to_col(HpsiRow, HpsiCol);
 
 	//Copy HpsiCol to GPU.
         device_memcpy_HOST2DEVICE( cu_HpsiCol.Data(), HpsiCol.Data(), numStateLocal*ntot*sizeof(Real) );
@@ -417,7 +432,7 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     // FIXME
     Real SVDTolerance = 1e-4;
     // M = Phi'*vexxPsi
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, 
         1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
         0.0, M.Data(), numStateTotal );
 
@@ -425,8 +440,13 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     DblNumMat VT( numStateTotal, numStateTotal );
     DblNumVec  S( numStateTotal );
     SetValue( S, 0.0 );
-
+#if 0
     lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+#endif
+
+    lapack::gesvd( lapack::Job::SomeVec, lapack::Job::SomeVec,
+        numStateTotal, numStateTotal, M.Data(), numStateTotal,
         S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
 
 
@@ -442,11 +462,12 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     }
     statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
     for( Int g = 0; g < rankM; g++ ){
-      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+      blas::scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
     }
 
     vexxProj_.Resize( ntot, rankM );
-    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+    //blas::gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, rankM, numStateTotal, 1.0, 
         vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
         vexxProj_.Data(), ntot );
   }
@@ -455,17 +476,20 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
   if(0){
     // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
     // semi-definite matrix.
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+    //blas::gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot,
         -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
         0.0, M.Data(), numStateTotal );
 
-    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    //lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+    //blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntot, numStateTotal, 1.0, 
         M.Data(), numStateTotal, vexxPsi.Data(), ntot );
 
     vexxProj_.Resize( ntot, numStateTotal );
-    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+    blas::copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
 
   if(1){ //For MPI
@@ -504,12 +528,12 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     //DblNumMat localVexxPsiCol( ntot, numStateLocal );
 
     // Initialize
-    //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    //lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
     deviceDblNumMat cu_temp( ntot, numStateLocal, false, cu_vexxPsi.Data() );
     cu_vexxProj_.Resize( ntotLocal, numStateTotal );
     device_AlltoallForward (cu_temp, cu_vexxProj_, domain_.comm);
 
-    //lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    //lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
     //AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
     device_memcpy_HOST2DEVICE( cu_temp.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real));
     deviceDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
@@ -536,7 +560,7 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
     MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
     /*
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+    blas::gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
         -1.0, localPsiRow.Data(), ntotLocal, 
         localVexxPsiRow.Data(), ntotLocal, 0.0,
         MTemp.Data(), numStateTotal );
@@ -578,7 +602,7 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
   // Sanity check. For debugging only
   //  if(0){
   //  // Make sure U and VT are the same. Should be an identity matrix
-  //    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+  //    blas::gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
   //        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
   //        M.Data(), numStateTotal );
   //    statusOFS << "M = " << M << std::endl;
@@ -587,11 +611,11 @@ Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
   //    Int numProj = rankM;
   //    DblNumMat Mt(numProj, numStateTotal);
   //    
-  //    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+  //    blas::gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
   //        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
   //        0.0, Mt.Data(), Mt.m() );
   //    // Minus sign comes from that all eigenvalues are negative
-  //    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+  //    blas::gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
   //        vexxProj_.Data(), ntot, Mt.Data(), numProj,
   //        0.0, vpsit.Data(), ntot );
   //
@@ -667,7 +691,7 @@ Hamiltonian::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumn
         M.Data(), numStateTotal, vexxPsi.Data(), ntot );
 
     vexxProj_.Resize( ntot, numStateTotal );
-    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+    blas::copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
   */
   if(1){ //For MPI
@@ -694,7 +718,7 @@ Hamiltonian::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumn
     //SetValue( localVexxPsiRow, 0.0 );
 
     // Initialize
-    //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    //lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
     //AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
     
@@ -732,7 +756,11 @@ Hamiltonian::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumn
 
     vexxProj_.Resize( ntot, numStateLocal );
 
-    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+    auto bdist = 
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                      ntot, numStateTotal );
+    bdist.redistribute_row_to_col(localVexxPsiRow, vexxProj_);
+    //AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
   } //if(1)
   GetTime( timeEnd );
   statusOFS << "GPU Time for Vexx calculation is " <<

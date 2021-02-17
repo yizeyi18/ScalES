@@ -12,7 +12,7 @@
 #include  "domain.hpp"
 #include  "device_fft.hpp"
 #include  "fourier.hpp"
-#include  "blas.hpp"
+#include  <blas.hh>
 #include  "esdf.hpp"
 #include "device_blas.hpp"
 #include "mpi_interf.hpp"
