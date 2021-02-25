@@ -93,6 +93,12 @@ public:
       Real         eigMinTolerance,
       Real         eigTolerance );
 
+  void DavidsonSolveReal(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+
 
   /// @brief Routines for Chebyshev filtering
   void FirstChebyStep(

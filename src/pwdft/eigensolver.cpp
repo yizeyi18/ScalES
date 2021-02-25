@@ -185,23 +185,6 @@ EigenSolver::EigenSolver(
   if( esdfParam.PWSolver == "LOBPCGScaLAPACK" || esdfParam.PWSolver == "PPCGScaLAPACK" || 
       (esdfParam.PWSolver == "CheFSI" && PWDFT_Cheby_use_scala_) ){
 
-#if 0
-    for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
-        i <= numProcScaLAPACK_; i++){
-      nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
-      if( nprow_ * npcol_ == numProcScaLAPACK_ ) break;
-    }
-
-    IntNumVec pmap(numProcScaLAPACK_);
-    // Take the first numProcScaLAPACK processors for diagonalization
-    for ( Int i = 0; i < numProcScaLAPACK_; i++ ){
-      pmap[i] = i;
-    }
-
-    Cblacs_get(0, 0, &contxt_);
-
-    Cblacs_gridmap(&contxt_, &pmap[0], nprow_, nprow_, npcol_);
-#else
 
     Int nprow, npcol;
     for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
@@ -219,7 +202,7 @@ EigenSolver::EigenSolver(
     blacs_grid_ = std::unique_ptr<blacspp::Grid>(
       new blacspp::Grid( MPI_COMM_WORLD, nprow, npcol, pmap.data(), nprow )
     );
-#endif
+      
   }
 
   return;
@@ -234,6 +217,10 @@ EigenSolver::LOBPCGSolveReal    (
     Real         eigMinTolerance,
     Real         eigTolerance)
 {
+  //DavidsonSolveReal( numEig, eigMaxIter, eigMinTolerance, eigTolerance );
+  //return;
+
+
   // *********************************************************************
   // Initialization
   // *********************************************************************
@@ -242,31 +229,36 @@ EigenSolver::LOBPCGSolveReal    (
   Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
   Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
 
+  // Alias dimensions
   Int ntot = fftPtr_->numGridTotal;
   Int ncom = psiPtr_->NumComponent();
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
 
-
   Int height = ntot * ncom;
   Int width = noccTotal;
   Int lda = 3 * width;
 
-  Int widthBlocksize = width / mpisize;
-  Int heightBlocksize = height / mpisize;
-  Int widthLocal = widthBlocksize;
-  Int heightLocal = heightBlocksize;
+  // Set up distributor
+  auto bdist = 
+    make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
+                                  height, width );
 
-  if(mpirank < (width % mpisize)){
-    widthLocal = widthBlocksize + 1;
-  }
+  Int heightLocal = bdist.MLocal();
+  Int widthLocal  = bdist.NLocal();
 
-  if(mpirank < (height % mpisize)){
-    heightLocal = heightBlocksize + 1;
-  }
-
+  // Sanity check
   if( widthLocal != noccLocal ){
     ErrorHandling("widthLocal != noccLocal.");
+  }
+
+  if( numEig > width ){
+    std::ostringstream msg;
+    msg 
+      << "Number of eigenvalues requested  = " << numEig << std::endl
+      << "which is larger than the number of columns in psi = " << width 
+      << std::endl;
+    ErrorHandling( msg.str().c_str() );
   }
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -312,18 +304,7 @@ EigenSolver::LOBPCGSolveReal    (
 
 
 
-  if( numEig > width ){
-    std::ostringstream msg;
-    msg 
-      << "Number of eigenvalues requested  = " << numEig << std::endl
-      << "which is larger than the number of columns in psi = " << width << std::endl;
-    ErrorHandling( msg.str().c_str() );
-  }
 
-  // Set up distributor
-  auto bdist = 
-    make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
-                                  height, width );
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
@@ -569,6 +550,7 @@ EigenSolver::LOBPCGSolveReal    (
   statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
 
   // Print headers
+  statusOFS << std::endl << "LOBPCG EigenSolver Iterations:" << std::endl;
   print_iter_fields( "Iter", "ResMax", "ResMin", "NLock", "NActive" );
   print_iter_fields( "====", "======", "======", "=====", "=======" );
 
@@ -628,6 +610,9 @@ EigenSolver::LOBPCGSolveReal    (
 
 
     // Determine which vectors to lock
+    // TODO: Need a more robust criteria than this - need to make sure that
+    // all vectors lower in energy are locked before locking a particular 
+    // vector
     Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
                                [&](const auto x){ return x <= lockTolerance; } );
     if( numSet == 2 ) nLock = 0; // disable locking on first iteration
@@ -1012,6 +997,454 @@ EigenSolver::LOBPCGSolveReal    (
   return ;
 }         // -----  end of meehod EigenSolver::LOBPCGSolveReal  ----- 
 
+
+
+void
+EigenSolver::DavidsonSolveReal    (
+    Int          numEig,
+    Int          eigMaxIter,
+    Real         eigMinTolerance,
+    Real         eigTolerance)
+{
+
+  // *********************************************************************
+  // Initialization
+  // *********************************************************************
+  MPI_Comm mpi_comm = fftPtr_->domain->comm;
+  MPI_Barrier(mpi_comm);
+  Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+  Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+
+  // Alias dimensions
+  Int ntot = fftPtr_->numGridTotal;
+  Int ncom = psiPtr_->NumComponent();
+  Int noccLocal = psiPtr_->NumState();
+  Int noccTotal = psiPtr_->NumStateTotal();
+
+  Int height = ntot * ncom;
+  Int width = noccTotal;
+
+  // Set up distributor
+  auto bdist = 
+    make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
+                                  height, width );
+
+  Int heightLocal = bdist.MLocal();
+  Int widthLocal  = bdist.NLocal();
+
+  // Sanity check
+  if( widthLocal != noccLocal ){
+    ErrorHandling("widthLocal != noccLocal.");
+  }
+
+  if( numEig > width ){
+    std::ostringstream msg;
+    msg 
+      << "Number of eigenvalues requested  = " << numEig << std::endl
+      << "which is larger than the number of columns in psi = " << width 
+      << std::endl;
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
+  // GemmT: blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans)
+  // GemmN: blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans)
+  // Alltoallv: row-partition to column partition via MPI_Alltoallv 
+  // Spinor: Applying the Hamiltonian matrix 
+  // Mpirank0: Serial calculation part
+
+  Real timeSta, timeEnd;
+  Real timeGemmT = 0.0;
+  Real timeGemmN = 0.0;
+  Real timeAllreduce = 0.0;
+  Real timeAlltoallv = 0.0;
+  Real timeTrsm = 0.0;
+  Real timeMpirank0 = 0.0;
+  Real timeScaLAPACKFactor = 0.0;
+  Real timeScaLAPACK = 0.0;
+  Int  iterGemmT = 0;
+  Int  iterGemmN = 0;
+  Int  iterAllreduce = 0;
+  Int  iterAlltoallv = 0;
+  Int  iterTrsm = 0;
+  Int  iterMpirank0 = 0;
+  Int  iterScaLAPACKFactor = 0;
+  Int  iterScaLAPACK = 0;
+
+  Real timeSpinor     = 0.0;
+  Real timePrec       = 0.0;
+  Real timeR2C        = 0.0;
+  Real timeC2R        = 0.0;
+  Real timeCholQR     = 0.0;
+  Real timeBlockInner = 0.0;
+  Int  iterR2C        = 0;
+  Int  iterC2R        = 0;
+  Int  iterCholQR     = 0;
+  Int  iterSpinor     = 0;
+  Int  iterPrec       = 0;
+  Int  iterBlockInner = 0;
+
+
+  // Allocate memory
+  const Int nDavStep   = 4;
+  const Int maxRestart = 10;
+  const Int maxNV = (nDavStep+1)*width;
+  DblNumMat V ( heightLocal, maxNV),
+            AV( heightLocal, maxNV);
+  DblNumMat X ( heightLocal, width),
+            R ( heightLocal, width),
+            AX( heightLocal, width);
+
+  DblNumMat Xcol ( height, widthLocal ),
+            AXcol( height, widthLocal );
+
+  DblNumMat AMat( maxNV, maxNV ), CMat( maxNV, maxNV ), SqScr( maxNV, maxNV );
+  const Int lda = maxNV;
+
+  DblNumVec eigValS( maxNV ), resNorm( width );
+
+  // Setup profiling wrappers
+  auto profile_col_to_row = [&]( const DblNumMat& col_data, DblNumMat& row_data ) {
+
+    Real c2rStart, c2rEnd;
+
+    GetTime( c2rStart );
+    bdist.redistribute_col_to_row( col_data, row_data );
+    GetTime( c2rEnd );
+
+    timeC2R += (c2rEnd - c2rStart);
+    iterC2R++;
+
+  };
+
+  auto profile_row_to_col = [&]( const DblNumMat& row_data, DblNumMat& col_data ) {
+
+    Real r2cStart, r2cEnd;
+
+    GetTime( r2cStart );
+    bdist.redistribute_row_to_col( row_data, col_data );
+    GetTime( r2cEnd );
+
+    timeR2C += (r2cEnd - r2cStart);
+    iterR2C++;
+
+  };
+
+  auto profile_chol_qr = [&]( DblNumMat& _X, DblNumMat& _R, MPI_Comm _c ) {
+
+    Real cholQRStart, cholQREnd;
+
+    GetTime( cholQRStart );
+    detail::replicated_cholesky_qr_row_dist( _X.m(), _X.n(), _X.Data(), _X.m(),
+                                             _R.Data(), _c );
+    GetTime( cholQREnd );
+
+    timeCholQR += (cholQREnd - cholQRStart);
+    iterCholQR++;
+
+  };
+
+  auto profile_matvec = [&]( int64_t nS_total, int64_t nS_local, 
+                             const DblNumMat& _X, DblNumMat& _AX ) {
+
+    Real spinorStart, spinorEnd;
+
+    GetTime( spinorStart );
+
+    // Setup temporary datastructures for Matvec
+    Spinor spnTmp( fftPtr_, ncom, nS_total, nS_local, false, _X.Data() );
+    NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _AX.Data() );
+
+    // Perform Matvec
+    hamPtr_->MultSpinor( spnTmp, tnsTmp );
+
+    GetTime( spinorEnd );
+
+    timeSpinor += (spinorEnd - spinorStart);
+    iterSpinor++;
+
+  };
+
+  auto profile_applyprec = [&]( int64_t nS_total, int64_t nS_local, 
+                           const DblNumMat& _X, DblNumMat& _TX ) {
+
+    Real precStart, precEnd;
+
+    GetTime( precStart );
+
+    // Setup temporary datastructures for Preconditioner
+    Spinor spnTmp( fftPtr_, ncom, nS_total, nS_local, false, _X.Data() );
+    NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _TX.Data() );
+
+    // Apply preconditioner
+    SetValue( tnsTmp, 0. );
+    spnTmp.AddTeterPrecond( tnsTmp );
+
+    GetTime( precEnd );
+
+    timePrec += (precEnd - precStart);
+    iterPrec++;
+
+  };
+
+
+
+  auto profile_dist_inner = [&]( int64_t _m, int64_t _n, const Real* _X,
+                                 const Real* _Y, Real* _RES, int64_t _ldRES ) {
+
+
+    Real innerStart, innerEnd;
+
+    GetTime( innerStart );
+    // All matrices in that use this code have a lead dimension / contraction
+    // dimenstion of heightLocal
+    detail::row_dist_inner_replicate( heightLocal, _m, _n, _X, heightLocal,
+                                      _Y, heightLocal, SqScr.Data(), mpi_comm );
+    lapack::lacpy( lapack::MatrixType::General, _m, _n, SqScr.Data(), _m, 
+                   _RES, _ldRES );
+
+    GetTime( innerEnd );
+
+    timeBlockInner += (innerEnd - innerStart);
+    iterBlockInner++;
+
+  };
+
+  // Xp = BETA * Xp + _ALPHA * X * C
+  // X is heightLocal x k
+  // C is k x l
+  // Xp is heightLocal x l
+  auto basis_update = 
+    [&]( Int _k, Int _l, Real _ALPHA, const Real* _X, const Real* _C, Int _LDC,
+         Real _BETA, Real* _XP ) {
+
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, 
+                heightLocal, _l, _k, _ALPHA, _X, heightLocal,
+                _C, _LDC, _BETA, _XP, heightLocal );
+
+  };
+
+
+
+  auto print_iter_fields = []( auto _iter, auto _resMax, auto _resMin,
+                               auto _nLock, auto _nActive ) {
+
+    // Get current format for output
+    auto cur_print_prec = statusOFS.precision();
+
+    // Print iteration information
+    statusOFS << std::setprecision(10);
+    statusOFS << std::scientific;
+
+    statusOFS << std::setw(9) << _iter;
+    statusOFS << std::setw(20) << _resMax;
+    statusOFS << std::setw(20) << _resMin;
+    statusOFS << std::setw(10) << _nLock;
+    statusOFS << std::setw(10) << _nActive;
+    statusOFS << std::endl;
+    
+    // Reset output format
+    statusOFS << std::setprecision(cur_print_prec);
+      
+  };
+
+
+  
+  // *********************************************************************
+  // Initialization
+  // *********************************************************************
+
+  // Copy wave function into X
+  DblNumMat WfnAsMatrix( height, widthLocal, false, psiPtr_->Wavefun().Data() );
+  profile_col_to_row( WfnAsMatrix, X );
+
+  // Orthogonalize X via Cholesky QR
+  profile_chol_qr( X, SqScr, mpi_comm );
+
+  // Redistribute from X Row -> Col format
+  profile_row_to_col( X, Xcol );
+
+  // AX = H*X (col format)
+  profile_matvec( width, widthLocal, Xcol, AXcol );
+
+  // Redistribute AX from Col -> Row format
+  profile_col_to_row( AXcol, AX );
+
+  // Compute X' * AX
+  profile_dist_inner( width, width, X.Data(), AX.Data(), 
+    SqScr.Data(), width );
+  lapack::lacpy( lapack::MatrixType::General, width, width,
+                 SqScr.Data(), width, AMat.Data(), lda );
+   
+
+  // Solve initial RR problem
+  lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width,
+                 AMat.Data(), lda, eigValS.Data() );
+
+  // Rotate basis
+  // X  <- X*C
+  // AX <- AX*C
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width,
+                 X.Data(), heightLocal, R.Data(), heightLocal );
+  basis_update( width, width, 1., R.Data(), AMat.Data(), lda,
+                0.0, X.Data() );
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width,
+                 AX.Data(), heightLocal, R.Data(), heightLocal );
+  basis_update( width, width, 1., R.Data(), AMat.Data(), lda,
+                0.0, AX.Data() );
+
+
+  // *********************************************************************
+  // Main Loop
+  // *********************************************************************
+    
+  // Print headers
+  statusOFS << std::endl << "Davidson EigenSolver Iterations:" << std::endl;
+  print_iter_fields( "Iter", "ResMax", "ResMin", "NLock", "NActive" );
+  print_iter_fields( "====", "======", "======", "=====", "=======" );
+
+  bool isConverged = false;
+  Real resMin, resMax;
+  for( Int outerIter = 0; outerIter < maxRestart; ++outerIter ) {
+
+    // Copy X -> V, AX -> AV
+    Int nV = width;
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width,
+                   X.Data(), heightLocal, V.Data(), heightLocal );
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width,
+                   AX.Data(), heightLocal, AV.Data(), heightLocal );
+    
+    // Initialize AMat to diag(E)
+    SetValue( AMat, 0.0 );
+    for( Int k = 0; k < width; ++k ) AMat(k,k) = eigValS(k);
+
+    for( Int innerIter = 0; innerIter < nDavStep; ++innerIter ) {
+
+      // Compute Residual
+
+      // R <- AX
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, 
+                     AX.Data(), heightLocal, R.Data(), heightLocal );
+
+      // R <- R - X * E
+      for( Int j = 0; j < width; ++j )
+        blas::axpy( heightLocal, -eigValS(j), X.VecData(j), 1, 
+                    R.VecData(j), 1 );
+
+      // Compute residual norms
+      detail::row_dist_col_norm( heightLocal, width, R.Data(), heightLocal,
+                                 resNorm.Data(), mpi_comm );
+
+      // Relative Residual
+      for( Int k = 0; k < width; ++k )
+        resNorm(k) /= std::max( 1.0, std::abs( eigValS(k) ) );
+      
+      // Check for convergence
+      resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
+      resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+
+      print_iter_fields( innerIter, resMax, resMin, 0, numEig );
+      if( resMax < eigTolerance ){
+        isConverged = true;
+        break;
+      }
+
+      // Alias New set of vectors (W)
+      Int nW      = width;           // TODO Fix for locking
+      Int nWLocal = bdist.NLocal();  // TODO this should propagate on redef of bdist on locking
+      DblNumMat W (heightLocal, nW, false, V.VecData(nV)  );
+      DblNumMat AW(heightLocal, nW, false, AV.VecData(nV) );
+
+      // Form Preconditioned residual (W = T*R)
+      profile_row_to_col( R, Xcol );
+      profile_applyprec( nW, nWLocal, Xcol, AXcol );
+      profile_col_to_row( AXcol, W );
+      
+      // Project current basis from W: W = W - V*(V**H*W) (x2)
+      for( Int nReorth = 0; nReorth < 2; ++nReorth ) {
+        profile_dist_inner( nV, nW, V.Data(), W.Data(), SqScr.Data(), nV );
+        basis_update( nV, nW, -1., V.Data(), SqScr.Data(), nV, 1., W.Data() );
+      }
+
+      // Orthogonalize W 
+      profile_chol_qr( W, SqScr, mpi_comm );
+
+      
+      // Compute AW = A*W
+      profile_row_to_col( W, Xcol );
+      profile_matvec( nW, nWLocal, Xcol, AXcol );
+      profile_col_to_row( AXcol, AW );
+
+      // Update AMat
+      // XXX V'*AV is already populated
+      // A = [ V'*AV  V'*AW ]
+      //     [ XXXXX  W'*AW ]
+      auto* A_VTAW = &AMat(0 ,nV);
+      auto* A_WTAW = &AMat(nV,nV);
+
+      // W'*AW
+      profile_dist_inner( nW, nW, W.Data(), AW.Data(), SqScr.Data(), nW );
+      lapack::lacpy( lapack::MatrixType::General, nW, nW, SqScr.Data(), nW,
+                     A_WTAW, lda );
+      // V'*AW
+      profile_dist_inner( nV, nW, V.Data(), AW.Data(), SqScr.Data(), nV );
+      lapack::lacpy( lapack::MatrixType::General, nV, nW, SqScr.Data(), nV,
+                     A_VTAW, lda );
+
+      // Increment nV
+      nV += nW;
+
+      // Solve RR problem
+      lapack::lacpy( lapack::MatrixType::General, nV, nV, AMat.Data(), lda,
+                     CMat.Data(), lda );
+      lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, nV,  
+                     CMat.Data(), lda, eigValS.Data() );
+
+      // Rotate basis
+      // X  <- V  * C(:,width)
+      // AX <- AV * C(:,width)
+      basis_update( nV, width, 1., V.Data(),  CMat.Data(), lda, 0., X.Data()  );
+      basis_update( nV, width, 1., AV.Data(), CMat.Data(), lda, 0., AX.Data() );
+
+    } // Inner Davidson Iteration
+
+    // XXX Thick restart?
+      
+    if( isConverged ) break;
+
+  } // Outer Davidson Iteration (restart)
+
+  // *********************************************************************
+  // Post processing
+  // *********************************************************************
+    
+  // Save the eigenvalues and eigenvectors back to the eigensolver data
+  // structure
+
+  eigVal_ = DblNumVec( width, true, eigValS.Data() );
+  resVal_ = resNorm;
+  profile_row_to_col( X, WfnAsMatrix );
+
+  if( isConverged ){
+    statusOFS << std::endl << "After " //<< iter 
+      << " iterations, Davidson has converged."  << std::endl
+      << "The maximum norm of the residual is " 
+      << resMax << std::endl << std::endl
+      << "The minimum norm of the residual is " 
+      << resMin << std::endl << std::endl;
+  }
+  else{
+    statusOFS << std::endl << "After " //<< iter 
+      << " iterations, Davidson reaches the max number of iterations. " << std::endl
+      << "The maximum norm of the residual is " 
+      << resMax << std::endl << std::endl
+      << "The minimum norm of the residual is " 
+      << resMin << std::endl << std::endl;
+  }
+
+  //ErrorHandling("DIE DIE DIE");
+  return ;
+}         // -----  end of meehod EigenSolver::DavidsonSolveReal  ----- 
 
 
 
