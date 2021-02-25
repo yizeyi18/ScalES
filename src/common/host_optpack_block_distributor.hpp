@@ -37,7 +37,6 @@ public:
     recvbuf_( this->MLocal_ * this->N_ ) 
   {
 
-    statusOFS << "Using OptPack Block Distributor" << std::endl;
 
     std::fill_n( sendcounts_.Data(), this->comm_size_, 
                  this->MBlock_ * this->NLocal_ );

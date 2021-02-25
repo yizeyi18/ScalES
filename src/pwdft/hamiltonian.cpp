@@ -2167,7 +2167,6 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi )
 
   if( this->IsHybrid() && isEXXActive_ ){
 
-    statusOFS << "IS HYBRID" << std::endl;
     GetTime( timeSta );
 
 #if 0
@@ -3496,7 +3495,7 @@ void EXXOperator::SetPhi( const Spinor& psi, DblNumVec& occRate )
 
 void EXXOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
-  statusOFS << "NEW EXX APPLY OPERATOR" << std::endl;
+  //statusOFS << "NEW EXX APPLY OPERATOR" << std::endl;
   auto& fft = *fft_;
   if( !fft_->isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -3603,7 +3602,7 @@ Real EXXOperator::ComputeEnergy( const Spinor& psi ) {
   // TODO: Sanity check that Phi/Psi are compatible
   const Int numGridTotal      = fft_->numGridTotal;
   
-  statusOFS << "IN NEW EXX ENERGY" << std::endl;
+  //statusOFS << "IN NEW EXX ENERGY" << std::endl;
   NumTns<Real> vexxPsi( numGridTotal, 1, numStateLocal_ );
   SetValue( vexxPsi, 0. );
 
@@ -3701,7 +3700,7 @@ void VExxACEOperator::UpdatePotential( const Spinor& psi ) {
 
 void VExxACEOperator::ApplyOperator( const Spinor& psi, NumTns<Real>& Hpsi ) {
 
-  statusOFS << "NEW ACE APPLY OPERATOR" << std::endl;
+  //statusOFS << "NEW ACE APPLY OPERATOR" << std::endl;
 
   //ErrorHandling( "DIE DIE DIE" );
   // TODO: Sanity check that Phi/Psi are compatible

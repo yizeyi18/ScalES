@@ -217,8 +217,8 @@ EigenSolver::LOBPCGSolveReal    (
     Real         eigMinTolerance,
     Real         eigTolerance)
 {
-  //DavidsonSolveReal( numEig, eigMaxIter, eigMinTolerance, eigTolerance );
-  //return;
+  DavidsonSolveReal( numEig, eigMaxIter, eigMinTolerance, eigTolerance );
+  return;
 
 
   // *********************************************************************
@@ -1226,7 +1226,7 @@ EigenSolver::DavidsonSolveReal    (
 
 
 
-  auto print_iter_fields = []( auto _iter, auto _resMax, auto _resMin,
+  auto print_iter_fields = []( auto _outiter, auto _initer, auto _resMax, auto _resMin,
                                auto _nLock, auto _nActive ) {
 
     // Get current format for output
@@ -1236,7 +1236,8 @@ EigenSolver::DavidsonSolveReal    (
     statusOFS << std::setprecision(10);
     statusOFS << std::scientific;
 
-    statusOFS << std::setw(9) << _iter;
+    statusOFS << std::setw(9) << _outiter;
+    statusOFS << std::setw(9) << _initer;
     statusOFS << std::setw(20) << _resMax;
     statusOFS << std::setw(20) << _resMin;
     statusOFS << std::setw(10) << _nLock;
@@ -1298,13 +1299,26 @@ EigenSolver::DavidsonSolveReal    (
   // Main Loop
   // *********************************************************************
     
-  // Print headers
-  statusOFS << std::endl << "Davidson EigenSolver Iterations:" << std::endl;
-  print_iter_fields( "Iter", "ResMax", "ResMin", "NLock", "NActive" );
-  print_iter_fields( "====", "======", "======", "=====", "=======" );
 
   bool isConverged = false;
   Real resMin, resMax;
+  Real lockTolerance = std::min(1e-5,eigTolerance);
+
+  Int nlock_saved = 0;
+  bool bdist_has_been_reset = false;
+  bool enableLocking = true;
+  if( not enableLocking ) {
+    lockTolerance = -1.;
+  }
+
+  statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
+  statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
+
+  // Print headers
+  statusOFS << std::endl << "Davidson EigenSolver Iterations:" << std::endl;
+  print_iter_fields( "OutIter", "InIter", "ResMax", "ResMin", "NLock", "NActive" );
+  print_iter_fields( "=======", "======", "======", "======", "=====", "=======" );
+
   for( Int outerIter = 0; outerIter < maxRestart; ++outerIter ) {
 
     // Copy X -> V, AX -> AV
@@ -1343,15 +1357,47 @@ EigenSolver::DavidsonSolveReal    (
       resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
       resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
 
-      print_iter_fields( innerIter, resMax, resMin, 0, numEig );
       if( resMax < eigTolerance ){
         isConverged = true;
         break;
       }
 
+      // Determine which vectors to lock
+      // TODO: Need a more robust criteria than this - need to make sure that
+      // all vectors lower in energy are locked before locking a particular 
+      // vector
+      Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
+                                 [&](const auto x){ return x <= lockTolerance; } );
+      if( innerIter == 0 ) nLock = 0; // disable locking on first iteration
+      Int nActive = width - nLock;
+
+      // Remake the BlockDistributor to only communicate locked vectors
+      if( nlock_saved != nLock ) {
+        bdist_has_been_reset = true;
+        bdist = std::move(make_block_distributor<Real>( BlockDistAlg::HostOptPack,
+                                                        mpi_comm, height, nActive ));
+      }
+
+      nlock_saved = nLock; // Save a copy of nLock for future comparisons
+
+      print_iter_fields( outerIter, innerIter, resMax, resMin, nLock, nActive );
+
+      // Permute residual vectors so unconverged ones come first
+      if( enableLocking ) {
+        std::vector<Int> res_perm( width );
+        std::iota( res_perm.begin(), res_perm.end(), 0 );
+        std::stable_sort( res_perm.begin(), res_perm.end(), [&](Int i, Int j) {
+          return resNorm(i) > resNorm(j);
+        });
+
+        ColPermute( true, heightLocal, width, R.Data(), heightLocal,
+                    res_perm.data() );
+
+      }
+
       // Alias New set of vectors (W)
-      Int nW      = width;           // TODO Fix for locking
-      Int nWLocal = bdist.NLocal();  // TODO this should propagate on redef of bdist on locking
+      Int nW      = nActive;        
+      Int nWLocal = bdist.NLocal(); 
       DblNumMat W (heightLocal, nW, false, V.VecData(nV)  );
       DblNumMat AW(heightLocal, nW, false, AV.VecData(nV) );
 
@@ -1367,6 +1413,7 @@ EigenSolver::DavidsonSolveReal    (
       }
 
       // Orthogonalize W 
+      // XXX This is dangerous
       profile_chol_qr( W, SqScr, mpi_comm );
 
       
@@ -1417,6 +1464,12 @@ EigenSolver::DavidsonSolveReal    (
   // *********************************************************************
   // Post processing
   // *********************************************************************
+    
+  // Reset bdist
+  if( bdist_has_been_reset )
+    bdist = 
+      make_block_distributor<Real>( BlockDistAlg::HostOptPack, mpi_comm,
+                                    height, width );
     
   // Save the eigenvalues and eigenvectors back to the eigensolver data
   // structure
