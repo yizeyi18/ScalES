@@ -727,238 +727,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     ErrorHandling("Domain size does not match.");
   }
 
-
-//  if(0){
-//
-//    // *********************************************************************
-//    // Perform interpolative separable density fitting
-//    // *********************************************************************
-//
-//    // Computing the indices is optional
-//    if( isFixColumnDF == false ){
-//      GetTime( timeSta );
-//      numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
-//
-//      // Step 1: Pre-compression of the wavefunctions. This uses
-//      // multiplication with orthonormalized random Gaussian matrices
-//      //
-//      /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
-//      /// principle be a tensor, but only treated as matrix.
-//      Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
-//      //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-//      DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
-//      {
-//        DblNumMat G(numStateTotal, numPre);
-//        // Generate orthonormal Gaussian random matrix 
-//        GaussianRandom(G);
-//        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numPre, numStateTotal, 1.0, 
-//            phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//            phiG.Data(), ntot );
-//
-//        GaussianRandom(G);
-//        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numPre, numStateTotal, 1.0, 
-//            wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//            psiG.Data(), ntot );
-//      }
-//
-//      // Step 2: Pivoted QR decomposition  for the Hadamard product of
-//      // the compressed matrix. Transpose format for QRCP
-//      DblNumMat MG( numPre*numPre, ntot );
-//      for( Int j = 0; j < numPre; j++ ){
-//        for( Int i = 0; i < numPre; i++ ){
-//          for( Int ir = 0; ir < ntot; ir++ ){
-//            MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
-//          }
-//        }
-//      }
-//
-//      // IntNumVec pivQR_(ntot);
-//
-//      DblNumVec tau(ntot);
-//      pivQR_.Resize(ntot);
-//      SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
-//      // Q factor does not need to be used
-//      Real timeQRCPSta, timeQRCPEnd;
-//      GetTime( timeQRCPSta );
-//      QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
-//          pivQR_.Data(), tau.Data() );
-//      GetTime( timeQRCPEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for QRCP alone is " <<
-//        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//
-//      if(1){
-//        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-//        statusOFS << "numMu_ = " << numMu_ << std::endl;
-//        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-//      }
-//
-//      GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for density fitting with QRCP is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//    // *********************************************************************
-//    // Compute the interpolation matrix via the density matrix formulation
-//    // *********************************************************************
-//
-//    GetTime( timeSta );
-//    DblNumMat Xi(ntot, numMu_);
-//    DblNumMat psiMu(numStateTotal, numMu_);
-//    // PhiMu is scaled by the occupation number to reflect the "true" density matrix
-//    DblNumMat PcolPhiMu(ntot, numMu_);
-//    IntNumVec pivMu(numMu_);
-//
-//    {
-//      GetTime( timeSta );
-//      for( Int mu = 0; mu < numMu_; mu++ ){
-//        pivMu(mu) = pivQR_(mu);
-//      }
-//
-//      // These three matrices are used only once
-//      DblNumMat phiMu(numStateTotal, numMu_);
-//      DblNumMat PcolMuNu(numMu_, numMu_);
-//      DblNumMat PcolPsiMu(ntot, numMu_);
-//
-//      for( Int mu = 0; mu < numMu_; mu++ ){
-//        Int muInd = pivMu(mu);
-//        for (Int k=0; k<numStateTotal; k++) {
-//          psiMu(k, mu) = wavefun_(muInd,0,k);
-//          phiMu(k, mu) = phi(muInd,0,k) * occupationRate[k];
-//        }
-//      }
-//
-//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, numStateTotal, 1.0, 
-//          wavefun_.Data(), ntot, psiMu.Data(), numStateTotal, 0.0,
-//          PcolPsiMu.Data(), ntot );
-//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, numStateTotal, 1.0, 
-//          phi.Data(), ntot, phiMu.Data(), numStateTotal, 0.0,
-//          PcolPhiMu.Data(), ntot );
-//
-//      Real* xiPtr = Xi.Data();
-//      Real* PcolPsiMuPtr = PcolPsiMu.Data();
-//      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-//
-//      for( Int g = 0; g < ntot * numMu_; g++ ){
-//        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
-//      }
-//
-//      for( Int mu = 0; mu < numMu_; mu++ ){
-//        Int muInd = pivMu(mu);
-//        for (Int nu=0; nu < numMu_; nu++) {
-//          PcolMuNu( mu, nu ) = Xi( muInd, nu );
-//        }
-//      }
-//
-//      //        statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
-//
-//      // Inversion based on Cholesky factorization
-//      // Xi <- Xi * L^{-T} L^{-1}
-//      // If overflow / underflow, reduce numMu_
-//      lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
-//
-//      blas::Trsm( 'R', 'L', blas::Op::Trans, blas::Op::NoTrans, ntot, numMu_, 1.0, 
-//          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
-//
-//      blas::Trsm( 'R', 'L', blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, 1.0, 
-//          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
-//
-//      GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for computing the interpolation vectors is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//
-//    // *********************************************************************
-//    // Solve the Poisson equations
-//    // Rewrite Xi by the potential of Xi
-//    // *********************************************************************
-//
-//    {
-//      GetTime( timeSta );
-//      for( Int mu = 0; mu < numMu_; mu++ ){
-//        blas::copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
-//
-//        FFTWExecute ( fft, fft.forwardPlanR2C );
-//
-//        for( Int ig = 0; ig < ntotR2C; ig++ ){
-//          fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
-//        }
-//
-//        FFTWExecute ( fft, fft.backwardPlanR2C );
-//
-//        blas::copy( ntot, fft.inputVecR2C.Data(), 1, Xi.VecData(mu), 1 );
-//      } // for (mu)
-//
-//      GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for solving Poisson-like equations is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//    // *********************************************************************
-//    // Compute the exchange potential and the symmetrized inner product
-//    // *********************************************************************
-//
-//    {
-//      GetTime( timeSta );
-//      // Rewrite Xi by Xi.*PcolPhi
-//      Real* xiPtr = Xi.Data();
-//      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-//      for( Int g = 0; g < ntot * numMu_; g++ ){
-//        xiPtr[g] *= PcolPhiMuPtr[g];
-//      }
-//
-//      // NOTE: Hpsi must be zero in order to compute the M matrix later
-//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, ntot, numStateTotal, numMu_, 1.0, 
-//          Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
-//          Hpsi.Data(), ntot ); 
-//
-//      GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for computing the exchange potential is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-//    // vexxPsi (Hpsi) must be zero before entering this routine
-//    VxMat.Resize( numStateTotal, numStateTotal );
-//    {
-//      // Minus sign so that VxMat is positive semidefinite
-//      // NOTE: No measure factor vol / ntot due to the normalization
-//      // factor of psi
-//      GetTime( timeSta );
-//      blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, -1.0,
-//          wavefun_.Data(), ntot, Hpsi.Data(), ntot, 0.0, 
-//          VxMat.Data(), numStateTotal );
-//
-//      //        statusOFS << "VxMat = " << VxMat << std::endl;
-//
-//      Symmetrize( VxMat );
-//
-//      GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//      statusOFS << "Time for computing VxMat in the sym format is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//  }//if(0)
-
-
-
   // Pre-processing. Perform SCDM to align the orbitals into localized orbitals
   // This assumes that the phi and psi orbitals are the same
   IntNumVec permPhi(ntot);
@@ -1113,19 +881,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // NOTE: All processors should have the same ntotLocalMG
       ntotMG = ntotLocalMG * mpisize;
 
-      if(0){
-
-        //  DblNumMat MG( numPre*numPre, ntotLocalMG );
-        //  SetValue( MG, 0.0 );
-        //  for( Int j = 0; j < numPre; j++ ){
-        //    for( Int i = 0; i < numPre; i++ ){
-        //      for( Int ir = 0; ir < ntotLocal; ir++ ){
-        //        MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
-        //      }
-        //    }
-        //  }
-
-      }//if(0)
 
 
       DblNumMat MG( numStateTotal*numPre, ntotLocalMG );
@@ -1150,11 +905,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       Real timeQRCPSta, timeQRCPEnd;
       GetTime( timeQRCPSta );
-
-      if(0){  
-        QRCP( numStateTotal*numPre, ntotMG, MG.Data(), numStateTotal*numPre, 
-            pivQR_.Data(), tau.Data() );
-      }//
 
       if(1){ // ScaLAPACL QRCP
         Int contxt;
@@ -1231,11 +981,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
 
-      if(0){
-        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-        statusOFS << "numMu_ = " << numMu_ << std::endl;
-        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-      }
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1243,21 +988,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-      // Dump out pivQR_
-      if(0){
-        std::ostringstream muStream;
-        serialize( pivQR_, muStream, NO_MASK );
-        SharedWrite( "pivQR", muStream );
-      }
     }
 
-    // Load pivQR_ file
-    if(0){
-      statusOFS << "Loading pivQR file.." << std::endl;
-      std::istringstream muStream;
-      SharedRead( "pivQR", muStream );
-      deserialize( pivQR_, muStream, NO_MASK );
-    }
 
     // *********************************************************************
     // Compute the interpolation matrix via the density matrix formulation
@@ -1437,12 +1169,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    if(0){
-      if ( mpirank == 0) {
-        lapack::potrf( lapack::Uplo::Lower, numMu_, PcolMuNu.Data(), numMu_ );
-      }
-    } // if(0)
-
     if(1){ // Parallel Portf
 
       Int contxt;
@@ -1591,21 +1317,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // Rewrite Xi by Xi.*PcolPhi
     DblNumMat HpsiRow( ntotLocal, numStateTotal );
     SetValue( HpsiRow, 0.0 );
-
-    if(0){
-
-      Real* xiPtr = XiRow.Data();
-      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-        xiPtr[g] *= PcolPhiMuPtr[g];
-      }
-
-      // NOTE: Hpsi must be zero in order to compute the M matrix later
-      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, ntotLocal, numStateTotal, numMu_, 1.0, 
-          XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-          HpsiRow.Data(), ntotLocal ); 
-
-    } //if(0)
 
 
     if(1){
@@ -2278,85 +1989,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     Real timeQRCPSta, timeQRCPEnd;
     GetTime( timeQRCPSta );
 
-    if(0){  
-      QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
-          pivQR_.Data(), tau.Data() );
-    }//
-
-
-    if(0){ // ScaLAPACL QRCP
-      Int contxt;
-      Int nprow, npcol, myrow, mycol, info;
-      Cblacs_get(0, 0, &contxt);
-      nprow = 1;
-      npcol = mpisize;
-
-      Cblacs_gridinit(&contxt, "C", nprow, npcol);
-      Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
-      Int desc_MG[9];
-
-      Int irsrc = 0;
-      Int icsrc = 0;
-
-      Int mb_MG = numPre*numPre;
-      Int nb_MG = ntotLocalMG;
-
-      // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
-      // This must be fixed.
-      SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
-          &icsrc, &contxt, &mb_MG, &info);
-
-      IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
-      if( mb_MG > ntot ){
-        std::ostringstream msg;
-        msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
-        ErrorHandling( msg.str().c_str() );
-      }
-      // DiagR is only for debugging purpose
-      //        DblNumVec diagRLocal( mb_MG );
-      //        DblNumVec diagR( mb_MG );
-
-      SetValue( pivQRTmp, 0 );
-      SetValue( pivQRLocal, 0 );
-      SetValue( pivQR_, 0 );
-
-
-      //        SetValue( diagRLocal, 0.0 );
-      //        SetValue( diagR, 0.0 );
-
-      if(0) {
-        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data() );
-      }
-
-      if(1) {
-        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data(), 80, 40 );
-      }
-
-
-      // Combine the local pivQRTmp to global pivQR_
-      for( Int j = 0; j < ntotLocalMG; j++ ){
-        pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
-      }
-
-      //        std::cout << "diag of MG = " << std::endl;
-      //        if(mpirank == 0){
-      //          std::cout << pivQRLocal << std::endl;
-      //          for( Int j = 0; j < mb_MG; j++ ){
-      //            std::cout << MG(j,j) << std::endl;
-      //          }
-      //        }
-      MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-          ntotMG, MPI_INT, MPI_SUM, domain_.comm );
-
-
-      if(contxt >= 0) {
-        Cblacs_gridexit( contxt );
-      }
-
-    } //ScaLAPACL QRCP
-
 
     if(1){ //ScaLAPACL QRCP 2D
 
@@ -2427,31 +2059,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       MPI_Comm_rank(colComm, &mpirankCol);
       MPI_Comm_size(colComm, &mpisizeCol);
 
-      if(0){
-
-        if((m_MG % (m_MG2DBlocksize * nprow2D))!= 0){ 
-          if(mpirankRow < ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-            m_MG2Local = m_MG2Local + m_MG2DBlocksize;
-          }
-          if(((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize) != 0){
-            if(mpirankRow == ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-              m_MG2Local = m_MG2Local + ((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize);
-            }
-          }
-        }
-
-        if((n_MG % (n_MG2DBlocksize * npcol2D))!= 0){ 
-          if(mpirankCol < ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-            n_MG2Local = n_MG2Local + n_MG2DBlocksize;
-          }
-          if(((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize) != 0){
-            if(mpirankCol == ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-              n_MG2Local = n_MG2Local + ((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize);
-            }
-          }
-        }
-
-      } // if(0)
 
       if(contxt2D >= 0){
         Cblacs_gridinfo(contxt2D, &nprow2D, &npcol2D, &myrow2D, &mycol2D);
@@ -2543,11 +2150,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
 
-    if(0){
-      Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-      statusOFS << "numMu_ = " << numMu_ << std::endl;
-      statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-    }
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -2555,20 +2157,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-    // Dump out pivQR_
-    if(0){
-      std::ostringstream muStream;
-      serialize( pivQR_, muStream, NO_MASK );
-      SharedWrite( "pivQR", muStream );
-    }
-  }
-
-  // Load pivQR_ file
-  if(0){
-    statusOFS << "Loading pivQR file.." << std::endl;
-    std::istringstream muStream;
-    SharedRead( "pivQR", muStream );
-    deserialize( pivQR_, muStream, NO_MASK );
   }
 
   // *********************************************************************
@@ -2707,40 +2295,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 #endif
 
 
-  //Method 1
-  if(0){
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu Potrf is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdtrsm)("R", "L", "T", "N", &Ng, &Nu, &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    SCALAPACK(pdtrsm)("R", "L", "N", "N", &Ng, &Nu, &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
   //Method 2
   if(1){
 
@@ -2786,102 +2340,6 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for PMuNu and Xi pdgemm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
-  //Method 3
-  if(0){
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu Potrf is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta1 );
-
-    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
-    SetValue( Xi2DTemp, 0.0 );
-
-    SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
-        &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-        &D_ZERO,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    SetValue( Xi2D, 0.0 );
-    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdsymm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
-  //Method 4
-  if(0){
-
-    GetTime( timeSta1 );
-
-    DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
-    SetValue( Xi2DTemp, 0.0 );
-
-    DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
-    SetValue( PMuNu2DTemp, 0.0 );
-
-    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
-        &D_ONE,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-        &D_ZERO,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
-
-    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
-        &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        &D_ZERO,
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
-
-    Int lwork=-1, info;
-    double dummyWork;
-
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &dummyWork, &lwork, &info);
-
-    lwork = dummyWork;
-    std::vector<double> work(lwork);
-
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &work[0], &lwork, &info);
-
-    SetValue( Xi2D, 0.0 );
-    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
-        &D_ONE,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &D_ZERO,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdgels is " <<
       timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
@@ -3182,215 +2640,216 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   double D_ZERO = 0.0;
   double D_MinusONE = -1.0;
 
-  Int contxt0, contxt1, contxt11, contxt2;
-  Int nprow0, npcol0, myrow0, mycol0, info0;
-  Int nprow1, npcol1, myrow1, mycol1, info1;
-  Int nprow11, npcol11, myrow11, mycol11, info11;
-  Int nprow2, npcol2, myrow2, mycol2, info2;
-
-  Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
-  Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
-  Int ncolsNgNe2D, nrowsNgNe2D, lldNgNe2D; 
-  Int ncolsNgNu1D, nrowsNgNu1D, lldNgNu1D; 
-  Int ncolsNgNu2D, nrowsNgNu2D, lldNgNu2D; 
-  Int ncolsNuNg2D, nrowsNuNg2D, lldNuNg2D; 
-  Int ncolsNeNe0D, nrowsNeNe0D, lldNeNe0D; 
-  Int ncolsNeNe2D, nrowsNeNe2D, lldNeNe2D; 
-  Int ncolsNuNu1D, nrowsNuNu1D, lldNuNu1D; 
-  Int ncolsNuNu2D, nrowsNuNu2D, lldNuNu2D; 
-  Int ncolsNeNu1D, nrowsNeNu1D, lldNeNu1D; 
-  Int ncolsNeNu2D, nrowsNeNu2D, lldNeNu2D; 
-  Int ncolsNuNe2D, nrowsNuNe2D, lldNuNe2D; 
-
-  Int desc_NgNe1DCol[9];
-  Int desc_NgNe1DRow[9];
-  Int desc_NgNe2D[9];
-  Int desc_NgNu1D[9];
-  Int desc_NgNu2D[9];
-  Int desc_NuNg2D[9];
-  Int desc_NeNe0D[9];
-  Int desc_NeNe2D[9];
-  Int desc_NuNu1D[9];
-  Int desc_NuNu2D[9];
-  Int desc_NeNu1D[9];
-  Int desc_NeNu2D[9];
-  Int desc_NuNe2D[9];
+  struct CommMatrix CommMat;
 
   Int Ng = ntot;
   Int Ne = numStateTotal_; 
   Int Nu = numMu_; 
 
   // 0D MPI
-  nprow0 = 1;
-  npcol0 = mpisize;
+  CommMat.nprow0 = 1;
+  CommMat.npcol0 = mpisize;
 
-  Cblacs_get(0, 0, &contxt0);
-  Cblacs_gridinit(&contxt0, "C", nprow0, npcol0);
-  Cblacs_gridinfo(contxt0, &nprow0, &npcol0, &myrow0, &mycol0);
+  Cblacs_get(0, 0, &CommMat.contxt0);
+  Cblacs_gridinit(&CommMat.contxt0, "C", CommMat.nprow0, CommMat.npcol0);
+  //Cblacs_gridinfo(CommMat.contxt0, &CommMat.nprow0, &CommMat.npcol0, &CommMat.myrow0, &CommMat.mycol0);
 
-  SCALAPACK(descinit)(desc_NeNe0D, &Ne, &Ne, &Ne, &Ne, &I_ZERO, &I_ZERO, &contxt0, &Ne, &info0);
+  //SCALAPACK(descinit)(CommMat.desc_NeNe0D, &Ne, &Ne, &Ne, &Ne, &I_ZERO, &I_ZERO, &CommMat.contxt0, &Ne, &CommMat.info0);
+  //guofeng
+  scalapack::Descriptor descNeNe0D;
+  descNeNe0D.Init(Ne, Ne, Ne, Ne, I_ZERO, I_ZERO, CommMat.contxt0);
 
   // 1D MPI
-  nprow1 = 1;
-  npcol1 = mpisize;
+  CommMat.nprow1 = 1;
+  CommMat.npcol1 = mpisize;
 
-  Cblacs_get(0, 0, &contxt1);
-  Cblacs_gridinit(&contxt1, "C", nprow1, npcol1);
-  Cblacs_gridinfo(contxt1, &nprow1, &npcol1, &myrow1, &mycol1);
+  Cblacs_get(0, 0, &CommMat.contxt1);
+  Cblacs_gridinit(&CommMat.contxt1, "C", CommMat.nprow1, CommMat.npcol1);
+  Cblacs_gridinfo(CommMat.contxt1, &CommMat.nprow1, &CommMat.npcol1, &CommMat.myrow1, &CommMat.mycol1);
 
-  //desc_NgNe1DCol
-  if(contxt1 >= 0){
-    nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1, &I_ZERO, &nprow1);
-    ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1, &I_ZERO, &npcol1);
-    lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
-  }    
+  //CommMat.desc_NgNe1DCol
+  //if(CommMat.contxt1 >= 0){
+    //CommMat.nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &CommMat.myrow1, &I_ZERO, &CommMat.nprow1);
+    //CommMat.ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &CommMat.mycol1, &I_ZERO, &CommMat.npcol1);
+  //  CommMat.lldNgNe1DCol = std::max( CommMat.nrowsNgNe1DCol, 1 );
+  //}    
 
-  SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
-      &I_ZERO, &contxt1, &lldNgNe1DCol, &info1);
+  //SCALAPACK(descinit)(CommMat.desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+  //    &I_ZERO, &CommMat.contxt1, &CommMat.lldNgNe1DCol, &CommMat.info1);
+  scalapack::Descriptor descNgNe1DCol;
+  descNgNe1DCol.Init(Ng , Ne, Ng, I_ONE, I_ZERO, I_ZERO, CommMat.contxt1);
 
-  nprow11 = mpisize;
-  npcol11 = 1;
+  CommMat.nprow11 = mpisize;
+  CommMat.npcol11 = 1;
 
-  Cblacs_get(0, 0, &contxt11);
-  Cblacs_gridinit(&contxt11, "C", nprow11, npcol11);
-  Cblacs_gridinfo(contxt11, &nprow11, &npcol11, &myrow11, &mycol11);
+  Cblacs_get(0, 0, &CommMat.contxt11);
+  Cblacs_gridinit(&CommMat.contxt11, "C", CommMat.nprow11, CommMat.npcol11);
+  Cblacs_gridinfo(CommMat.contxt11, &CommMat.nprow11, &CommMat.npcol11, &CommMat.myrow11, &CommMat.mycol11);
 
   Int BlockSizeScaLAPACKTemp = BlockSizeScaLAPACK; 
-  //desc_NgNe1DRow
-  if(contxt11 >= 0){
-    nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACKTemp, &myrow11, &I_ZERO, &nprow11);
-    ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol11, &I_ZERO, &npcol11);
-    lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+  //CommMat.desc_NgNe1DRow
+  if(CommMat.contxt11 >= 0){
+    CommMat.nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACKTemp, &CommMat.myrow11, &I_ZERO, &CommMat.nprow11);
+    CommMat.ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &CommMat.mycol11, &I_ZERO, &CommMat.npcol11);
+    CommMat.lldNgNe1DRow = std::max( CommMat.nrowsNgNe1DRow, 1 );
   }    
 
-  SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACKTemp, &Ne, &I_ZERO, 
-      &I_ZERO, &contxt11, &lldNgNe1DRow, &info11);
+  SCALAPACK(descinit)(CommMat.desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACKTemp, &Ne, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt11, &CommMat.lldNgNe1DRow, &CommMat.info11);
 
-  //desc_NeNu1D
-  if(contxt11 >= 0){
-    nrowsNeNu1D = SCALAPACK(numroc)(&Ne, &I_ONE, &myrow11, &I_ZERO, &nprow11);
-    ncolsNeNu1D = SCALAPACK(numroc)(&Nu, &Nu, &mycol11, &I_ZERO, &npcol11);
-    lldNeNu1D = std::max( nrowsNeNu1D, 1 );
+  //CommMat.desc_NeNu1D
+  #if 0 
+  if(CommMat.contxt11 >= 0){
+    CommMat.nrowsNeNu1D = SCALAPACK(numroc)(&Ne, &I_ONE, &CommMat.myrow11, &I_ZERO, &CommMat.nprow11);
+    CommMat.ncolsNeNu1D = SCALAPACK(numroc)(&Nu, &Nu, &CommMat.mycol11, &I_ZERO, &CommMat.npcol11);
+    CommMat.lldNeNu1D = std::max( CommMat.nrowsNeNu1D, 1 );
   }    
 
-  SCALAPACK(descinit)(desc_NeNu1D, &Ne, &Nu, &I_ONE, &Nu, &I_ZERO, 
-      &I_ZERO, &contxt11, &lldNeNu1D, &info11);
+  SCALAPACK(descinit)(CommMat.desc_NeNu1D, &Ne, &Nu, &I_ONE, &Nu, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt11, &CommMat.lldNeNu1D, &CommMat.info11);
+  #else
+  scalapack::Descriptor descNeNu1D;
+  descNeNu1D.Init(Ne, Nu, I_ONE, Nu, I_ZERO, I_ZERO, CommMat.contxt11);
+  #endif
 
-  //desc_NgNu1D
-  if(contxt1 >= 0){
-    nrowsNgNu1D = SCALAPACK(numroc)(&Ng, &Ng, &myrow1, &I_ZERO, &nprow1);
-    ncolsNgNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &mycol1, &I_ZERO, &npcol1);
-    lldNgNu1D = std::max( nrowsNgNu1D, 1 );
+  //CommMat.desc_NgNu1D
+  if(CommMat.contxt1 >= 0){
+    CommMat.nrowsNgNu1D = SCALAPACK(numroc)(&Ng, &Ng, &CommMat.myrow1, &I_ZERO, &CommMat.nprow1);
+    CommMat.ncolsNgNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &CommMat.mycol1, &I_ZERO, &CommMat.npcol1);
+    CommMat.lldNgNu1D = std::max( CommMat.nrowsNgNu1D, 1 );
   }    
 
-  SCALAPACK(descinit)(desc_NgNu1D, &Ng, &Nu, &Ng, &I_ONE, &I_ZERO, 
-      &I_ZERO, &contxt1, &lldNgNu1D, &info1);
+  SCALAPACK(descinit)(CommMat.desc_NgNu1D, &Ng, &Nu, &Ng, &I_ONE, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt1, &CommMat.lldNgNu1D, &CommMat.info1);
 
-  //desc_NuNu1D
-  if(contxt1 >= 0){
-    nrowsNuNu1D = SCALAPACK(numroc)(&Nu, &Nu, &myrow1, &I_ZERO, &nprow1);
-    ncolsNuNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &mycol1, &I_ZERO, &npcol1);
-    lldNuNu1D = std::max( nrowsNuNu1D, 1 );
+  //CommMat.desc_NuNu1D
+  if(CommMat.contxt1 >= 0){
+    CommMat.nrowsNuNu1D = SCALAPACK(numroc)(&Nu, &Nu, &CommMat.myrow1, &I_ZERO, &CommMat.nprow1);
+    CommMat.ncolsNuNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &CommMat.mycol1, &I_ZERO, &CommMat.npcol1);
+    CommMat.lldNuNu1D = std::max( CommMat.nrowsNuNu1D, 1 );
   }    
 
-  SCALAPACK(descinit)(desc_NuNu1D, &Nu, &Nu, &Nu, &I_ONE, &I_ZERO, 
-      &I_ZERO, &contxt1, &lldNuNu1D, &info1);
+  SCALAPACK(descinit)(CommMat.desc_NuNu1D, &Nu, &Nu, &Nu, &I_ONE, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt1, &CommMat.lldNuNu1D, &CommMat.info1);
 
 
   // 2D MPI
   for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
-    nprow2 = i; npcol2 = mpisize / nprow2;
-    if( (nprow2 >= npcol2) && (nprow2 * npcol2 == mpisize) ) break;
+    CommMat.nprow2 = i; CommMat.npcol2 = mpisize / CommMat.nprow2;
+    if( (CommMat.nprow2 >= CommMat.npcol2) && (CommMat.nprow2 * CommMat.npcol2 == mpisize) ) break;
   }
 
-  Cblacs_get(0, 0, &contxt2);
-  //Cblacs_gridinit(&contxt2, "C", nprow2, npcol2);
+  Cblacs_get(0, 0, &CommMat.contxt2);
+  //Cblacs_gridinit(&CommMat.contxt2, "C", CommMat.nprow2, CommMat.npcol2);
 
   IntNumVec pmap2(mpisize);
   for ( Int i = 0; i < mpisize; i++ ){
     pmap2[i] = i;
   }
-  Cblacs_gridmap(&contxt2, &pmap2[0], nprow2, nprow2, npcol2);
+  Cblacs_gridmap(&CommMat.contxt2, &pmap2[0], CommMat.nprow2, CommMat.nprow2, CommMat.npcol2);
 
   Int mb2 = BlockSizeScaLAPACK;
   Int nb2 = BlockSizeScaLAPACK;
 
-  //desc_NgNe2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNgNe2D = SCALAPACK(numroc)(&Ng, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNgNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNgNe2D = std::max( nrowsNgNe2D, 1 );
+  //CommMat.desc_NgNe2D
+  //if(CommMat.contxt2 >= 0){
+  //  Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+    //CommMat.nrowsNgNe2D = SCALAPACK(numroc)(&Ng, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+    //CommMat.ncolsNgNe2D = SCALAPACK(numroc)(&Ne, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+    //CommMat.lldNgNe2D = std::max( CommMat.nrowsNgNe2D, 1 );
+  //}
+
+  //SCALAPACK(descinit)(CommMat.desc_NgNe2D, &Ng, &Ne, &mb2, &nb2, &I_ZERO, 
+  //    &I_ZERO, &CommMat.contxt2, &CommMat.lldNgNe2D, &CommMat.info2);
+
+  scalapack::Descriptor descNgNe2D;
+  descNgNe2D.Init(Ng , Ne, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
+  
+  //printf("Huwe: values_[0] is %d, m is %d,  n is %d,  mb2 is %d, nb2 is %d LLD is %d\n",CommMat.desc_NgNe2D[0],Ng,Ne,mb2,nb2,CommMat.lldNgNe2D);
+  //printf("descNgNe2D_1 = %d\n",CommMat.desc_NgNe2D);
+  //CommMat.desc_NgNu2D
+  if(CommMat.contxt2 >= 0){
+    Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+    CommMat.nrowsNgNu2D = SCALAPACK(numroc)(&Ng, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+    CommMat.ncolsNgNu2D = SCALAPACK(numroc)(&Nu, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+    CommMat.lldNgNu2D = std::max( CommMat.nrowsNgNu2D, 1 );
+  }
+  //guofeng
+  SCALAPACK(descinit)(CommMat.desc_NgNu2D, &Ng, &Nu, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt2, &CommMat.lldNgNu2D, &CommMat.info2);
+  scalapack::Descriptor descNgNu2D;
+  descNgNu2D.Init(Ng, Nu, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
+
+
+
+  //CommMat.desc_NuNg2D
+  //if(CommMat.contxt2 >= 0){
+  //  Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+  //  CommMat.nrowsNuNg2D = SCALAPACK(numroc)(&Nu, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+  //  CommMat.ncolsNuNg2D = SCALAPACK(numroc)(&Ng, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+  //  CommMat.lldNuNg2D = std::max( CommMat.nrowsNuNg2D, 1 );
+  //}
+
+  //SCALAPACK(descinit)(CommMat.desc_NuNg2D, &Nu, &Ng, &mb2, &nb2, &I_ZERO, 
+  //    &I_ZERO, &CommMat.contxt2, &CommMat.lldNuNg2D, &CommMat.info2);
+  // guofeng
+  //scalapack::Descriptor descNuNg2D;
+  //descNuNg2D.Init(Nu, Ng, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
+
+  //CommMat.desc_NeNe2D
+  //if(CommMat.contxt2 >= 0){
+  //  Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+  //  CommMat.nrowsNeNe2D = SCALAPACK(numroc)(&Ne, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+  //  CommMat.ncolsNeNe2D = SCALAPACK(numroc)(&Ne, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+  //  CommMat.lldNeNe2D = std::max( CommMat.nrowsNeNe2D, 1 );
+  //}
+
+  //SCALAPACK(descinit)(CommMat.desc_NeNe2D, &Ne, &Ne, &mb2, &nb2, &I_ZERO, 
+  //    &I_ZERO, &CommMat.contxt2, &CommMat.lldNeNe2D, &CommMat.info2);
+
+  //guofeng
+  scalapack::Descriptor descNeNe2D;
+  descNeNe2D.Init(Ne, Ne, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
+
+  //CommMat.desc_NuNu2D
+  if(CommMat.contxt2 >= 0){
+    Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+    CommMat.nrowsNuNu2D = SCALAPACK(numroc)(&Nu, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+    CommMat.ncolsNuNu2D = SCALAPACK(numroc)(&Nu, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+    CommMat.lldNuNu2D = std::max( CommMat.nrowsNuNu2D, 1 );
   }
 
-  SCALAPACK(descinit)(desc_NgNe2D, &Ng, &Ne, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNgNe2D, &info2);
+  SCALAPACK(descinit)(CommMat.desc_NuNu2D, &Nu, &Nu, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &CommMat.contxt2, &CommMat.lldNuNu2D, &CommMat.info2);
 
-  //desc_NgNu2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNgNu2D = SCALAPACK(numroc)(&Ng, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNgNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNgNu2D = std::max( nrowsNgNu2D, 1 );
-  }
+  //CommMat.desc_NeNu2D
+  //if(CommMat.contxt2 >= 0){
+  //  Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+  //  CommMat.nrowsNeNu2D = SCALAPACK(numroc)(&Ne, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+  //  CommMat.ncolsNeNu2D = SCALAPACK(numroc)(&Nu, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+  //  CommMat.lldNeNu2D = std::max( CommMat.nrowsNeNu2D, 1 );
+  //}
 
-  SCALAPACK(descinit)(desc_NgNu2D, &Ng, &Nu, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNgNu2D, &info2);
+  //SCALAPACK(descinit)(CommMat.desc_NeNu2D, &Ne, &Nu, &mb2, &nb2, &I_ZERO, 
+  //   &I_ZERO, &CommMat.contxt2, &CommMat.lldNeNu2D, &CommMat.info2);
+  // guofeng
+  scalapack::Descriptor descNeNu2D;
+  descNeNu2D.Init(Ne, Nu, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
 
-  //desc_NuNg2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNuNg2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNuNg2D = SCALAPACK(numroc)(&Ng, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNuNg2D = std::max( nrowsNuNg2D, 1 );
-  }
+  //CommMat.desc_NuNe2D
+  //if(CommMat.contxt2 >= 0){
+  //  Cblacs_gridinfo(CommMat.contxt2, &CommMat.nprow2, &CommMat.npcol2, &CommMat.myrow2, &CommMat.mycol2);
+  //  CommMat.nrowsNuNe2D = SCALAPACK(numroc)(&Nu, &mb2, &CommMat.myrow2, &I_ZERO, &CommMat.nprow2);
+  //  CommMat.ncolsNuNe2D = SCALAPACK(numroc)(&Ne, &nb2, &CommMat.mycol2, &I_ZERO, &CommMat.npcol2);
+  //  CommMat.lldNuNe2D = std::max( CommMat.nrowsNuNe2D, 1 );
+  //}
 
-  SCALAPACK(descinit)(desc_NuNg2D, &Nu, &Ng, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNuNg2D, &info2);
+  //SCALAPACK(descinit)(CommMat.desc_NuNe2D, &Nu, &Ne, &mb2, &nb2, &I_ZERO, 
+  //    &I_ZERO, &CommMat.contxt2, &CommMat.lldNuNe2D, &CommMat.info2);
+  //guofeng
+  scalapack::Descriptor descNuNe2D;
+  descNuNe2D.Init(Nu, Ne, BlockSizeScaLAPACK, BlockSizeScaLAPACK, I_ZERO, I_ZERO, CommMat.contxt2);
 
-  //desc_NeNe2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNeNe2D = SCALAPACK(numroc)(&Ne, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNeNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNeNe2D = std::max( nrowsNeNe2D, 1 );
-  }
-
-  SCALAPACK(descinit)(desc_NeNe2D, &Ne, &Ne, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNeNe2D, &info2);
-
-  //desc_NuNu2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNuNu2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNuNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNuNu2D = std::max( nrowsNuNu2D, 1 );
-  }
-
-  SCALAPACK(descinit)(desc_NuNu2D, &Nu, &Nu, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNuNu2D, &info2);
-
-  //desc_NeNu2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNeNu2D = SCALAPACK(numroc)(&Ne, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNeNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNeNu2D = std::max( nrowsNeNu2D, 1 );
-  }
-
-  SCALAPACK(descinit)(desc_NeNu2D, &Ne, &Nu, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNeNu2D, &info2);
-
-  //desc_NuNe2D
-  if(contxt2 >= 0){
-    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
-    nrowsNuNe2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
-    ncolsNuNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
-    lldNuNe2D = std::max( nrowsNuNe2D, 1 );
-  }
-
-  SCALAPACK(descinit)(desc_NuNe2D, &Nu, &Ne, &mb2, &nb2, &I_ZERO, 
-      &I_ZERO, &contxt2, &lldNuNe2D, &info2);
 
   DblNumMat phiCol( ntot, numStateLocal );
   SetValue( phiCol, 0.0 );
@@ -3400,12 +2859,20 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
   lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
   lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+  
+  //guofeng
+  //scalapack::ScaLAPACKMatrix<Real> sca_psiCol;
+  //sca_psiCol.SetDescriptor(descNgNe1DCol);
+  //DblNumMat& square_mat = psiCol;
+  // Redistribute the input matrix over the process grid
+  //SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, descNgNe1DCol.Values(),
+  //    &sca_psiCol.LocalMatrix()[0], &I_ONE, &I_ONE, descNgNe1DCol.Values(), &CommMat.contxt1);
 
   // Computing the indices is optional
 
 
-  Int ntotLocal = nrowsNgNe1DRow; 
-  //Int ntotLocalMG = nrowsNgNe1DRow;
+  Int ntotLocal = CommMat.nrowsNgNe1DRow; 
+  //Int ntotLocalMG = CommMat.nrowsNgNe1DRow;
   //Int ntotMG = ntot;
   Int ntotLocalMG, ntotMG;
 
@@ -3442,11 +2909,11 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     DblNumMat psiRow( ntotLocal, numStateTotal );
     SetValue( psiRow, 0.0 );
 
-    SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-        psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1 );
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, descNgNe1DCol.Values(), 
+        psiRow.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNe1DRow, &CommMat.contxt1 );
 
-    SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-        phiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1 );
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, descNgNe1DCol.Values(), 
+        phiRow.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNe1DRow, &CommMat.contxt1 );
 
     // Step 1: Pre-compression of the wavefunctions. This uses
     // multiplication with orthonormalized random Gaussian matrices
@@ -3537,24 +3004,24 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       Int desc_0D[9];
       Int desc_1D[9];
 
-      Cblacs_get(0, 0, &contxt0);
-      Cblacs_gridinit(&contxt0, "C", nprow0, npcol0);
-      Cblacs_gridinfo(contxt0, &nprow0, &npcol0, &myrow0, &mycol0);
+      Cblacs_get(0, 0, &CommMat.contxt0);
+      Cblacs_gridinit(&CommMat.contxt0, "C", CommMat.nprow0, CommMat.npcol0);
+      Cblacs_gridinfo(CommMat.contxt0, &CommMat.nprow0, &CommMat.npcol0, &CommMat.myrow0, &CommMat.mycol0);
 
-      SCALAPACK(descinit)(desc_0D, &Ng, &I_ONE, &Ng, &I_ONE, &I_ZERO, &I_ZERO, &contxt0, &Ng, &info0);
+      SCALAPACK(descinit)(desc_0D, &Ng, &I_ONE, &Ng, &I_ONE, &I_ZERO, &I_ZERO, &CommMat.contxt0, &Ng, &CommMat.info0);
 
-      if(contxt11 >= 0){
-        nrows1D = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACKTemp, &myrow11, &I_ZERO, &nprow11);
-        ncols1D = SCALAPACK(numroc)(&I_ONE, &I_ONE, &mycol11, &I_ZERO, &npcol11);
+      if(CommMat.contxt11 >= 0){
+        nrows1D = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACKTemp, &CommMat.myrow11, &I_ZERO, &CommMat.nprow11);
+        ncols1D = SCALAPACK(numroc)(&I_ONE, &I_ONE, &CommMat.mycol11, &I_ZERO, &CommMat.npcol11);
         lld1D = std::max( nrows1D, 1 );
       }    
 
       SCALAPACK(descinit)(desc_1D, &Ng, &I_ONE, &BlockSizeScaLAPACKTemp, &I_ONE, &I_ZERO, 
-          &I_ZERO, &contxt11, &lld1D, &info11);
+          &I_ZERO, &CommMat.contxt11, &lld1D, &CommMat.info11);
 
 
       SCALAPACK(pdgemr2d)(&Ng, &I_ONE, MGNormLocal.Data(), &I_ONE, &I_ONE, desc_1D, 
-          MGNorm.Data(), &I_ONE, &I_ONE, desc_0D, &contxt11 );
+          MGNorm.Data(), &I_ONE, &I_ONE, desc_0D, &CommMat.contxt11 );
 
       MPI_Bcast( MGNorm.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
 
@@ -3585,23 +3052,23 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     Int desc_1DCol[9];
     Int desc_1DRow[9];
 
-    if(contxt1 >= 0){
-      nrows1DCol = SCALAPACK(numroc)(&m_MGTemp, &m_MGTemp, &myrow1, &I_ZERO, &nprow1);
-      ncols1DCol = SCALAPACK(numroc)(&n_MGTemp, &BlockSizeScaLAPACKTemp, &mycol1, &I_ZERO, &npcol1);
+    if(CommMat.contxt1 >= 0){
+      nrows1DCol = SCALAPACK(numroc)(&m_MGTemp, &m_MGTemp, &CommMat.myrow1, &I_ZERO, &CommMat.nprow1);
+      ncols1DCol = SCALAPACK(numroc)(&n_MGTemp, &BlockSizeScaLAPACKTemp, &CommMat.mycol1, &I_ZERO, &CommMat.npcol1);
       lld1DCol = std::max( nrows1DCol, 1 );
     }    
 
     SCALAPACK(descinit)(desc_1DCol, &m_MGTemp, &n_MGTemp, &m_MGTemp, &BlockSizeScaLAPACKTemp, &I_ZERO, 
-        &I_ZERO, &contxt1, &lld1DCol, &info1);
+        &I_ZERO, &CommMat.contxt1, &lld1DCol, &CommMat.info1);
 
-    if(contxt11 >= 0){
-      nrows1DRow = SCALAPACK(numroc)(&m_MGTemp, &I_ONE, &myrow11, &I_ZERO, &nprow11);
-      ncols1DRow = SCALAPACK(numroc)(&n_MGTemp, &n_MGTemp, &mycol11, &I_ZERO, &npcol11);
+    if(CommMat.contxt11 >= 0){
+      nrows1DRow = SCALAPACK(numroc)(&m_MGTemp, &I_ONE, &CommMat.myrow11, &I_ZERO, &CommMat.nprow11);
+      ncols1DRow = SCALAPACK(numroc)(&n_MGTemp, &n_MGTemp, &CommMat.mycol11, &I_ZERO, &CommMat.npcol11);
       lld1DRow = std::max( nrows1DRow, 1 );
     }    
 
     SCALAPACK(descinit)(desc_1DRow, &m_MGTemp, &n_MGTemp, &I_ONE, &n_MGTemp, &I_ZERO, 
-        &I_ZERO, &contxt11, &lld1DRow, &info11);
+        &I_ZERO, &CommMat.contxt11, &lld1DRow, &CommMat.info11);
 
     DblNumMat MGRow( nrows1DRow, ntot );
     SetValue( MGRow, 0.0 );
@@ -3610,7 +3077,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     GetTime( timeSta1 );
 
     SCALAPACK(pdgemr2d)(&m_MGTemp, &n_MGTemp, MGCol.Data(), &I_ONE, &I_ONE, desc_1DCol, 
-        MGRow.Data(), &I_ONE, &I_ONE, desc_1DRow, &contxt1 );
+        MGRow.Data(), &I_ONE, &I_ONE, desc_1DRow, &CommMat.contxt1 );
 
     GetTime( timeEnd1 );
 #if ( _DEBUGlevel_ >= 0 )
@@ -3635,23 +3102,17 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     Real timeQRCPSta, timeQRCPEnd;
     GetTime( timeQRCPSta );
 
-    if(0){  
-      QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
-          pivQR_.Data(), tau.Data() );
-    }//
-
 
     if(1){ //ScaLAPACL QRCP 2D
 
-      Int contxt1D, contxt2D;
-      Int nprow1D, npcol1D, myrow1D, mycol1D, info1D;
-      Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
-
+      #if 0
+      //GUOFENG
       Int ncols1D, nrows1D, lld1D; 
       Int ncols2D, nrows2D, lld2D; 
 
       Int desc_MG1D[9];
       Int desc_MG2D[9];
+      #endif
 
       Int m_MG = numPre*numPre;
       Int n_MG = ntotMG;
@@ -3659,50 +3120,56 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       Int mb_MG1D = 1;
       Int nb_MG1D = ntotMG;
 
-      nprow1D = mpisize;
-      npcol1D = 1;
+      CommMat.nprow1D = mpisize;
+      CommMat.npcol1D = 1;
 
-      Cblacs_get(0, 0, &contxt1D);
-      Cblacs_gridinit(&contxt1D, "C", nprow1D, npcol1D);
-      Cblacs_gridinfo(contxt1D, &nprow1D, &npcol1D, &myrow1D, &mycol1D);
+      Cblacs_get(0, 0, &CommMat.contxt1D);
+      Cblacs_gridinit(&CommMat.contxt1D, "C", CommMat.nprow1D, CommMat.npcol1D);
+      #if 0
+      Cblacs_gridinfo(CommMat.contxt1D, &CommMat.nprow1D, &CommMat.npcol1D, &CommMat.myrow1D, &CommMat.mycol1D);
 
-      nrows1D = SCALAPACK(numroc)(&m_MG, &mb_MG1D, &myrow1D, &I_ZERO, &nprow1D);
-      ncols1D = SCALAPACK(numroc)(&n_MG, &nb_MG1D, &mycol1D, &I_ZERO, &npcol1D);
+      nrows1D = SCALAPACK(numroc)(&m_MG, &mb_MG1D, &CommMat.myrow1D, &I_ZERO, &CommMat.nprow1D);
+      ncols1D = SCALAPACK(numroc)(&n_MG, &nb_MG1D, &CommMat.mycol1D, &I_ZERO, &CommMat.npcol1D);
 
       lld1D = std::max( nrows1D, 1 );
 
       SCALAPACK(descinit)(desc_MG1D, &m_MG, &n_MG, &mb_MG1D, &nb_MG1D, &I_ZERO, 
-          &I_ZERO, &contxt1D, &lld1D, &info1D);
+          &I_ZERO, &CommMat.contxt1D, &lld1D, &CommMat.info1D);
+      #else
+      //guofeng
+      scalapack::Descriptor descMG1D;
+      descMG1D.Init(m_MG, n_MG, mb_MG1D, nb_MG1D, I_ZERO, I_ZERO, CommMat.contxt1D);
+      #endif
 
       for( Int i = std::min(mpisize, IRound(sqrt(double(mpisize*(n_MG/m_MG))))); 
           i <= mpisize; i++){
-        npcol2D = i; nprow2D = mpisize / npcol2D;
-        if( (npcol2D >= nprow2D) && (nprow2D * npcol2D == mpisize) ) break;
+        CommMat.npcol2D = i; CommMat.nprow2D = mpisize / CommMat.npcol2D;
+        if( (CommMat.npcol2D >= CommMat.nprow2D) && (CommMat.nprow2D * CommMat.npcol2D == mpisize) ) break;
       }
 
-      Cblacs_get(0, 0, &contxt2D);
-      //Cblacs_gridinit(&contxt2D, "C", nprow2D, npcol2D);
+      Cblacs_get(0, 0, &CommMat.contxt2D);
+      //Cblacs_gridinit(&CommMat.contxt2D, "C", CommMat.nprow2D, CommMat.npcol2D);
 
       IntNumVec pmap(mpisize);
       for ( Int i = 0; i < mpisize; i++ ){
         pmap[i] = i;
       }
-      Cblacs_gridmap(&contxt2D, &pmap[0], nprow2D, nprow2D, npcol2D);
+      Cblacs_gridmap(&CommMat.contxt2D, &pmap[0], CommMat.nprow2D, CommMat.nprow2D, CommMat.npcol2D);
 
       Int m_MG2DBlocksize = BlockSizeScaLAPACK;
       Int n_MG2DBlocksize = BlockSizeScaLAPACK;
 
-      //Int m_MG2Local = m_MG/(m_MG2DBlocksize*nprow2D)*m_MG2DBlocksize;
-      //Int n_MG2Local = n_MG/(n_MG2DBlocksize*npcol2D)*n_MG2DBlocksize;
-      Int m_MG2Local, n_MG2Local;
+      //Int m_MG2Local = m_MG/(m_MG2DBlocksize*CommMat.nprow2D)*m_MG2DBlocksize;
+      //Int n_MG2Local = n_MG/(n_MG2DBlocksize*CommMat.npcol2D)*n_MG2DBlocksize;
+      Int m_MG2Local, n_MG2Local; 
 
       //MPI_Comm rowComm = MPI_COMM_NULL;
       MPI_Comm colComm = MPI_COMM_NULL;
 
       Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
 
-      //MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
-      MPI_Comm_split( domain_.comm, mpirank % nprow2D, mpirank, &colComm );
+      //MPI_Comm_split( domain_.comm, mpirank / CommMat.nprow2D, mpirank, &rowComm );
+      MPI_Comm_split( domain_.comm, mpirank % CommMat.nprow2D, mpirank, &colComm );
 
       //MPI_Comm_rank(rowComm, &mpirankRow);
       //MPI_Comm_size(rowComm, &mpisizeRow);
@@ -3710,18 +3177,26 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       MPI_Comm_rank(colComm, &mpirankCol);
       MPI_Comm_size(colComm, &mpisizeCol);
 
-      if(contxt2D >= 0){
-        Cblacs_gridinfo(contxt2D, &nprow2D, &npcol2D, &myrow2D, &mycol2D);
-        nrows2D = SCALAPACK(numroc)(&m_MG, &m_MG2DBlocksize, &myrow2D, &I_ZERO, &nprow2D);
-        ncols2D = SCALAPACK(numroc)(&n_MG, &n_MG2DBlocksize, &mycol2D, &I_ZERO, &npcol2D);
+      #if 0
+      if(CommMat.contxt2D >= 0){
+        Cblacs_gridinfo(CommMat.contxt2D, &CommMat.nprow2D, &CommMat.npcol2D, &CommMat.myrow2D, &CommMat.mycol2D);
+        nrows2D = SCALAPACK(numroc)(&m_MG, &m_MG2DBlocksize, &CommMat.myrow2D, &I_ZERO, &CommMat.nprow2D);
+        ncols2D = SCALAPACK(numroc)(&n_MG, &n_MG2DBlocksize, &CommMat.mycol2D, &I_ZERO, &CommMat.npcol2D);
         lld2D = std::max( nrows2D, 1 );
       }
 
       SCALAPACK(descinit)(desc_MG2D, &m_MG, &n_MG, &m_MG2DBlocksize, &n_MG2DBlocksize, &I_ZERO, 
-          &I_ZERO, &contxt2D, &lld2D, &info2D);
-
-      m_MG2Local = nrows2D;
-      n_MG2Local = ncols2D;
+          &I_ZERO, &CommMat.contxt2D, &lld2D, &CommMat.info2D);
+      #else
+      // guofeng
+      scalapack::Descriptor descMG2D;
+      descMG2D.Init(m_MG, n_MG, m_MG2DBlocksize, n_MG2DBlocksize, I_ZERO, I_ZERO, CommMat.contxt2D);
+      //m_MG2Local = nrows2D;
+      //n_MG2Local = ncols2D;
+      //GUOFENG
+      m_MG2Local = SCALAPACK(numroc)(&m_MG, &m_MG2DBlocksize, &CommMat.myrow2D, &I_ZERO, &CommMat.nprow2D);
+      n_MG2Local = SCALAPACK(numroc)(&n_MG, &n_MG2DBlocksize, &CommMat.mycol2D, &I_ZERO, &CommMat.npcol2D);
+      #endif
 
       IntNumVec pivQRTmp1(ntotMG), pivQRTmp2(ntotMG), pivQRLocal(ntotMG);
       if( m_MG > ntot ){
@@ -3734,18 +3209,32 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       //        DblNumVec diagR( mb_MG );
 
       DblNumMat&  MG1D = MG;
-      DblNumMat  MG2D (m_MG2Local, n_MG2Local);
+      //DblNumMat  MG2D (m_MG2Local, n_MG2Local);
+      //guofeng
+      scalapack::ScaLAPACKMatrix<Real> MG2D;
+      MG2D.SetDescriptor(descMG2D);
 
+      #if 0
       SCALAPACK(pdgemr2d)(&m_MG, &n_MG, MG1D.Data(), &I_ONE, &I_ONE, desc_MG1D, 
-          MG2D.Data(), &I_ONE, &I_ONE, desc_MG2D, &contxt1D );
+          MG2D.Data(), &I_ONE, &I_ONE, desc_MG2D, &CommMat.contxt1D );
+      #else
+      //guofeng
+      SCALAPACK(pdgemr2d)(&m_MG, &n_MG, MG1D.Data(), &I_ONE, &I_ONE, descMG1D.Values(), 
+          &MG2D.LocalMatrix()[0], &I_ONE, &I_ONE, descMG2D.Values(), &CommMat.contxt1D );
+      #endif
 
-      if(contxt2D >= 0){
+      if(CommMat.contxt2D >= 0){
 
         Real timeQRCP1, timeQRCP2;
         GetTime( timeQRCP1 );
 
         SetValue( pivQRTmp1, 0 );
+        #if 0
         scalapack::QRCPF( m_MG, n_MG, MG2D.Data(), desc_MG2D, pivQRTmp1.Data(), tau.Data() );
+        #else
+        //guofeng
+        scalapack::QRCPF( m_MG, n_MG, MG2D.Data(), descMG2D.Values(), pivQRTmp1.Data(), tau.Data() );
+        #endif
 
         //scalapack::QRCPR( m_MG, n_MG, numMu_, MG2D.Data(), desc_MG2D, pivQRTmp1.Data(), tau.Data(), BlockSizeScaLAPACK, 32);
 
@@ -3761,12 +3250,12 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       //SetValue(MG1D, 0.0 );
 
       //SCALAPACK(pdgemr2d)( &m_MG, &n_MG, MG2D.Data(), &I_ONE, &I_ONE, desc_MG2D,
-      //    MG1D.Data(), &I_ONE, &I_ONE, desc_MG1D, &contxt1D );
+      //    MG1D.Data(), &I_ONE, &I_ONE, desc_MG1D, &CommMat.contxt1D );
 
       // Combine the local pivQRTmp to global pivQR_
       SetValue( pivQRLocal, 0 );
       for( Int j = 0; j < n_MG2Local; j++ ){
-        pivQRLocal[ (j / n_MG2DBlocksize) * n_MG2DBlocksize * npcol2D + mpirankCol * n_MG2DBlocksize + j % n_MG2DBlocksize] = pivQRTmp1[j];
+        pivQRLocal[ (j / n_MG2DBlocksize) * n_MG2DBlocksize * CommMat.npcol2D + mpirankCol * n_MG2DBlocksize + j % n_MG2DBlocksize] = pivQRTmp1[j];
       }
 
       SetValue( pivQRTmp2, 0 );
@@ -3781,12 +3270,12 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       //if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
       if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
-      if(contxt2D >= 0) {
-        Cblacs_gridexit( contxt2D );
+      if(CommMat.contxt2D >= 0) {
+        Cblacs_gridexit( CommMat.contxt2D );
       }
 
-      if(contxt1D >= 0) {
-        Cblacs_gridexit( contxt1D );
+      if(CommMat.contxt1D >= 0) {
+        Cblacs_gridexit( CommMat.contxt1D );
       }
 
     } // if(1) ScaLAPACL QRCP
@@ -3799,25 +3288,12 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     statusOFS << "Time for QRCP alone is " <<
       timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
-    
-    if(0){
-      Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-      statusOFS << "numMu_ = " << numMu_ << std::endl;
-      statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-    }
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for density fitting with QRCP is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-    // Dump out pivQR_
-    if(0){
-      std::ostringstream muStream;
-      serialize( pivQR_, muStream, NO_MASK );
-      SharedWrite( "pivQR", muStream );
-    }
 
     if (hybridDFType == "Kmeans+QRCP"){
       hybridDFType = "Kmeans";
@@ -3861,22 +3337,9 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     
     statusOFS << "Time for density fitting with Kmeans is " << timeEnd-timeSta << "[s]" << std::endl << std::endl;
 
-    // Dump out pivQR_
-    if(0){
-      std::ostringstream muStream;
-      serialize( pivQR_, muStream, NO_MASK );
-      SharedWrite( "pivQR", muStream );
-    }
 
   } //  if( (isFixColumnDF == false) && (hybridDFType == "Kmeans") )
 
-  // Load pivQR_ file
-  if(0){
-    statusOFS << "Loading pivQR file.." << std::endl;
-    std::istringstream muStream;
-    SharedRead( "pivQR", muStream );
-    deserialize( pivQR_, muStream, NO_MASK );
-  }
 
   // *********************************************************************
   // Compute the interpolation matrix via the density matrix formulation
@@ -3915,17 +3378,31 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       phiMuCol(k, mu) = phiCol(pivMu1(mu),k) * occupationRate[(k * mpisize + mpirank)];
     }
   }
-
-  DblNumMat psiMu2D(nrowsNeNu2D, ncolsNeNu2D);
-  DblNumMat phiMu2D(nrowsNeNu2D, ncolsNeNu2D);
+  //guofeng
+  #if 0
+  DblNumMat psiMu2D(CommMat.nrowsNeNu2D, CommMat.ncolsNeNu2D);
+  DblNumMat phiMu2D(CommMat.nrowsNeNu2D, CommMat.ncolsNeNu2D);
   SetValue( psiMu2D, 0.0 );
   SetValue( phiMu2D, 0.0 );
+  #else
+  scalapack::ScaLAPACKMatrix<Real>psiMu2D, phiMu2D;
+  psiMu2D.SetDescriptor(descNeNu2D);
+  phiMu2D.SetDescriptor(descNeNu2D);
+  #endif
+  
+  #if 0
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, psiMuCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NeNu1D, 
+      psiMu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NeNu2D, &CommMat.contxt11 );
 
-  SCALAPACK(pdgemr2d)(&Ne, &Nu, psiMuCol.Data(), &I_ONE, &I_ONE, desc_NeNu1D, 
-      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, &contxt11 );
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, phiMuCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NeNu1D, 
+      phiMu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NeNu2D, &CommMat.contxt11 );
+  #else
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, psiMuCol.Data(), &I_ONE, &I_ONE, descNeNu1D.Values(), 
+      &psiMu2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNeNu2D.Values(), &CommMat.contxt11 );
 
-  SCALAPACK(pdgemr2d)(&Ne, &Nu, phiMuCol.Data(), &I_ONE, &I_ONE, desc_NeNu1D, 
-      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, &contxt11 );
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, phiMuCol.Data(), &I_ONE, &I_ONE, descNeNu1D.Values(), 
+      &phiMu2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNeNu2D.Values(), &CommMat.contxt11 );
+  #endif
 
   GetTime( timeEnd1 );
 
@@ -3936,34 +3413,46 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
   GetTime( timeSta1 );
 
-  DblNumMat psi2D(nrowsNgNe2D, ncolsNgNe2D);
-  DblNumMat phi2D(nrowsNgNe2D, ncolsNgNe2D);
-  SetValue( psi2D, 0.0 );
-  SetValue( phi2D, 0.0 );
+  //DblNumMat psi2D(CommMat.nrowsNgNe2D, CommMat.ncolsNgNe2D);
+  //DblNumMat phi2D(CommMat.nrowsNgNe2D, CommMat.ncolsNgNe2D);
+  //SetValue( psi2D, 0.0 );
+  //SetValue( phi2D, 0.0 );
+  scalapack::ScaLAPACKMatrix<Real> psi2D, phi2D;
+  psi2D.SetDescriptor(descNgNe2D);
+  phi2D.SetDescriptor(descNgNe2D);
 
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-      psi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, &contxt1 );
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-      phi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, &contxt1 );
+  #if 0
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNe1DCol, 
+      psi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNe2D, &CommMat.contxt1 );
+  #else
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, descNgNe1DCol.Values(), 
+      &psi2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNgNe2D.Values(), &CommMat.contxt1 );
+  #endif
+  //printf("descNgNe2D_2 = %d\n",CommMat.desc_NgNe2D);
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, descNgNe1DCol.Values(), 
+      &phi2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNgNe2D.Values(), &CommMat.contxt1 );
+  //printf("descNgNe2D_3 = %d\n",CommMat.desc_NgNe2D);
 
-  DblNumMat PpsiMu2D(nrowsNgNu2D, ncolsNgNu2D);
-  DblNumMat PphiMu2D(nrowsNgNu2D, ncolsNgNu2D);
+  DblNumMat PpsiMu2D(CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D);
+  DblNumMat PphiMu2D(CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D);
   SetValue( PpsiMu2D, 0.0 );
   SetValue( PphiMu2D, 0.0 );
 
   SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Ne, 
       &D_ONE,
-      psi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
-      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      psi2D.Data(), &I_ONE, &I_ONE, descNgNe2D.Values(),
+      psiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
       &D_ZERO,
-      PpsiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+      PpsiMu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D);
+  //printf("descNgNe2D_4 = %d\n",CommMat.desc_NgNe2D);
 
   SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Ne, 
       &D_ONE,
-      phi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
-      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      phi2D.Data(), &I_ONE, &I_ONE, descNgNe2D.Values(),
+      phiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
       &D_ZERO,
-      PphiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+      PphiMu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D);
+  //printf("descNgNe2D_5 = %d\n",CommMat.desc_NgNe2D);
 
   GetTime( timeEnd1 );
 
@@ -3974,37 +3463,37 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
   GetTime( timeSta1 );
 
-  DblNumMat Xi2D(nrowsNgNu2D, ncolsNgNu2D);
+  DblNumMat Xi2D(CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D);
   SetValue( Xi2D, 0.0 );
 
   Real* Xi2DPtr = Xi2D.Data();
   Real* PpsiMu2DPtr = PpsiMu2D.Data();
   Real* PphiMu2DPtr = PphiMu2D.Data();
 
-  for( Int g = 0; g < nrowsNgNu2D * ncolsNgNu2D; g++ ){
+  for( Int g = 0; g < CommMat.nrowsNgNu2D * CommMat.ncolsNgNu2D; g++ ){
     Xi2DPtr[g] = PpsiMu2DPtr[g] * PphiMu2DPtr[g];
   }
 
-  DblNumMat Xi1D(nrowsNgNu1D, ncolsNuNu1D);
+  DblNumMat Xi1D(CommMat.nrowsNgNu1D, CommMat.ncolsNuNu1D);
   SetValue( Xi1D, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
-      Xi1D.Data(), &I_ONE, &I_ONE, desc_NgNu1D, &contxt2 );
+  SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D, 
+      Xi1D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu1D, &CommMat.contxt2 );
 
-  DblNumMat PMuNu1D(nrowsNuNu1D, ncolsNuNu1D);
+  DblNumMat PMuNu1D(CommMat.nrowsNuNu1D, CommMat.ncolsNuNu1D);
   SetValue( PMuNu1D, 0.0 );
 
-  for (Int mu=0; mu<nrowsNuNu1D; mu++) {
-    for (Int nu=0; nu<ncolsNuNu1D; nu++) {
+  for (Int mu=0; mu<CommMat.nrowsNuNu1D; mu++) {
+    for (Int nu=0; nu<CommMat.ncolsNuNu1D; nu++) {
       PMuNu1D(mu, nu) = Xi1D(pivMu1(mu),nu);
     }
   }
 
-  DblNumMat PMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  DblNumMat PMuNu2D(CommMat.nrowsNuNu2D, CommMat.ncolsNuNu2D);
   SetValue( PMuNu2D, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Nu, &Nu, PMuNu1D.Data(), &I_ONE, &I_ONE, desc_NuNu1D, 
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &contxt1 );
+  SCALAPACK(pdgemr2d)(&Nu, &Nu, PMuNu1D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu1D, 
+      PMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D, &CommMat.contxt1 );
 
   GetTime( timeEnd1 );
 
@@ -4014,47 +3503,13 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 #endif
 
 
-  //Method 1
-  if(0){
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu Potrf is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdtrsm)("R", "L", "T", "N", &Ng, &Nu, &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    SCALAPACK(pdtrsm)("R", "L", "N", "N", &Ng, &Nu, &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
   //Method 2
   if(1){
 
     GetTime( timeSta1 );
 
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D, &CommMat.info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D, &CommMat.info2);
 
     GetTime( timeEnd1 );
 
@@ -4065,130 +3520,34 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
+    DblNumMat PMuNu2DTemp(CommMat.nrowsNuNu2D, CommMat.ncolsNuNu2D);
     SetValue( PMuNu2DTemp, 0.0 );
 
-    lapack::lacpy( lapack::MatrixType::General, nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
+    lapack::lacpy( lapack::MatrixType::General, CommMat.nrowsNuNu2D, CommMat.ncolsNuNu2D, PMuNu2D.Data(), CommMat.nrowsNuNu2D, PMuNu2DTemp.Data(), CommMat.nrowsNuNu2D );
 
     SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
         &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        PMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D, 
         &D_ZERO,
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D);
 
-    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+    DblNumMat Xi2DTemp(CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D);
     SetValue( Xi2DTemp, 0.0 );
 
     SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Nu, 
         &D_ONE,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        Xi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D, 
         &D_ZERO,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D);
 
     SetValue( Xi2D, 0.0 );
-    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    lapack::lacpy( lapack::MatrixType::General, CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D, Xi2DTemp.Data(), CommMat.nrowsNgNu2D, Xi2D.Data(), CommMat.nrowsNgNu2D );
 
     GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for PMuNu and Xi pdgemm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
-  //Method 3
-  if(0){
-
-    GetTime( timeSta1 );
-
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu Potrf is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta1 );
-
-    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
-    SetValue( Xi2DTemp, 0.0 );
-
-    SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
-        &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-        &D_ZERO,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    SetValue( Xi2D, 0.0 );
-    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdsymm is " <<
-      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-  }
-
-
-  //Method 4
-  if(0){
-
-    GetTime( timeSta1 );
-
-    DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
-    SetValue( Xi2DTemp, 0.0 );
-
-    DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
-    SetValue( PMuNu2DTemp, 0.0 );
-
-    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
-        &D_ONE,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-        &D_ZERO,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
-
-    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
-        &D_ONE,
-        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        &D_ZERO,
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
-
-    Int lwork=-1, info;
-    double dummyWork;
-
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &dummyWork, &lwork, &info);
-
-    lwork = dummyWork;
-    std::vector<double> work(lwork);
-
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &work[0], &lwork, &info);
-
-    SetValue( Xi2D, 0.0 );
-    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
-        &D_ONE,
-        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-        &D_ZERO,
-        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-    GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu and Xi pdgels is " <<
       timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
@@ -4209,8 +3568,13 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   // Store VXi separately. This is not the most memory efficient
   // implementation
   // *********************************************************************
-
-  DblNumMat VXi2D(nrowsNgNu2D, ncolsNgNu2D);
+  #if 1
+  DblNumMat VXi2D(CommMat.nrowsNgNu2D, CommMat.ncolsNgNu2D);
+  //guofeng
+  #else
+  scalapack::ScaLAPACKMatrix<Real> VXi2D;
+  VXi2D.SetDescriptor(descNgNu2D);
+  #endif
 
   {
     GetTime( timeSta );
@@ -4218,8 +3582,8 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     DblNumMat XiCol(ntot, numMuLocal);
     SetValue(XiCol, 0.0 );
 
-    SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
-        XiCol.Data(), &I_ONE, &I_ONE, desc_NgNu1D, &contxt2 );
+    SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D, 
+        XiCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu1D, &CommMat.contxt2 );
 
     GetTime( timeSta );
     for( Int mu = 0; mu < numMuLocal; mu++ ){
@@ -4238,8 +3602,14 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     } // for (mu)
 
     SetValue(VXi2D, 0.0 );
-    SCALAPACK(pdgemr2d)(&Ng, &Nu, XiCol.Data(), &I_ONE, &I_ONE, desc_NgNu1D, 
-        VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, &contxt1 );
+    #if 1
+    SCALAPACK(pdgemr2d)(&Ng, &Nu, XiCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu1D, 
+        VXi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D, &CommMat.contxt1 );
+    #else
+    SCALAPACK(pdgemr2d)(&Ng, &Nu, XiCol.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu1D, 
+        &VXi2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNgNu2D.Values(), &CommMat.contxt1 );
+    #endif
+
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -4251,28 +3621,28 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   // Prepare for the computation of the M matrix
   GetTime( timeSta );
 
-  DblNumMat MMatMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  DblNumMat MMatMuNu2D(CommMat.nrowsNuNu2D, CommMat.ncolsNuNu2D);
   SetValue(MMatMuNu2D, 0.0 );
 
   SCALAPACK(pdgemm)("T", "N", &Nu, &Nu, &Ng, 
       &D_MinusONE,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-      VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
+      Xi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D,
+      VXi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D, 
       &D_ZERO,
-      MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+      MMatMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D);
 
-  DblNumMat phiMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  DblNumMat phiMuNu2D(CommMat.nrowsNuNu2D, CommMat.ncolsNuNu2D);
   SCALAPACK(pdgemm)("T", "N", &Nu, &Nu, &Ne, 
       &D_ONE,
-      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D,
-      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      phiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(),
+      phiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
       &D_ZERO,
-      phiMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+      phiMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D);
 
   Real* MMat2DPtr = MMatMuNu2D.Data();
   Real* phi2DPtr  = phiMuNu2D.Data();
 
-  for( Int g = 0; g < nrowsNuNu2D * ncolsNuNu2D; g++ ){
+  for( Int g = 0; g < CommMat.nrowsNuNu2D * CommMat.ncolsNuNu2D; g++ ){
     MMat2DPtr[g] *= phi2DPtr[g];
   }
 
@@ -4289,28 +3659,44 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   GetTime( timeSta );
 
   // Rewrite VXi by VXi.*PcolPhi
+  #if 1
   Real* VXi2DPtr = VXi2D.Data();
   Real* PphiMu2DPtr1 = PphiMu2D.Data();
-  for( Int g = 0; g < nrowsNgNu2D * ncolsNgNu2D; g++ ){
+  for( Int g = 0; g < CommMat.nrowsNgNu2D * CommMat.ncolsNgNu2D; g++ ){
     VXi2DPtr[g] *= PphiMu2DPtr1[g];
   }
+  #else
+  // question: why not use scalapackr2d
+  SCALAPACK(pdgemr2d)(&Ng, &Nu, PphiMu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D, 
+        &VXi2D.LocalMatrix()[0], &I_ONE, &I_ONE, CommMat.desc_NgNu2D, &CommMat.contxt2 );
+  #endif
 
   // NOTE: Hpsi must be zero in order to compute the M matrix later
-  DblNumMat Hpsi2D( nrowsNgNe2D, ncolsNgNe2D );
-  SetValue( Hpsi2D, 0.0 );
+  // guofeng
+  //DblNumMat Hpsi2D( CommMat.nrowsNgNe2D, CommMat.ncolsNgNe2D );
+  //SetValue( Hpsi2D, 0.0 );
+
+  
+  //printf("LLDNgNe2D = %d\n",CommMat.lldNgNe2D);
+  printf("descNgNe2D_Auto_Values = %d\n",descNgNe2D.Values());
+
+  scalapack::ScaLAPACKMatrix<Real>  Hpsi2D, HpsiCol;
+  Hpsi2D.SetDescriptor(descNgNe2D);
+  HpsiCol.SetDescriptor(descNgNe1DCol);
 
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
-      VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      VXi2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NgNu2D,
+      psiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
       &D_ZERO,
-      Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+      &Hpsi2D.LocalMatrix()[0], &I_ONE, &I_ONE, Hpsi2D.Desc().Values());
 
-  DblNumMat HpsiCol( ntot, numStateLocal );
-  SetValue(HpsiCol, 0.0 );
-
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+  //blNumMat HpsiCol( ntot, numStateLocal );
+  //SetValue(HpsiCol, 0.0 );
+  //Gemr2d(Hpsi2D, HpsiCol);
+  //auto desc_Hpsi2D = to_scalapacpp
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, Hpsi2D.Desc().Values(), 
+      &HpsiCol.LocalMatrix()[0], &I_ONE, &I_ONE, HpsiCol.Desc().Values(), &CommMat.contxt2 );
 
   lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
@@ -4328,26 +3714,32 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
   if(1){
 
-    DblNumMat VxMat2D( nrowsNeNe2D, ncolsNeNe2D );
-    DblNumMat VxMatTemp2D( nrowsNuNe2D, ncolsNuNe2D );
+    //DblNumMat VxMat2D( CommMat.nrowsNeNe2D, CommMat.ncolsNeNe2D );
+    //DblNumMat VxMatTemp2D( CommMat.nrowsNuNe2D, CommMat.ncolsNuNe2D );
+    //guofeng
+
+
+    scalapack::ScaLAPACKMatrix<Real> VxMatTemp2D, VxMat2D;
+    VxMatTemp2D.SetDescriptor(descNuNe2D);
+    VxMat2D.SetDescriptor(descNuNe2D);
 
     SCALAPACK(pdgemm)("N", "T", &Nu, &Ne, &Nu, 
         &D_ONE,
-        MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-        psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+        MMatMuNu2D.Data(), &I_ONE, &I_ONE, CommMat.desc_NuNu2D,
+        psiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
         &D_ZERO,
-        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D);
+        &VxMatTemp2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNuNe2D.Values());
 
     SCALAPACK(pdgemm)("N", "N", &Ne, &Ne, &Nu, 
         &D_ONE,
-        psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
-        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D, 
+        psiMu2D.Data(), &I_ONE, &I_ONE, descNeNu2D.Values(), 
+        VxMatTemp2D.Data(), &I_ONE, &I_ONE, descNuNe2D.Values(), 
         &D_ZERO,
-        VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D);
+        &VxMat2D.LocalMatrix()[0], &I_ONE, &I_ONE, descNeNe2D.Values());
 
-    SCALAPACK(pdgemr2d)(&Ne, &Ne, VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D, 
-        VxMat.Data(), &I_ONE, &I_ONE, desc_NeNe0D, &contxt2 );
-
+    SCALAPACK(pdgemr2d)(&Ne, &Ne, VxMat2D.Data(), &I_ONE, &I_ONE, VxMat2D.Desc().Values(), 
+        VxMat.Data(), &I_ONE, &I_ONE, descNeNe0D.Values(), &CommMat.contxt2 );
+    printf("new16\n");
     //if(mpirank == 0){
     //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_.comm );
     //}
@@ -4359,23 +3751,25 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-  if(contxt0 >= 0) {
-    Cblacs_gridexit( contxt0 );
+  if(CommMat.contxt0 >= 0) {
+    Cblacs_gridexit( CommMat.contxt0 );
   }
 
-  if(contxt1 >= 0) {
-    Cblacs_gridexit( contxt1 );
+  if(CommMat.contxt1 >= 0) {
+    Cblacs_gridexit( CommMat.contxt1 );
   }
 
-  if(contxt11 >= 0) {
-    Cblacs_gridexit( contxt11 );
+  if(CommMat.contxt11 >= 0) {
+    Cblacs_gridexit( CommMat.contxt11 );
   }
 
-  if(contxt2 >= 0) {
-    Cblacs_gridexit( contxt2 );
+  if(CommMat.contxt2 >= 0) {
+    Cblacs_gridexit( CommMat.contxt2 );
   }
 
   MPI_Barrier(domain_.comm);
+  // guofeng
+  printf("IN DF7\n");
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXXDF7  ----- 

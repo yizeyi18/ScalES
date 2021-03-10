@@ -283,6 +283,46 @@ public:
 
 };  // Spinor
 
+struct CommMatrix {
+  Int contxt0, contxt1, contxt11, contxt2;
+  Int nprow0, npcol0, myrow0, mycol0, info0;
+  Int nprow1, npcol1, myrow1, mycol1, info1;
+  Int nprow11, npcol11, myrow11, mycol11, info11;
+  Int nprow2, npcol2, myrow2, mycol2, info2;
+
+  //Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+  Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+  //Int ncolsNgNe2D, nrowsNgNe2D, lldNgNe2D; 
+  Int ncolsNgNu1D, nrowsNgNu1D, lldNgNu1D; 
+  Int ncolsNgNu2D, nrowsNgNu2D, lldNgNu2D; 
+  //Int ncolsNuNg2D, nrowsNuNg2D, lldNuNg2D; 
+  //Int ncolsNeNe0D, nrowsNeNe0D, lldNeNe0D; 
+  //Int ncolsNeNe2D, nrowsNeNe2D, lldNeNe2D; 
+  Int ncolsNuNu1D, nrowsNuNu1D, lldNuNu1D; 
+  Int ncolsNuNu2D, nrowsNuNu2D, lldNuNu2D; 
+  //Int ncolsNeNu1D, nrowsNeNu1D, lldNeNu1D; 
+  //Int ncolsNeNu2D, nrowsNeNu2D, lldNeNu2D; 
+  //Int ncolsNuNe2D, nrowsNuNe2D, lldNuNe2D;
+
+  //Int desc_NgNe1DCol[9];
+  Int desc_NgNe1DRow[9];
+  //Int desc_NgNe2D[9];
+  Int desc_NgNu1D[9];
+  Int desc_NgNu2D[9];
+  //Int desc_NuNg2D[9];
+  //Int desc_NeNe0D[9];
+  //Int desc_NeNe2D[9];
+  Int desc_NuNu1D[9];
+  Int desc_NuNu2D[9];
+  //Int desc_NeNu1D[9];
+  //Int desc_NeNu2D[9];
+  //Int desc_NuNe2D[9];
+
+  Int contxt1D, contxt2D;
+  Int nprow1D, npcol1D, myrow1D, mycol1D, info1D;
+  Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+};
+
 
 } // namespace scales
 
