@@ -2606,271 +2606,271 @@ ESDFReadInput ( const char* filename )
 
 
   // TDDFT
-  if( esdfParam.program == "tddft" ){
-    esdfParam.restartTDDFTStep   = esdf_integer( "Restart_TDDFT_Step", 0 );
-    esdfParam.TDDFTautoSaveSteps = esdf_integer( "TDDFT_AUTO_SAVE_STEP", 20);
-    esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
-    esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
-    esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
-    esdfParam.TDDFTVextPolx      = esdf_double( "TDDFT_VEXT_POLX", 1.0);
-    esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLY", 0.0);
-    esdfParam.TDDFTVextPolz      = esdf_double( "TDDFT_VEXT_POLZ", 0.0);
-    esdfParam.TDDFTVextFreq      = esdf_double( "TDDFT_VEXT_FREQ", 18.0/27.211385);
-    esdfParam.TDDFTVextPhase     = esdf_double( "TDDFT_VEXT_PHASE",0.0);
-    esdfParam.TDDFTVextAmp       = esdf_double( "TDDFT_VEXT_AMP",  0.0194);
-    esdfParam.TDDFTVextT0        = esdf_double( "TDDFT_VEXT_T0",   13.6056925);
-    esdfParam.TDDFTVextTau       = esdf_double( "TDDFT_VEXT_TAU",  13.6056925);
-
-    esdf_string("TDDFT_VEXT_ENV", "gaussian", strtmp); 
-    esdfParam.TDDFTVextEnv       = strtmp;
-    if(esdfParam.TDDFTVextEnv != "gaussian" &&
-        esdfParam.TDDFTVextEnv != "constant" &&
-        esdfParam.TDDFTVextEnv != "sinsq" &&
-        esdfParam.TDDFTVextEnv != "erf" &&
-        esdfParam.TDDFTVextEnv != "kick"){
-      ErrorHandling("Invalid VEXT Environment .");
-    }
-
-    esdf_string("TDDFT_Method", "PTTRAP", strtmp); 
-    esdfParam.TDDFTMethod        = strtmp;
-    if(esdfParam.TDDFTMethod != "PTTRAP" &&
-        esdfParam.TDDFTMethod != "RK4"   &&
-        esdfParam.TDDFTMethod != "PTTRAPDIIS" ) {
-      ErrorHandling("Invalid TDDFT method.");
-    }
-
-    esdfParam.TDDFTDeltaT            = esdf_double("TDDFT_DELTA_T",  1.0);
-    esdfParam.TDDFTTotalT            = esdf_double("TDDFT_TOTAL_T",  40.0);
-    esdfParam.TDDFTKrylovMax         = esdf_integer("TDDFT_KRYLOV_MAX", 30);
-    esdfParam.TDDFTKrylovTol         = esdf_double("TDDFT_KRYLOV_TOL",  1.0E-7);
-    esdfParam.TDDFTPhiTol            = esdf_double("TDDFT_PHI_TOL",  1.0E-7);
-    esdfParam.TDDFTDiisTol           = esdf_double("TDDFT_DIIS_TOL",  1.0E-5);
-    esdfParam.TDDFTPhiMaxIter        = esdf_integer("TDDFT_PHI_MAXITER", 20);
-    esdfParam.TDDFTDiisMaxIter       = esdf_integer("TDDFT_DIIS_MAXITER", 50);
-  }
+//  if( esdfParam.program == "tddft" ){
+//    esdfParam.restartTDDFTStep   = esdf_integer( "Restart_TDDFT_Step", 0 );
+//    esdfParam.TDDFTautoSaveSteps = esdf_integer( "TDDFT_AUTO_SAVE_STEP", 20);
+//    esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
+//    esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
+//    esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
+//    esdfParam.TDDFTVextPolx      = esdf_double( "TDDFT_VEXT_POLX", 1.0);
+//    esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLY", 0.0);
+//    esdfParam.TDDFTVextPolz      = esdf_double( "TDDFT_VEXT_POLZ", 0.0);
+//    esdfParam.TDDFTVextFreq      = esdf_double( "TDDFT_VEXT_FREQ", 18.0/27.211385);
+//    esdfParam.TDDFTVextPhase     = esdf_double( "TDDFT_VEXT_PHASE",0.0);
+//    esdfParam.TDDFTVextAmp       = esdf_double( "TDDFT_VEXT_AMP",  0.0194);
+//    esdfParam.TDDFTVextT0        = esdf_double( "TDDFT_VEXT_T0",   13.6056925);
+//    esdfParam.TDDFTVextTau       = esdf_double( "TDDFT_VEXT_TAU",  13.6056925);
+//
+//    esdf_string("TDDFT_VEXT_ENV", "gaussian", strtmp); 
+//    esdfParam.TDDFTVextEnv       = strtmp;
+//    if(esdfParam.TDDFTVextEnv != "gaussian" &&
+//        esdfParam.TDDFTVextEnv != "constant" &&
+//        esdfParam.TDDFTVextEnv != "sinsq" &&
+//        esdfParam.TDDFTVextEnv != "erf" &&
+//        esdfParam.TDDFTVextEnv != "kick"){
+//      ErrorHandling("Invalid VEXT Environment .");
+//    }
+//
+//    esdf_string("TDDFT_Method", "PTTRAP", strtmp); 
+//    esdfParam.TDDFTMethod        = strtmp;
+//    if(esdfParam.TDDFTMethod != "PTTRAP" &&
+//        esdfParam.TDDFTMethod != "RK4"   &&
+//        esdfParam.TDDFTMethod != "PTTRAPDIIS" ) {
+//      ErrorHandling("Invalid TDDFT method.");
+//    }
+//
+//    esdfParam.TDDFTDeltaT            = esdf_double("TDDFT_DELTA_T",  1.0);
+//    esdfParam.TDDFTTotalT            = esdf_double("TDDFT_TOTAL_T",  40.0);
+//    esdfParam.TDDFTKrylovMax         = esdf_integer("TDDFT_KRYLOV_MAX", 30);
+//    esdfParam.TDDFTKrylovTol         = esdf_double("TDDFT_KRYLOV_TOL",  1.0E-7);
+//    esdfParam.TDDFTPhiTol            = esdf_double("TDDFT_PHI_TOL",  1.0E-7);
+//    esdfParam.TDDFTDiisTol           = esdf_double("TDDFT_DIIS_TOL",  1.0E-5);
+//    esdfParam.TDDFTPhiMaxIter        = esdf_integer("TDDFT_PHI_MAXITER", 20);
+//    esdfParam.TDDFTDiisMaxIter       = esdf_integer("TDDFT_DIIS_MAXITER", 50);
+//  }
 
 
   // DG
 
-  if( esdfParam.program == "scales" ){
-    Index3& numElem = esdfParam.numElem;
-    if (esdf_block("Element_Size",&nlines)) {
-      sscanf(block_data[0],"%d %d %d", 
-          &numElem[0],&numElem[1],&numElem[2]);
-    }
-    else{
-      ErrorHandling("Element_Size must be defined.");
-    }
-
-
-    // ScalES specific parameters for controlling convergence
-    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
-    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
-    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
-    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-
-    // Instead of grid size, use ecut to determine the number of grid
-    // points in the local LGL domain.
-    // The LGL grid factor does not need to be an integer.
-    esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
-
-
-    esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
-
-    esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
-
-    esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
-
-
-
-    // ScalES requires the number of grids to be readjusted, so that the
-    // wavefunction grid and the density grid sizes are a multiple of
-    // the number of elements along each dimension.
-    //
-    {
-      Domain&  dm       = esdfParam.domain;
-      Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
-      Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
-      Index3&  numGridLGL = esdfParam.numGridLGL;
-      Index3   numElem = esdfParam.numElem;
-
-      Point3  elemLength;
-
-
-      for( Int d = 0; d < DIM; d++ ){
-        elemLength[d] = dm.length[d] / numElem[d];
-        // the number of grid is assumed to be at least an even number
-
-        numGridWavefunctionElem[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
-              elemLength[d] / PI));
-
-        numGridDensityElem[d] = AdjustNumGrid(std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor));
-
-        dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
-        dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
-
-        numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
-      } // for (d)
-    }
-
-    // Get the number of basis functions per element
-    // NOTE: ALB_Num_Element overwrites the parameter numALB later        
-    {
-      esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
-
-      Int sizeALBElem;
-
-      Int numALB        = esdf_integer( "ALB_Num", 4 );
-
-      if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
-        // Use different number of ALB functions for each element.
-        if( sizeALBElem != numElem.prod() ){
-          ErrorHandling(
-              "The size of the number of ALB does not match the number of elements.");
-        }
-        for( Int k = 0; k < numElem[2]; k++ )
-          for( Int j = 0; j < numElem[1]; j++ )
-            for( Int i = 0; i < numElem[0]; i++ ){
-              sscanf( block_data[i+j*numElem[0]+k*numElem[0]*numElem[1]],
-                  "%d", &esdfParam.numALBElem(i,j,k) );
-            }
-      }
-      else{
-        // Use the same number of ALB functions for each element.
-        for( Int k = 0; k < numElem[2]; k++ )
-          for( Int j = 0; j < numElem[1]; j++ )
-            for( Int i = 0; i < numElem[0]; i++ ){
-              esdfParam.numALBElem(i,j,k) = numALB;
-            }
-      }
-    }
-
-
-    // Modification of the potential in the extended element
-    {
-
-      // FIXME The potential barrier is now obsolete.
-      esdfParam.isPotentialBarrier   = esdf_integer( "Potential_Barrier",  0 );
-      esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
-      esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
-      esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
-
-      // Periodization of the external potential
-      esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 0 );
-
-      esdfParam.distancePeriodize[0] = 0.0;
-      esdfParam.distancePeriodize[1] = 0.0;
-      esdfParam.distancePeriodize[2] = 0.0;
-
-      if( esdfParam.isPeriodizePotential ){
-        if( esdf_block("Distance_Periodize", &nlines) ){
-          sscanf(block_data[0],"%lf %lf %lf",
-              &esdfParam.distancePeriodize[0],
-              &esdfParam.distancePeriodize[1],
-              &esdfParam.distancePeriodize[2]);
-        }
-        else{
-          // Default value for DistancePeriodize
-          for( Int d = 0; d < DIM; d++ ){
-            if( esdfParam.numElem[d] == 1 ){
-              esdfParam.distancePeriodize[d] = 0.0;
-            }
-            else{
-              esdfParam.distancePeriodize[d] = 
-                esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
-            }
-          }
-        }
-      }
-    } // Modify the potential
-
-    esdf_string("Solution_Method", "diag", strtmp); 
-    esdfParam.solutionMethod  = strtmp;
-    if( esdfParam.solutionMethod != "diag" &&
-        esdfParam.solutionMethod != "pexsi" ){
-      ErrorHandling("Invalid solution method for the projected problem.");
-    }
-    if( esdfParam.solutionMethod == "pexsi" ){
-#ifndef _USE_PEXSI_
-      ErrorHandling("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
-#endif
-    }
-
-    esdf_string("Diag_Solution_Method", "scalapack", strtmp); 
-    esdfParam.diagSolutionMethod  = strtmp;
-    if( esdfParam.diagSolutionMethod != "elpa" &&
-        esdfParam.diagSolutionMethod != "scalapack" ){
-      ErrorHandling("Invalid Diag solution method for the projected problem.");
-    }
-
-    // FFT
-    // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
-
-
-    // PEXSI parameters
-    esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
-    esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
-    esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
-    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
-        std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
-    esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
-    esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
-    esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
-    esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
-    esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
-    esdfParam.numElectronPEXSITolerance =
-      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-3 );
-    esdfParam.muInertiaTolerance =
-      esdf_double( "Mu_Inertia_Tolerance", 0.05 );
-    esdfParam.muInertiaExpansion =
-      esdf_double( "Mu_Inertia_Expansion", 0.3 );
-    esdfParam.muPEXSISafeGuard =
-      esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
-    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
-    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
-    esdfParam.pexsiMethod       = esdf_integer( "PEXSI_Method", 2);
-    esdfParam.pexsiNpoint       = esdf_integer( "PEXSI_Npoint", 2);
-
-    // Split MPI communicators into row and column communicators
-
-    Domain& dm = esdfParam.domain;
-
-    int dmCol = numElem[0] * numElem[1] * numElem[2];
-    int dmRow = mpisize / dmCol;
-
-    if(mpisize == 1){
-      dmCol = 1;
-      dmRow = 1;
-    }
-
-    if( (mpisize % dmCol) != 0 ){
-      std::ostringstream msg;
-      msg
-        << "(mpisize % dmCol) != 0" << std::endl;
-      ErrorHandling( msg.str().c_str() );
-    }
-
-    dm.comm    = MPI_COMM_WORLD;
-    MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
-    MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
-
-    MPI_Barrier(dm.rowComm);
-    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
-    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
-
-    MPI_Barrier(dm.colComm);
-    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
-    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
-
-    // FFT
-    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
-
-    // ScaLAPACK parameter
-    esdfParam.numProcScaLAPACK    = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
-    if( esdfParam.numProcScaLAPACKPW > mpisizeRow )
-      esdfParam.numProcScaLAPACKPW = mpisizeRow;
-  } // DG
+//  if( esdfParam.program == "dgdft" ){
+//    Index3& numElem = esdfParam.numElem;
+//    if (esdf_block("Element_Size",&nlines)) {
+//      sscanf(block_data[0],"%d %d %d", 
+//          &numElem[0],&numElem[1],&numElem[2]);
+//    }
+//    else{
+//      ErrorHandling("Element_Size must be defined.");
+//    }
+//
+//
+//    // ScalES specific parameters for controlling convergence
+//    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+//    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
+//    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+//    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+//    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
+//
+//    // Instead of grid size, use ecut to determine the number of grid
+//    // points in the local LGL domain.
+//    // The LGL grid factor does not need to be an integer.
+//    esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
+//
+//
+//    esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
+//
+//    esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
+//
+//    esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
+//
+//
+//
+//    // ScalES requires the number of grids to be readjusted, so that the
+//    // wavefunction grid and the density grid sizes are a multiple of
+//    // the number of elements along each dimension.
+//    //
+//    {
+//      Domain&  dm       = esdfParam.domain;
+//      Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
+//      Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
+//      Index3&  numGridLGL = esdfParam.numGridLGL;
+//      Index3   numElem = esdfParam.numElem;
+//
+//      Point3  elemLength;
+//
+//
+//      for( Int d = 0; d < DIM; d++ ){
+//        elemLength[d] = dm.length[d] / numElem[d];
+//        // the number of grid is assumed to be at least an even number
+//
+//        numGridWavefunctionElem[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+//              elemLength[d] / PI));
+//
+//        numGridDensityElem[d] = AdjustNumGrid(std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor));
+//
+//        dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
+//        dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
+//
+//        numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
+//      } // for (d)
+//    }
+//
+//    // Get the number of basis functions per element
+//    // NOTE: ALB_Num_Element overwrites the parameter numALB later        
+//    {
+//      esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
+//
+//      Int sizeALBElem;
+//
+//      Int numALB        = esdf_integer( "ALB_Num", 4 );
+//
+//      if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
+//        // Use different number of ALB functions for each element.
+//        if( sizeALBElem != numElem.prod() ){
+//          ErrorHandling(
+//              "The size of the number of ALB does not match the number of elements.");
+//        }
+//        for( Int k = 0; k < numElem[2]; k++ )
+//          for( Int j = 0; j < numElem[1]; j++ )
+//            for( Int i = 0; i < numElem[0]; i++ ){
+//              sscanf( block_data[i+j*numElem[0]+k*numElem[0]*numElem[1]],
+//                  "%d", &esdfParam.numALBElem(i,j,k) );
+//            }
+//      }
+//      else{
+//        // Use the same number of ALB functions for each element.
+//        for( Int k = 0; k < numElem[2]; k++ )
+//          for( Int j = 0; j < numElem[1]; j++ )
+//            for( Int i = 0; i < numElem[0]; i++ ){
+//              esdfParam.numALBElem(i,j,k) = numALB;
+//            }
+//      }
+//    }
+//
+//
+//    // Modification of the potential in the extended element
+//    {
+//
+//      // FIXME The potential barrier is now obsolete.
+//      esdfParam.isPotentialBarrier   = esdf_integer( "Potential_Barrier",  0 );
+//      esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
+//      esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
+//      esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+//
+//      // Periodization of the external potential
+//      esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 0 );
+//
+//      esdfParam.distancePeriodize[0] = 0.0;
+//      esdfParam.distancePeriodize[1] = 0.0;
+//      esdfParam.distancePeriodize[2] = 0.0;
+//
+//      if( esdfParam.isPeriodizePotential ){
+//        if( esdf_block("Distance_Periodize", &nlines) ){
+//          sscanf(block_data[0],"%lf %lf %lf",
+//              &esdfParam.distancePeriodize[0],
+//              &esdfParam.distancePeriodize[1],
+//              &esdfParam.distancePeriodize[2]);
+//        }
+//        else{
+//          // Default value for DistancePeriodize
+//          for( Int d = 0; d < DIM; d++ ){
+//            if( esdfParam.numElem[d] == 1 ){
+//              esdfParam.distancePeriodize[d] = 0.0;
+//            }
+//            else{
+//              esdfParam.distancePeriodize[d] = 
+//                esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+//            }
+//          }
+//        }
+//      }
+//    } // Modify the potential
+//
+//    esdf_string("Solution_Method", "diag", strtmp); 
+//    esdfParam.solutionMethod  = strtmp;
+//    if( esdfParam.solutionMethod != "diag" &&
+//        esdfParam.solutionMethod != "pexsi" ){
+//      ErrorHandling("Invalid solution method for the projected problem.");
+//    }
+//    if( esdfParam.solutionMethod == "pexsi" ){
+//#ifndef _USE_PEXSI_
+//      ErrorHandling("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
+//#endif
+//    }
+//
+//    esdf_string("Diag_Solution_Method", "scalapack", strtmp); 
+//    esdfParam.diagSolutionMethod  = strtmp;
+//    if( esdfParam.diagSolutionMethod != "elpa" &&
+//        esdfParam.diagSolutionMethod != "scalapack" ){
+//      ErrorHandling("Invalid Diag solution method for the projected problem.");
+//    }
+//
+//    // FFT
+//    // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
+//
+//
+//    // PEXSI parameters
+//    esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
+//    esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
+//    esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
+//    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
+//        std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
+//    esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
+//    esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
+//    esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
+//    esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
+//    esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
+//    esdfParam.numElectronPEXSITolerance =
+//      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-3 );
+//    esdfParam.muInertiaTolerance =
+//      esdf_double( "Mu_Inertia_Tolerance", 0.05 );
+//    esdfParam.muInertiaExpansion =
+//      esdf_double( "Mu_Inertia_Expansion", 0.3 );
+//    esdfParam.muPEXSISafeGuard =
+//      esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
+//    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
+//    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+//    esdfParam.pexsiMethod       = esdf_integer( "PEXSI_Method", 2);
+//    esdfParam.pexsiNpoint       = esdf_integer( "PEXSI_Npoint", 2);
+//
+//    // Split MPI communicators into row and column communicators
+//
+//    Domain& dm = esdfParam.domain;
+//
+//    int dmCol = numElem[0] * numElem[1] * numElem[2];
+//    int dmRow = mpisize / dmCol;
+//
+//    if(mpisize == 1){
+//      dmCol = 1;
+//      dmRow = 1;
+//    }
+//
+//    if( (mpisize % dmCol) != 0 ){
+//      std::ostringstream msg;
+//      msg
+//        << "(mpisize % dmCol) != 0" << std::endl;
+//      ErrorHandling( msg.str().c_str() );
+//    }
+//
+//    dm.comm    = MPI_COMM_WORLD;
+//    MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
+//    MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
+//
+//    MPI_Barrier(dm.rowComm);
+//    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+//    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+//
+//    MPI_Barrier(dm.colComm);
+//    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+//    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+//
+//    // FFT
+//    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
+//
+//    // ScaLAPACK parameter
+//    esdfParam.numProcScaLAPACK    = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
+//    if( esdfParam.numProcScaLAPACKPW > mpisizeRow )
+//      esdfParam.numProcScaLAPACKPW = mpisizeRow;
+//  } // DG
 
 
 
@@ -3088,127 +3088,127 @@ void ESDFPrintInput( ){
   } // PW
 
 
-  if(esdfParam.program == "tddft") {
-    PrintBlock(statusOFS, "TDDFT information");
-    Print(statusOFS, "TDDFT Method                         = ",  esdfParam.TDDFTMethod   );
-    Print(statusOFS, "TDDFT Ehrenfest dynamics             = ",  esdfParam.isTDDFTEhrenfest);
-    Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
-    Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
-    Print(statusOFS, "TDDFT Restart Step                   = ",  esdfParam.restartTDDFTStep);
-    Print(statusOFS, "TDDFT auto save for Restart          = ",  esdfParam.TDDFTautoSaveSteps);
-    Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
-    Print(statusOFS, "TDDFT KRYLOV Tolerance               = ",  esdfParam.TDDFTKrylovTol);
-    Print(statusOFS, "TDDFT V external                     = ",  esdfParam.isTDDFTVext   );
-    Print(statusOFS, "TDDFT Calculate Dipole               = ",  esdfParam.isTDDFTDipole );
-    Print(statusOFS, "TDDFT Environment                    = ",  esdfParam.TDDFTVextEnv  );
-    Print(statusOFS, "TDDFT Polarization X                 = ",  esdfParam.TDDFTVextPolx );
-    Print(statusOFS, "TDDFT Polarization Y                 = ",  esdfParam.TDDFTVextPoly );
-    Print(statusOFS, "TDDFT Polarization Z                 = ",  esdfParam.TDDFTVextPolz );
-    Print(statusOFS, "TDDFT V external Frequencey          = ",  esdfParam.TDDFTVextFreq );
-    Print(statusOFS, "TDDFT V external Phase               = ",  esdfParam.TDDFTVextPhase);
-    Print(statusOFS, "TDDFT V external Amplitude           = ",  esdfParam.TDDFTVextAmp  );
-    Print(statusOFS, "TDDFT V external T0                  = ",  esdfParam.TDDFTVextT0   );
-    Print(statusOFS, "TDDFT V external Tau                 = ",  esdfParam.TDDFTVextTau  );
-    Print(statusOFS, "TDDFT DIIS Tolerance                 = ",  esdfParam.TDDFTDiisTol  );
-    Print(statusOFS, "TDDFT Phi Tolerance                  = ",  esdfParam.TDDFTPhiTol   );
-    Print(statusOFS, "TDDFT DIIS MaxIter                   = ",  esdfParam.TDDFTDiisMaxIter);
-    Print(statusOFS, "TDDFT Phi MaxIter                    = ",  esdfParam.TDDFTPhiMaxIter);
-  }
+//  if(esdfParam.program == "tddft") {
+//    PrintBlock(statusOFS, "TDDFT information");
+//    Print(statusOFS, "TDDFT Method                         = ",  esdfParam.TDDFTMethod   );
+//    Print(statusOFS, "TDDFT Ehrenfest dynamics             = ",  esdfParam.isTDDFTEhrenfest);
+//    Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
+//    Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
+//    Print(statusOFS, "TDDFT Restart Step                   = ",  esdfParam.restartTDDFTStep);
+//    Print(statusOFS, "TDDFT auto save for Restart          = ",  esdfParam.TDDFTautoSaveSteps);
+//    Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
+//    Print(statusOFS, "TDDFT KRYLOV Tolerance               = ",  esdfParam.TDDFTKrylovTol);
+//    Print(statusOFS, "TDDFT V external                     = ",  esdfParam.isTDDFTVext   );
+//    Print(statusOFS, "TDDFT Calculate Dipole               = ",  esdfParam.isTDDFTDipole );
+//    Print(statusOFS, "TDDFT Environment                    = ",  esdfParam.TDDFTVextEnv  );
+//    Print(statusOFS, "TDDFT Polarization X                 = ",  esdfParam.TDDFTVextPolx );
+//    Print(statusOFS, "TDDFT Polarization Y                 = ",  esdfParam.TDDFTVextPoly );
+//    Print(statusOFS, "TDDFT Polarization Z                 = ",  esdfParam.TDDFTVextPolz );
+//    Print(statusOFS, "TDDFT V external Frequencey          = ",  esdfParam.TDDFTVextFreq );
+//    Print(statusOFS, "TDDFT V external Phase               = ",  esdfParam.TDDFTVextPhase);
+//    Print(statusOFS, "TDDFT V external Amplitude           = ",  esdfParam.TDDFTVextAmp  );
+//    Print(statusOFS, "TDDFT V external T0                  = ",  esdfParam.TDDFTVextT0   );
+//    Print(statusOFS, "TDDFT V external Tau                 = ",  esdfParam.TDDFTVextTau  );
+//    Print(statusOFS, "TDDFT DIIS Tolerance                 = ",  esdfParam.TDDFTDiisTol  );
+//    Print(statusOFS, "TDDFT Phi Tolerance                  = ",  esdfParam.TDDFTPhiTol   );
+//    Print(statusOFS, "TDDFT DIIS MaxIter                   = ",  esdfParam.TDDFTDiisMaxIter);
+//    Print(statusOFS, "TDDFT Phi MaxIter                    = ",  esdfParam.TDDFTPhiMaxIter);
+//  }
 
-  if( esdfParam.program == "scales" ){
-    PrintBlock(statusOFS, "ScalES information");
-    Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
-    Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
-    Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
-    Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
-    
-    Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
-   
-    Print(statusOFS, "SCF Outer Tol                        = ",  esdfParam.scfOuterTolerance);
-    Print(statusOFS, "SCF Outer MaxIter                    = ",  esdfParam.scfOuterMaxIter);
-    Print(statusOFS, "SCF Free Energy Per Atom Tol         = ",  esdfParam.scfOuterEnergyTolerance);
-    Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
-    Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
-    Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
-    Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
-
-    
-    // FIXME Potentially obsolete potential barriers
-    Print(statusOFS, "Penalty Alpha                        = ",  esdfParam.penaltyAlpha );
-    Print(statusOFS, "Element size                         = ",  esdfParam.numElem ); 
-    Print(statusOFS, "Wfn Elem GridSize                    = ",  esdfParam.numGridWavefunctionElem );
-    Print(statusOFS, "Rho Elem GridSize                    = ",  esdfParam.numGridDensityElem ); 
-    Print(statusOFS, "LGL Grid size                        = ",  esdfParam.numGridLGL ); 
-    Print(statusOFS, "LGL GridFactor                       = ",  esdfParam.LGLGridFactor);
-
-    Print(statusOFS, "SVD Basis Tol                        = ",  esdfParam.SVDBasisTolerance);
-    Print(statusOFS, "SCF Inner Tol                        = ",  esdfParam.scfInnerTolerance);
-    Print(statusOFS, "SCF Inner MaxIter                    = ",  esdfParam.scfInnerMaxIter);
-    Print(statusOFS, "Num unused state                     = ",  esdfParam.numUnusedState);
-
-    statusOFS << "Number of ALB for each element: " << std::endl 
-      << esdfParam.numALBElem << std::endl;
-    Print(statusOFS, "Number of procs for DistFFT          = ",  esdfParam.numProcDistFFT ); 
-
-    Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
-    if( esdfParam.solutionMethod == "diag" ){
-      Print(statusOFS, "Number of procs for ScaLAPACK        = ",  esdfParam.numProcScaLAPACK); 
-      Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
-      Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
-    }
-    if( esdfParam.solutionMethod == "pexsi" ){
-      Print(statusOFS, "");
-      Print(statusOFS, "Number of poles                    = ",  esdfParam.numPole); 
-      Print(statusOFS, "Nproc row PEXSI                    = ",  esdfParam.numProcRowPEXSI); 
-      Print(statusOFS, "Nproc col PEXSI                    = ",  esdfParam.numProcColPEXSI); 
-      Print(statusOFS, "Nproc for symbfact                 = ",  esdfParam.npSymbFact); 
-      Print(statusOFS, "Energy gap                         = ",  esdfParam.energyGap); 
-      Print(statusOFS, "Spectral radius                    = ",  esdfParam.spectralRadius); 
-      Print(statusOFS, "Matrix ordering                    = ",  esdfParam.matrixOrdering); 
-      Print(statusOFS, "Inertia before SCF                 = ",  esdfParam.inertiaCountSteps);
-      Print(statusOFS, "MuMin0                             = ",  esdfParam.muMin); 
-      Print(statusOFS, "MuMax0                             = ",  esdfParam.muMax); 
-      Print(statusOFS, "NumElectron tol                    = ",  esdfParam.numElectronPEXSITolerance); 
-      Print(statusOFS, "mu Inertia tol                     = ",  esdfParam.muInertiaTolerance); 
-      Print(statusOFS, "mu Inertia expand                  = ",  esdfParam.muInertiaExpansion); 
-      Print(statusOFS, "Max PEXSI iter (deprecated)        = ",  esdfParam.maxPEXSIIter); 
-      Print(statusOFS, "mu PEXSI safeguard (deprecated)    = ",  esdfParam.muPEXSISafeGuard); 
-    }
-    // TODO Chebyshev
-
-    Print(statusOFS, "OutputALBElemLGL                   = ",  esdfParam.isOutputALBElemLGL);
-    Print(statusOFS, "OutputALBElemUniform               = ",  esdfParam.isOutputALBElemUniform);
-    Print(statusOFS, "OutputWfnExtElem                   = ",  esdfParam.isOutputWfnExtElem);
-    Print(statusOFS, "OutputPotExtElem                   = ",  esdfParam.isOutputPotExtElem);
-    Print(statusOFS, "OutputHMatrix                      = ",  esdfParam.isOutputHMatrix );
-
-
-    Print(statusOFS, "Force each step (deprecated)       = ",  
-        esdfParam.isCalculateForceEachSCF );
-
-    // FIXME A posteriori
-    Print(statusOFS, "A Posteriori error each step       = ",  
-        esdfParam.isCalculateAPosterioriEachSCF);
-
-
-    if( esdfParam.isPeriodizePotential ){
-      Print(statusOFS, "PeriodizePotential                 = ",  esdfParam.isPeriodizePotential);
-      Print(statusOFS, "DistancePeriodize                  = ",  esdfParam.distancePeriodize);
-    }
-
-    if( esdfParam.isPotentialBarrier ){
-      Print(statusOFS, "Potential Barrier = ",  esdfParam.isPotentialBarrier);
-      Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
-      Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
-      Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
-    }
-    
-    // DG specific information on ion Move
-    
-    Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
-    Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
-    Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
-  } // DG
+//  if( esdfParam.program == "dgdft" ){
+//    PrintBlock(statusOFS, "ScalES information");
+//    Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
+//    Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
+//    Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
+//    Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
+//    
+//    Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
+//   
+//    Print(statusOFS, "SCF Outer Tol                        = ",  esdfParam.scfOuterTolerance);
+//    Print(statusOFS, "SCF Outer MaxIter                    = ",  esdfParam.scfOuterMaxIter);
+//    Print(statusOFS, "SCF Free Energy Per Atom Tol         = ",  esdfParam.scfOuterEnergyTolerance);
+//    Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
+//    Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
+//    Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
+//    Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
+//
+//    
+//    // FIXME Potentially obsolete potential barriers
+//    Print(statusOFS, "Penalty Alpha                        = ",  esdfParam.penaltyAlpha );
+//    Print(statusOFS, "Element size                         = ",  esdfParam.numElem ); 
+//    Print(statusOFS, "Wfn Elem GridSize                    = ",  esdfParam.numGridWavefunctionElem );
+//    Print(statusOFS, "Rho Elem GridSize                    = ",  esdfParam.numGridDensityElem ); 
+//    Print(statusOFS, "LGL Grid size                        = ",  esdfParam.numGridLGL ); 
+//    Print(statusOFS, "LGL GridFactor                       = ",  esdfParam.LGLGridFactor);
+//
+//    Print(statusOFS, "SVD Basis Tol                        = ",  esdfParam.SVDBasisTolerance);
+//    Print(statusOFS, "SCF Inner Tol                        = ",  esdfParam.scfInnerTolerance);
+//    Print(statusOFS, "SCF Inner MaxIter                    = ",  esdfParam.scfInnerMaxIter);
+//    Print(statusOFS, "Num unused state                     = ",  esdfParam.numUnusedState);
+//
+//    statusOFS << "Number of ALB for each element: " << std::endl 
+//      << esdfParam.numALBElem << std::endl;
+//    Print(statusOFS, "Number of procs for DistFFT          = ",  esdfParam.numProcDistFFT ); 
+//
+//    Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
+//    if( esdfParam.solutionMethod == "diag" ){
+//      Print(statusOFS, "Number of procs for ScaLAPACK        = ",  esdfParam.numProcScaLAPACK); 
+//      Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
+//      Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
+//    }
+//    if( esdfParam.solutionMethod == "pexsi" ){
+//      Print(statusOFS, "");
+//      Print(statusOFS, "Number of poles                    = ",  esdfParam.numPole); 
+//      Print(statusOFS, "Nproc row PEXSI                    = ",  esdfParam.numProcRowPEXSI); 
+//      Print(statusOFS, "Nproc col PEXSI                    = ",  esdfParam.numProcColPEXSI); 
+//      Print(statusOFS, "Nproc for symbfact                 = ",  esdfParam.npSymbFact); 
+//      Print(statusOFS, "Energy gap                         = ",  esdfParam.energyGap); 
+//      Print(statusOFS, "Spectral radius                    = ",  esdfParam.spectralRadius); 
+//      Print(statusOFS, "Matrix ordering                    = ",  esdfParam.matrixOrdering); 
+//      Print(statusOFS, "Inertia before SCF                 = ",  esdfParam.inertiaCountSteps);
+//      Print(statusOFS, "MuMin0                             = ",  esdfParam.muMin); 
+//      Print(statusOFS, "MuMax0                             = ",  esdfParam.muMax); 
+//      Print(statusOFS, "NumElectron tol                    = ",  esdfParam.numElectronPEXSITolerance); 
+//      Print(statusOFS, "mu Inertia tol                     = ",  esdfParam.muInertiaTolerance); 
+//      Print(statusOFS, "mu Inertia expand                  = ",  esdfParam.muInertiaExpansion); 
+//      Print(statusOFS, "Max PEXSI iter (deprecated)        = ",  esdfParam.maxPEXSIIter); 
+//      Print(statusOFS, "mu PEXSI safeguard (deprecated)    = ",  esdfParam.muPEXSISafeGuard); 
+//    }
+//    // TODO Chebyshev
+//
+//    Print(statusOFS, "OutputALBElemLGL                   = ",  esdfParam.isOutputALBElemLGL);
+//    Print(statusOFS, "OutputALBElemUniform               = ",  esdfParam.isOutputALBElemUniform);
+//    Print(statusOFS, "OutputWfnExtElem                   = ",  esdfParam.isOutputWfnExtElem);
+//    Print(statusOFS, "OutputPotExtElem                   = ",  esdfParam.isOutputPotExtElem);
+//    Print(statusOFS, "OutputHMatrix                      = ",  esdfParam.isOutputHMatrix );
+//
+//
+//    Print(statusOFS, "Force each step (deprecated)       = ",  
+//        esdfParam.isCalculateForceEachSCF );
+//
+//    // FIXME A posteriori
+//    Print(statusOFS, "A Posteriori error each step       = ",  
+//        esdfParam.isCalculateAPosterioriEachSCF);
+//
+//
+//    if( esdfParam.isPeriodizePotential ){
+//      Print(statusOFS, "PeriodizePotential                 = ",  esdfParam.isPeriodizePotential);
+//      Print(statusOFS, "DistancePeriodize                  = ",  esdfParam.distancePeriodize);
+//    }
+//
+//    if( esdfParam.isPotentialBarrier ){
+//      Print(statusOFS, "Potential Barrier = ",  esdfParam.isPotentialBarrier);
+//      Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+//      Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+//      Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+//    }
+//    
+//    // DG specific information on ion Move
+//    
+//    Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
+//    Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
+//    Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
+//  } // DG
   
   // Ion move: geometry optimization or molecular dynamics
   if( esdfParam.isGeoOpt_ ){

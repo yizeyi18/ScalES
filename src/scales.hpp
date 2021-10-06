@@ -35,11 +35,11 @@
 #include  "esdf.hpp"
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
-#include  "hamiltonian_dg.hpp"
+//#include  "hamiltonian_dg.hpp"
 #include  "scf.hpp"
 #include  "scf_dg.hpp"
 #include  "iondynamics.hpp"
-#include  "tddft.hpp"
+//#include  "tddft.hpp"
 
 
 #endif // _ScalES_HPP_
