@@ -1,7 +1,7 @@
 Input parameters for ScalES
 ---------------------------
 
-.. list-table:: All parameters for ScalES
+.. list-table:: All parameters for DGDFT
    :widths: 15 10 20 40
    :header-rows: 1
 

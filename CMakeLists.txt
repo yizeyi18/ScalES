@@ -10,7 +10,7 @@ cmake_minimum_required( VERSION 3.17 ) # Require CMake 3.17+
 
 # Set up project definition + version information
 # TODO: Get version number
-project( ScalES VERSION 0.0.0 LANGUAGES CXX C Fortran )
+project( ScalES VERSION 1.0 LANGUAGES CXX C Fortran )
 
 
 # General ScalES Options

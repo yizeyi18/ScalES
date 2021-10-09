@@ -51,7 +51,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'ScalES'
-copyright = u'2020 Lawrence Berkeley National Laboratory'
+copyright = u'2021 Lawrence Berkeley National Laboratory'
 author = u'ScalES developers'
 author_latex=u'ScalES developers'
 

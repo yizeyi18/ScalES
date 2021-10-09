@@ -8,9 +8,3 @@ Wlcome to ScalES's documentation!
    
    introduction
    install
-   tutorial
-   inputpwdft
-   inputdgdft
-   FAQ
-   refactor2020
-
