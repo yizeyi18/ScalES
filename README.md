@@ -7,10 +7,15 @@ Installation
 ScalES is written mostly in the C++ programming language with message passing interface (MPI), so you need to install MPI for parallel calculations. ScalES relies on some external numerical libraries (BLAS, LibXC, FFTW, LAPACK, BLACS, ScaLAPACK).
 
 Requirements:
+
 LibXC 5.x https://www.tddft.org/programs/libxc
+
 FFTW 3.3.8 or later https://www.fftw.org/
+
 blaspp https://bitbucket.org/icl/blaspp/src/master/
+
 lapackpp https://bitbucket.org/icl/lapackpp/src/master/
+
 
 ScalES can be installed using cmake (recommended) or the traditional make system.
 
