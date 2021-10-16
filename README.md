@@ -10,7 +10,7 @@ Requirements:
 
 LibXC 5.x https://www.tddft.org/programs/libxc
 
-FFTW 3.3.8 or later https://www.fftw.org/
+FFTW 3.3.8 (or later) https://www.fftw.org/
 
 blaspp https://bitbucket.org/icl/blaspp/src/master/
 
