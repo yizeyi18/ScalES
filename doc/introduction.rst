@@ -75,7 +75,7 @@ power and/or laziness).
 ScalES version history
 ======================
 
-- v1.0 (10/1/2021)
+- v1.0 (10/15/2021)
 
   - First public release of ScalES project.
   - The publicly release version of ScalES include only the ``pwdft`` module. 
