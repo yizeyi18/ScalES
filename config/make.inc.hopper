@@ -1,24 +1,24 @@
 #/usr/bin/bash
 
-ScalES_DIR     = /global/u1/l/linlin/project/scales
+DGDFT_DIR     = /global/u1/l/linlin/project/dgdft
 
 SCALAR = REAL 
 #SCALAR = COMPLEX
 
 # inclues
-BLOPEX_INCLUDE   = -I${ScalES_DIR}/external/blopex
+BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
 FFTW_INCLUDE     = -I/opt/fftw/3.3.0.1/x86_64/include
-ScalES_INCLUDE    = -I${ScalES_DIR}/include 
+DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 LIBXC_INCLUDE    = -I/usr/common/usg/libxc/1.0/include
-INCLUDES         = ${ScalES_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
+INCLUDES         = ${DGDFT_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 LIBXC_LIB        = /usr/common/usg/libxc/1.0/lib/libxc.a
-BLOPEX_LIB       = ${ScalES_DIR}/external/blopex/libblopex.a 
+BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
 FFTW_LIB         = -L/opt/fftw/3.3.0.1/x86_64/lib -lfftw3_mpi -lfftw3 -lm
 
-ScalES_LIB    = ${ScalES_DIR}/src/libscales.a
-LIBS         = ${ScalES_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} 
+DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
+LIBS         = ${DGDFT_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} 
 
 CC           = cc
 CXX          = CC

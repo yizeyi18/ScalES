@@ -49,19 +49,19 @@ endif
 
 
 
-ScalES_DIR     = /Users/linlin/Projects/scales
+DGDFT_DIR     = /Users/linlin/Projects/dgdft
 
 # inclues
-BLOPEX_INCLUDE   = -I${ScalES_DIR}/external/blopex
+BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 FFTW_INCLUDE     = -I/usr/local/include
-ScalES_INCLUDE    = -I${ScalES_DIR}/include 
+DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 LIBXC_INCLUDE    = -I/Users/linlin/Software/libxc/build/include
 #LIBXC_INCLUDE    = -I/opt/local/include
-INCLUDES         = ${ScalES_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
+INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 # Libraries
 LIBXC_LIB        = /Users/linlin/Software/libxc/build/lib/libxc.a
-BLOPEX_LIB       = ${ScalES_DIR}/external/blopex/libblopex.a 
+BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
 GFORTRAN_LIB     = /usr/local/lib/libgfortran.dylib
 #GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
 SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
@@ -71,8 +71,8 @@ BLAS_LIB         = -lblas
 #BLAS_LIB         = /Users/linlin/Software/BLAS/libblas.a
 #BLAS_LIB         = /Users/linlin/Software/OpenBLAS/build/lib/libopenblas.a
 
-ScalES_LIB    = ${ScalES_DIR}/src/libscales.a
-LIBS         = ${ScalES_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
+DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
 CC           = mpicc 
 CXX          = mpicxx

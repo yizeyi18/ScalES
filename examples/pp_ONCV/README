@@ -1,9 +1,0 @@
-ONCV pseudopotentials from the SG15 collection in the UPF format, downloaded from
-
-http://www.quantum-simulation.org/potentials/sg15_oncv/sg15_oncv_upf_2020-02-06.tar.gz
-
-Users can download many more pseudopotentials (in the UPF) format from
-this website. But not all UPF file formats are supported
-
-https://www.quantum-espresso.org/pseudopotentials
-
