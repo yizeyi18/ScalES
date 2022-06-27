@@ -117,14 +117,6 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     const double* beta,
     double* C, const Int* ic, const Int* jc, const Int* descc);
 
-void SCALAPACK(pzgemm)(const char * transA,  const char * transB,
-    const Int* m, const Int* n,  const Int* k,
-    const dcomplex* alpha, 
-    const dcomplex* A,  const Int* ia, const Int* ja, const Int* desca,
-    const dcomplex* B,  const Int* ib, const Int* jb, const Int* descb,
-    const dcomplex* beta,
-    dcomplex* C,  const Int* ic,  const Int* jc,  const Int* descc);
-
 void SCALAPACK(pdtrmm)(const char* side, const char* uplo, const char* trans, const char* diag,
     const Int* m, const Int* n, const double* alpha,
     const double* A, const Int* ia, const Int* ja, const Int* desca, 
@@ -138,24 +130,10 @@ void SCALAPACK(pdsymm)(const char* side, const char* uplo,
     const double* beta,
     const double* C, const Int* ic, const Int* jc, const Int* descc);
 
-void SCALAPACK(pzsymm)(const char* side, const char* uplo,
-    const Int* m, const Int* n,
-    const dcomplex* alpha,
-    const dcomplex* A, const Int* ia, const Int* ja, const Int* desca,
-    const dcomplex* B, const Int* ib, const Int* jb, const Int* descb,
-    const dcomplex* beta,
-    const dcomplex* C, const Int* ic, const Int* jc, const Int* descc);
-
 void SCALAPACK(pdgels)(char* transA,
     const Int* m, const Int* n, const Int* NRHS,
     const double* A, const Int* ia, const Int* ja, const Int* desca, 
     const double* B, const Int* ib, const Int* jb, const Int* descb,
-    double *work, Int *lwork, Int *info);
-
-void SCALAPACK(pzgels)(char* transA,
-    const Int* m, const Int* n, const Int* NRHS,
-    const dcomplex* A, const Int* ia, const Int* ja, const Int* desca,
-    const dcomplex* B, const Int* ib, const Int* jb, const Int* descb,
     double *work, Int *lwork, Int *info);
 
 void  SCALAPACK(pdsyrk)(const char *uplo , const char *trans , const Int *n , const Int *k , 
@@ -177,12 +155,6 @@ void SCALAPACK(pdtradd)(const char* uplo, const char* trans, const Int* m, const
                         const double* beta,
                         double* c, const Int* ic, const Int* jc, const Int* descc);
 
-void SCALAPACK(pztradd)(const char* uplo, const char* trans, const Int* m, const Int* n,
-                        const dcomplex* alpha,
-                        const dcomplex* a, const Int* ia, const Int* ja, const Int* desca,
-                        const dcomplex* beta,
-                        dcomplex* c, const Int* ic, const Int* jc, const Int* descc);
-
 void SCALAPACK(pdgeadd)(const char *trans,
     const Int* m, const Int* n, 
     const double *alpha, 
@@ -190,24 +162,12 @@ void SCALAPACK(pdgeadd)(const char *trans,
     const double* beta,
     double* B, const Int* ib, const Int* jb, const Int* descb);
 
-void SCALAPACK(pzgeadd)(const char *trans,
-    const Int* m, const Int* n,
-    const dcomplex *alpha,
-    const dcomplex* A, const Int* ia, const Int* ja, const Int* desca,
-    const dcomplex* beta,
-    dcomplex* B, const Int* ib, const Int* jb, const Int* descb);
-
 void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
     const char* trans, const char* diag,
     const int* m, const int* n, const double* alpha,
     const double* a, const int* ia, const int* ja, const int* desca, 
     double* b, const int* ib, const int* jb, const int* descb );
 
-void SCALAPACK(pztrsm)( const char* side, const char* uplo,
-    const char* trans, const char* diag,
-    const int* m, const int* n, const dcomplex* alpha,
-    const dcomplex* a, const int* ia, const int* ja, const int* desca,
-    dcomplex* b, const int* ib, const int* jb, const int* descb );
 
 // Other ScaLAPACK routines
 
@@ -230,16 +190,8 @@ void SCALAPACK(pdpotrf)( const char* uplo, const Int* n,
     double* A, const Int* ia, const Int* ja, const Int* desca, 
     Int* info );
 
-void SCALAPACK(pzpotrf)( const char* uplo, const Int* n,
-    dcomplex* A, const Int* ia, const Int* ja, const Int* desca,
-    Int* info );
-
 void SCALAPACK(pdpotri)( const char* uplo, const Int* n, 
     double* A, const Int* ia, const Int* ja, const Int* desca, 
-    Int* info );
-
-void SCALAPACK(pzpotri)( const char* uplo, const Int* n,
-    dcomplex* A, const Int* ia, const Int* ja, const Int* desca,
     Int* info );
 
 // Eigenvalue problems
@@ -292,10 +244,7 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
 // QRCP 
 void SCALAPACK(pdgeqpf)( Int* m, Int* n, double* A, Int* ia, Int* ja,
     Int* desca, Int* ipiv, double* itau, double* work, Int* lwork, 
-    Int* info );
-void SCALAPACK(pzgeqpf)( Int* m, Int* n, dcomplex* A, Int* ia, Int* ja, 
-     Int* desca, Int* ipiv, dcomplex* itau, dcomplex* work, Int* lwork,
-                           double* rwork, Int* lrwork, Int* info ); 
+    Int* info ); 
 
 // RQRCP by Jianwei Xiao, Julien Langou and Ming Gu
 Int SCALAPACK(rqrcp)( Int *m, Int *n, Int *k, double *A, Int *descA, 
@@ -664,11 +613,8 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
 
 
 /// @brief QRCP3 ScaLAPACK's verison of xGEQPF
-#ifdef _COMPLEX_
-void QRCPF( Int m, Int n, dcomplex* A, Int* desca, Int* piv, dcomplex* tau );
-#else
 void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau ); 
-#endif
+
 /// @brief RQRCP by Jianwei Xiao, Julien Langou and Ming Gu.
 /// NOTE: The implementation below hard coded several default parameters
 /// and may not be the most efficient.

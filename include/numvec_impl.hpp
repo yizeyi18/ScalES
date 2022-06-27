@@ -198,30 +198,8 @@ template < class F >
 
 
 template <class F> 
-  inline void NumVec<F>::Copy    ( Int m, F* data )
-  {
-    if( owndata_ ){
-        delete[] data_;
-    }
-    m_ = m;
-    if( m_ > 0 ) {
-      data_ = new F[m_];
-      if( data_ == NULL ){
-        ErrorHandling("Cannot allocate memory.");
-      }
-      for( Int i = 0; i < m_; i++ ){
-        data_[i] = data[i];
-      }
-    }
-    else
-      data_ = NULL;
-  }         // -----  end of method NumVec<F>::NumVec  ----- 
-
-
-template <class F> 
   inline F& NumVec<F>::operator()    ( Int i )
   {
-#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -230,7 +208,6 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
-#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -239,7 +216,6 @@ template <class F>
 template <class F>
   inline const F& NumVec<F>::operator()    ( Int i ) const
   {
-#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -248,7 +224,6 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
-#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -257,7 +232,6 @@ template <class F>
 template <class F> 
   inline F& NumVec<F>::operator[]    ( Int i )
   {
-#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -266,7 +240,6 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
-#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 
@@ -275,7 +248,6 @@ template <class F>
 template <class F> 
   inline const F& NumVec<F>::operator[]    ( Int i ) const
   {
-#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -284,7 +256,6 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
-#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 

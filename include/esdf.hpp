@@ -39,7 +39,7 @@ Enhancements, then you hereby grant the following license: a non-exclusive,
 royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
- */
+*/
 /// @file esdf.hpp
 /// @brief Electronic structure data format for reading the input data.
 /// @date 2012-08-10
@@ -206,7 +206,7 @@ struct ESDFInputParam{
   ///
   /// Default: 30
   Int                 scfOuterMaxIter;
-  
+
   /// @brief From which ion iteration to engage energy based convergence in MD
   /// 
   /// Default: ionMaxIter + 1
@@ -222,8 +222,8 @@ struct ESDFInputParam{
   /// @brief Eband tolerance in Energy based convergence
   /// The difference in Eband should be less than this in energy based SCf convergence
   Real               MDscfEbanddiff;
-  
-  
+
+
   /// @brief Maximum number of iterations for hybrid functional
   /// iterations.
   /// 
@@ -277,48 +277,39 @@ struct ESDFInputParam{
   /// Currently two types (QRCP and Kmeans) are supported.
   std::string         hybridDFType;
 
-  /// @brief the method to calculate the weight function for complex kmeans
-  /// Default: "Add"  psi^2 + phi^2 
-  /// Another type : "Multi" (psi^2)(phi^2)
-  std::string         hybridDFKmeansWFType;
-
-  /// @brief when hybridDFKmeansWFType==Add, weight function = psi^alpha + phi^alpha
-  /// Default: "2.0"
-  /// option: "0.5" "1.0" "1.5" "2.0" "2.5" "3.0" "4.0"
-  Real         hybridDFKmeansWFAlpha;
- 
   /// @brief The tolerance used in K-means method of density fitting
   ///
   /// Default: 1e-3
   Real                hybridDFKmeansTolerance;
-  
+
   /// @brief The max number of iterations used in K-means method of density fitting
   ///
   /// Default: 99
   Int                 hybridDFKmeansMaxIter;
-  
+
+
   /// @brief Density fitting uses numMu * numStateTotal number of
   /// states for hybrid calculations with density fitting.
   ///
   /// Default: 6.0
   Real                hybridDFNumMu;
-  
+
   /// @brief Density fitting uses numGaussianRandom * numMu * numStateTotal number of
   /// states for GaussianRandom.
   ///
   /// Default: 6.0
   Real                hybridDFNumGaussianRandom;
-  
+
   /// @brief Density fitting uses this number of cores in ScaLAPACAL
   ///
   /// Default: mpisize
   Int                 hybridDFNumProcScaLAPACK;
-  
+
   /// @brief Density fitting uses the tolerance to remove the matrix element
   ///
   /// Default: 1e-20
   Real                hybridDFTolerance;
-  
+
   /// @brief The blocksize of cores in ScaLAPACAL
   ///
   /// Default: 32
@@ -377,7 +368,7 @@ struct ESDFInputParam{
   Real                SVDBasisTolerance;
 
 
-  
+
   /// @brief Whether to use the sum of atomic density as the initial
   /// guess for electron density.
   ///
@@ -544,7 +535,7 @@ struct ESDFInputParam{
   /// @note Only the master processor (mpirank == 0) reads this table,
   /// and the information is broadcast to other processors.
   std::vector<std::string>    pspFile;
- 
+
   /// @brief Type of the pseudopotential
   ///
   /// Default: "HGH"
@@ -595,8 +586,8 @@ struct ESDFInputParam{
   ///                   This option needs to turn on the macro -DPEXSI
   ///                   to support the libraries.
   std::string         solutionMethod; 
-  
-   /// @brief Method for solving the projected problem in the adaptive
+
+  /// @brief Method for solving the projected problem in the adaptive
   /// local basis set within the "diag" method
   ///
   /// Default: "scalapack"
@@ -604,13 +595,13 @@ struct ESDFInputParam{
   /// - = "elpa"      : use ELSI-ELPA to diag the H matrix
   /// - = "scalapack" : use scalapack to diag the H matrix
   std::string         diagSolutionMethod; 
-  
+
   std::string         smearing_scheme;
   /// @brief smearing scheme for fractional occupations 
   /// options : FD - Fermi-Dirac distribution
   ///           GB - Gaussian Broadening or Methfessel / Paxton of order 0
   ///           MP - Methfessel-Paxton smearing - order 2 default, up to order 3 supported
-  
+
   /// @brief Type of the exchange-correlation functional.
   ///
   /// Default: "XC_LDA_XC_TETER93"
@@ -899,9 +890,9 @@ struct ESDFInputParam{
   ///
   /// Default: 0.001 
   Real                geoOptMaxForce;
-  
+
   Real                geoOpt_NLCG_sigma; // Line search step length parameter in NLCG for Geo Opt : Default = 0.5
-  
+
   // These variables are related to the FIRE optimizer
   Int FIRE_Nmin; // Set to 10 by default
   Real FIRE_dt; // Set to 40.0 a.u. (= 1 femtosecond) by default
@@ -993,7 +984,7 @@ struct ESDFInputParam{
   /// @brief Maximum number of outer SCF iterations in TDDFT
   /// This is usually used in PWDFT  
   Int                restartTDDFTStep;
-  
+
   /// @brief Maximum number of outer SCF iterations in TDDFT
   /// This is usually used in PWDFT  
   Int                TDDFTDiisMaxIter;
@@ -1153,13 +1144,13 @@ struct ESDFInputParam{
 
   Int scfdg_complementary_subspace_nstates;
   Int scfdg_cs_ioniter_regular_cheby_freq;
-  
+
   Int scfdg_cs_bigger_grid_dim_fac; 
-  
+
   // LOBPCG (for top states) related options
   Real scfdg_complementary_subspace_lobpcg_tol;
   Int scfdg_complementary_subspace_lobpcg_iter;
-  
+
   // CheFSI (for top states) related options 
   bool Hmat_top_states_use_Cheby;
   Int  Hmat_top_states_ChebyFilterOrder; 
@@ -1178,23 +1169,39 @@ struct ESDFInputParam{
 
   // Inputs related to LRTDDFT  
   bool isLRTDDFT;                 // Default 0
+  bool isLRTDDFTISDF;             // Default 0
   bool isOutputExcitationEnergy;  // Default 1
   bool isOutputExcitationWfn;     // Default 0
   Int  nvband;                    // Default 1
-  Int  ncband;                    // Default 1 
+  Int  ncband;                    // Default 1
+  Int  nkband;                    // LOBPCG
+  Int  startband;                 // LOBPCG
+  Int  endband;                   // LOBPCG
+  Int  numProcEigenSolverLRTDDFT;
+  bool isdouble;                  // Default 1
+  bool isfloat;                   // Default 0
+  Real numMuFacLRTDDFTISDF;
+  Real numGaussianRandomFacLRTDDFTISDF;
+  Real toleranceLRTDDFT; 
+  Int  maxIterKmeansLRTDDFTISDF;
+  Real toleranceKmeansLRTDDFTISDF; 
+  Int  eigMaxIterLRTDDFT;
+  Real eigMinToleranceLRTDDFT;
+  Real eigToleranceLRTDDFT; 
+  std::string         ipTypeLRTDDFTISDF; 
+  std::string         eigenSolverLRTDDFT;
+
+  // Inputs related to Spectrum
+  bool isOutputExcitationSpectrum; 
+  Real LRTDDFTVextPolx;
+  Real LRTDDFTVextPoly;
+  Real LRTDDFTVextPolz;
+  Real LRTDDFTOmegagrid;
+  Real LRTDDFTSigma;
 
 };
 
 
-//-------the odd number for FFT 
-//Not use it temporarily because of different energy results from that of the old version
-/*
-// Adjust the grid size to be more optimal for FFT. Grid sizes are currently hard coded
-Int AdjustNumGrid( Int numGrid );
-
-// Adjust the grid size to be more optimal for PW part, choose only Odd numbers for converge considerations.
-Int AdjustNumGridOdd( Int numGrid );
-*/
 void ESDFReadInput( const std::string filename );
 
 void ESDFReadInput( const char* filename );

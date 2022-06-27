@@ -1514,43 +1514,7 @@ void Orth( Int m, Int n, double* A, Int lda ){
   }
   return ;
 }
-//-------------Complex version for Orth  by lijl
-void Orth( Int m, Int n, dcomplex* A, Int lda ){
-  if( m==0 || n==0 )
-    return;
 
-  // Overwrite mode
-  const char jobu='O', jobvt='N';
-  std::vector<double> s(n);
-  Int lwork=-1, info;
-  const Int k = std::min(m,n);
-  std::vector<double> rwork(5*k);
-  dcomplex dummyWork;
-  dcomplex dummyReal;
-  Int dummyInt = 1;
-
-  LAPACK(zgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, &s[0], &dummyReal, &dummyInt,
-      &dummyReal, &dummyInt, &dummyWork, &lwork, &rwork[0], &info );
-
-  lwork = dummyWork.real();
-  std::vector<dcomplex> work(lwork);
-  LAPACK(zgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, &s[0], &dummyReal, &dummyInt,
-      &dummyReal, &dummyInt, &work[0], &lwork, &rwork[0], &info );
-  if( info < 0 )
-  {
-    std::ostringstream msg;
-    msg << "Argument " << -info << " had illegal value";
-    ErrorHandling( msg.str().c_str() );
-  }
-  else if( info > 0 )
-  {
-    ErrorHandling("zgesvd's updating process failed");
-  }
-  return ;
-}
-//------------------------------------by lijl
 
 // *********************************************************************
 // QR with column pivoting. Use dgeqp3 routine

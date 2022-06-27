@@ -757,7 +757,7 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
   return ;
 }        // -----  end of function Sygst  ----- 
 
-#ifndef _COMPLEX_
+
 void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau) 
 {
   if( m==0 || n==0 )
@@ -791,48 +791,7 @@ void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau)
 
   return;
 }
-#else
-//------------add QRCPF for complex version by lijl
-void QRCPF( Int m, Int n, dcomplex* A, Int* desca, Int* piv, dcomplex* tau)
-{
-  if( m==0 || n==0 )
-  {
-    return;
-  }
 
-  Int lwork=-1, lrwork=-1, info;
-  std::vector<dcomplex> dummyWork(1);
-  std::vector<double> dummyrWork(1);
-  int I_ONE = 1;
-  //dcomplex *work;
-  //double *rwork;
-
-  SCALAPACK(pzgeqpf)(&m, &n, A, &I_ONE, &I_ONE, &desca[0],
-      piv, tau, &dummyWork[0], &lwork, &dummyrWork[0], &lrwork, &info);
-
-  lwork = (int)dummyWork[0].real();
-  lrwork = (int)dummyrWork[0];
-  std::vector<dcomplex> work(lwork);
-  std::vector<double> rwork(lrwork);
-  SCALAPACK(pzgeqpf)(&m, &n, A, &I_ONE, &I_ONE, &desca[0],
-      piv, tau, &work[0], &lwork, &rwork[0], &lrwork, &info);
-
-  // Important: fortran index is 1-based. Change to 0-based
-  for( Int i = 0; i < n; i++ ){
-    piv[i]--;
-  }
-
-  if( info < 0 )
-  {
-    std::ostringstream msg;
-    msg << "Argument " << -info << " had illegal value";
-    ErrorHandling( msg.str().c_str() );
-  }
-
-  return;
-}
-#endif
-//--------------------by lijl
 
 void QRCPR( Int m, Int n, Int k, double* A, Int* desca, Int* piv, double* tau, Int nb_dist, Int nb_alg ) 
 {

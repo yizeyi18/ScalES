@@ -240,9 +240,7 @@ void Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv );
 /// is performed using SVD.
 void Orth( Int m, Int n, double* A, Int lda );
 
-//-----lijl open Orth for dcomplex
-void Orth( Int m, Int n, dcomplex* A, Int lda );
-//--------lijl
+//void Orth( Int m, Int n, dcomplex* A, Int lda );
 
 /// @brief QRCP Wrapper for xgeqp3 routine.
 ///

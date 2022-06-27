@@ -156,8 +156,6 @@ void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, in
 void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
 void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
 void cuda_set_vector( double * out, double *in, int length);
-void cuda_XTX( cuDoubleComplex * X, double * Y, int length);
-void cuda_reduce( double * density, double * sum, int nbands, int bandLen);
 void cuda_sync();
 //}
 #endif

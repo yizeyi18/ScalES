@@ -83,11 +83,7 @@ private:
   // For density fitting
   Int               numMu_;
   IntNumVec         pivQR_;
-#ifdef _COMPLEX_
-  CpxNumMat         G_;
-#else
   DblNumMat         G_;
-#endif
   IntNumVec         numProcPotrf_;
 
 public:
@@ -181,26 +177,6 @@ public:
       Real  numSpin,
       const DblNumVec& occupationRate,
       NumTns<Complex>& a3 );
-
- void AddMultSpinorEXXDF7 ( Fourier& fft,
-    const NumTns<Complex>& phi,
-    const DblNumVec& exxgkkR2C,
-    Real  exxFraction,
-    Real  numSpin,
-    const DblNumVec& occupationRate,
-    std::string hybridDFType,
-    std::string hybridDFKmeansWFType,
-    const Real hybridDFKmeansWFAlpha,
-    Real  hybridDFKmeansTolerance,
-    Int   hybridDFKmeansMaxIter,
-    const Real numMuFac,
-    const Real numGaussianRandomFac,
-    const Int numProcScaLAPACK,
-    const Real hybridDFTolerance,
-    const Int BlockSizeScaLAPACK,
-    NumTns<Complex>& a3,
-    NumMat<Complex>& VxMat,
-    bool isFixColumnDF ); 
 #else
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );

@@ -13,35 +13,38 @@
 #include  "esdf.hpp"
 
 namespace dgdft {
-	class LRTDDFT {
-	private:
+class LRTDDFT {
+private:
 
-		Int               numExtraState_;         //maxncbandtol
-		Int               nocc_;                  //maxnvbandtol
-		Int               ntot_;                  //real space Corase grid
-                Int               ntotR2C_;               //Corase grid	
-                Int               numcomponent_ ;         //spinor
-		DblNumMat         density_;               //rho
-		DblNumVec         eigVal_;                //energy
-		Real              vol_;                   //Vol
-                Domain            domain_;                //domain
+  Int               numExtraState_;         //maxncbandtol
+  Int               nocc_;                  //maxnvbandtol
+  Int               ntot_;                  //real space Corase grid
+  Int               ntotR2C_;               //Corase grid	
+  Int               ntotFine_;              //real space Fine grid
+  Int               ntotR2CFine_;           //Fine grid	
+  Int               numcomponent_ ;         //spinor
+  DblNumMat         density_;               //rho
+  DblNumVec         eigVal_;                //energy
+  Real              vol_;                   //Vol
+  Domain            domain_;                //domain
 
-	public:
-		// *********************************************************************
-		// Constructor and destructor
-		// *********************************************************************
-		void Setup(Hamiltonian& ham, Spinor& psi, Fourier& fft,
-	            const Domain& dm, int nvband, int ncband);
+public:
+  // *********************************************************************
+  // Constructor and destructor
+  // *********************************************************************
+  void Setup(Hamiltonian& ham, Spinor& psi, Fourier& fft, const Domain& dm);
 
-		void CalculateLRTDDFT(Hamiltonian& ham, Spinor& psi, Fourier& fft,
-			const Domain& dm, int nvband, int ncband);
+  void Spectrum(Fourier& fft, DblNumMat psinv, DblNumMat psinc, DblNumMat XX, DblNumVec eigValS, Int nkband);
 
-                void FFTRtoC(Fourier& fft, Hamiltonian& ham, DblNumMat psiphi,
-                        DblNumMat& temp, Int ncvband);
+  void CalculateLRTDDFT(Hamiltonian& ham, Spinor& psi, Fourier& fft, const Domain& dm);
 
-		void Calculatefxc(Fourier& fft, DblNumVec& fxcPz);
-               
-	};
+  void CalculateLRTDDFT_ISDF(Hamiltonian& ham, Spinor& psi, Fourier& fft, const Domain& dm);
+
+  void FFTRtoC(Fourier& fft, Hamiltonian& ham, DblNumMat psiphi, DblNumMat& temp, Int ncvband);
+
+  void Calculatefxc(Fourier& fft, DblNumVec& fxcPz);
+
+};
 }
 
 #endif // _LRTDDFT_HPP_

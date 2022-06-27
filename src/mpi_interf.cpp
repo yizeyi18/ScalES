@@ -345,8 +345,7 @@ void
          slot++;
        };
      }
-     //devloc[myrank] = 0; 
-     devloc[myrank] = myrank;  //modified by lijl 20200604
+     devloc[myrank] = 0;
      if( (devloc[myrank] >= deviceCount) )
      {
        printf ("Error:::Assigning device %d  to process on node %s rank %d \n",devloc[myrank],  host_name, rank );

@@ -136,25 +136,6 @@ void Destroy(void)
     CUBLAS_ERROR(cublasGemmEx(hcublas, transA, transB, m, n, k, alpha, A, CUDA_R_64F, lda, B, CUDA_R_64F, ldb, beta, C, CUDA_R_64F, ldc, CUDA_R_64F, CUBLAS_GEMM_ALGO5), " cublasGemmEx failed !");
     return;
 }
-void Axpy( int n, const float * alpha, const float * x, int incx, float * y, int incy)
-  {
-      CUBLAS_ERROR( cublasSaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
-  }
-  
-void Axpy( int n, const double * alpha, const double * x, int incx, double * y, int incy)
-{
-    CUBLAS_ERROR( cublasDaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
-}
-
-void Axpy( int n, const cuComplex * alpha, const cuComplex * x, int incx, cuComplex * y, int incy)
-{
-    CUBLAS_ERROR( cublasCaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
-}
-
-void Axpy( int n, const cuDoubleComplex * alpha, const cuDoubleComplex * x, int incx, cuDoubleComplex * y, int incy)
-{
-    CUBLAS_ERROR( cublasZaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
-}
 
  void Scal (int n, const float *alpha, float *x, int incx)
 {

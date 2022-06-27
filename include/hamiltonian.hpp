@@ -56,12 +56,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  <xc.h>
 #ifdef GPU
 #include "cublas.hpp"
-#ifdef USE_MAGMA
 #include "magma.hpp"
-#else
-#include "cusolver.hpp"
-#endif // ifdef USE_MAGMA
-#endif  //ifdef GPU
+#endif
 namespace dgdft{
 
 // *********************************************************************
@@ -148,8 +144,6 @@ protected:
   const Real                  exxFraction_ = 0.25;
 
   std::string                 hybridDFType_;
-  std::string                 hybridDFKmeansWFType_;
-  Real                        hybridDFKmeansWFAlpha_;
   Real                        hybridDFKmeansTolerance_;
   Int                         hybridDFKmeansMaxIter_;
   Real                        hybridDFNumMu_;
@@ -208,9 +202,7 @@ public:
   /// @brief Atomic density is implemented using the structure factor
   /// method due to the large cutoff radius
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft, bool isGPU ) = 0;
-#endif
+
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
@@ -263,7 +255,7 @@ public:
   virtual NumTns<Complex>& PhiEXX() = 0;
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
-  virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
+
 #endif
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
@@ -389,9 +381,7 @@ public:
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
   
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft, bool isGPU );
-#endif
+
   virtual void CalculateGradDensity( Fourier& fft );
 
   virtual void CalculateXC ( Real &val, Fourier& fft );
@@ -448,7 +438,7 @@ public:
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
   virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
-  virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
+
 #endif
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );

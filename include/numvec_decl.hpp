@@ -72,8 +72,6 @@ public:
 
   void Resize ( Int m );
 
-  void Copy(Int m, F* data);
-
   const F& operator()(Int i) const;  
   F& operator()(Int i);  
   const F& operator[](Int i) const;

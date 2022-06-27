@@ -133,13 +133,24 @@ int main(int argc, char **argv){
 
     // Domain
     deserialize(domainSizeGlobal, inputFileStream, NO_MASK);
+    cout << "domainSizeGlobal " << endl << domainSizeGlobal << endl;
+
     deserialize(numGridGlobal, inputFileStream, NO_MASK); 
+    cout << "numGridGlobal " << endl << numGridGlobal << endl;
+
     deserialize(numGridFineGlobal, inputFileStream, NO_MASK);
+    cout << "numGridFineGlobal " << endl << numGridFineGlobal << endl;
+
     deserialize(posStartGlobal, inputFileStream, NO_MASK);
+    cout << "posStartGlobal " << endl << posStartGlobal << endl;
+
     deserialize(numElem, inputFileStream, NO_MASK);
+    cout << "numElem " << endl << numElem << endl;
 
     // Atom
     deserialize( atomList, inputFileStream, NO_MASK );
+
+    cout << "atomList " << endl << atomList.size() << endl;
 
     numAtom = atomList.size();
 
@@ -249,6 +260,9 @@ int main(int argc, char **argv){
       << setprecision(5) << 0.0 << " " << 0.0 << " " << gridSizeFineGlobal[2]  << 
       endl;
     for( Int a = 0; a < numAtom; a++ ){
+      for (Int i = 0; i < 3; i++){
+        if (atomList[a].pos[i] < 0) {atomList[a].pos[i] += numGridFineGlobal[i]*gridSizeFineGlobal[i];}
+      }
       outputFileStream << fixed << setw(9) << atomList[a].type << " " << setw(12) 
         << setprecision(5) << 0.0 << " " 
         << atomList[a].pos[0]  << " " 

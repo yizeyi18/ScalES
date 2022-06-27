@@ -635,46 +635,83 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-  if((height % mpisize) == 0){
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-      } 
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+
+    if((height % mpisize) == 0){
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        } 
+      }
     }
-  }
-  else{
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
-          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
-        }
-        else {
-          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
-            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
+    else{
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+            sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
+          }
+          else {
+            sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+              + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
+          }
         }
       }
     }
-  }
 
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+      }
     }
-  }
 
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = A(i, j); 
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < widthLocal; j++ ){ 
+      for( Int i = 0; i < height; i++ ){
+        sendbuf[sendk(i, j)] = A(i, j); 
+      }
     }
-  }
+
+#ifdef _USE_OPENMP_
+  } //#pragma omp parallel
+#endif
+
+
   MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      B(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
 
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+        B(i, j) = recvbuf[recvk(i, j)];
+      }
+    }
+
+#ifdef _USE_OPENMP_
+  } //#pragma omp parallel
+#endif
 
   return ;
 }        // -----  end of function AlltoallForward ----- 
@@ -1003,46 +1040,82 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-  if((height % mpisize) == 0){
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-      } 
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+
+    if((height % mpisize) == 0){
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        } 
+      }
     }
-  }
-  else{
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
-          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
-        }
-        else {
-          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
-            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
+    else{
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+            sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
+          }
+          else {
+            sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+              + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
+          }
         }
       }
     }
-  }
 
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+      }
     }
-  }
 
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvbuf[recvk(i, j)] = A(i, j);
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvbuf[recvk(i, j)] = A(i, j);
+      }
     }
-  }
+
+#ifdef _USE_OPENMP_
+  } //#pragma omp parallel
+#endif
+
   MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, comm );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      B(i, j) = sendbuf[sendk(i, j)]; 
-    }
-  }
 
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+    for( Int j = 0; j < widthLocal; j++ ){ 
+      for( Int i = 0; i < height; i++ ){
+        B(i, j) = sendbuf[sendk(i, j)]; 
+      }
+    }
+
+#ifdef _USE_OPENMP_
+  } //#pragma omp parallel
+#endif
 
   return ;
 }        // -----  end of function AlltoallBackward ----- 

@@ -8,15 +8,8 @@ SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp \
 			 periodtable.cpp spinor.cpp fourier.cpp utility.cpp esdf.cpp \
 			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp \
 			 tddft.cpp  sgmres.cpp \
-			 cuda_errors.cpp  cublas.cpp
-SRCLRTDDFT = lrtddft.cpp
-
-ifeq (${USE_MAGMA},1)
-SRCS += magma.cpp
-else
-SRCS += cusolver.cpp
-endif
-
+			 cuda_errors.cpp  cublas.cpp magma.cpp\
+			 lrtddft.cpp
 #SRCF90 = rqrcp.f90 check_qpf.f90  check_qrf.f90  partial_pdgeqpf.f90 \
 #			 partial_qr_swap.f90  
 #SRCF   = partial_pdgeqp3.f  partial_pdgeqrf.f  \
@@ -24,17 +17,9 @@ endif
 SRCCU  = cuda_utils.cu
 
 ifeq (${USE_GPU}, 1)
-ifeq (${USE_COMPLEX}, 1) 
 OBJS = ${SRCS:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o} ${SRCCU:.cu=.o}
 else
-OBJS = ${SRCS:.cpp=.o} ${SRCLRTDDFT:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o} ${SRCCU:.cu=.o}
-endif
-else
-ifeq (${USE_COMPLEX}, 1)
 OBJS = ${SRCS:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o} 
-else
-OBJS = ${SRCS:.cpp=.o} ${SRCLRTDDFT:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o}
-endif
 endif
 DEPS = ${SRCS:.cpp=.d} ${SRCF90:.f90=.d} ${SRCF:.f=.d}
 

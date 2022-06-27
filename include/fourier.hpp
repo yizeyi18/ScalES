@@ -81,8 +81,6 @@ struct Fourier {
   cufftHandle cuPlanR2CFine[NSTREAM];
   cufftHandle cuPlanC2R[NSTREAM];
   cufftHandle cuPlanC2RFine[NSTREAM];
-  cufftHandle cuPlanC2CFine[NSTREAM];
-  cufftHandle cuPlanC2C[NSTREAM];
 #endif
   unsigned  plannerFlag;
 
@@ -123,16 +121,8 @@ struct Fourier {
   CpxNumVec                outputVecR2CFine;     
 
   /// @brief index array for mapping a coarse grid to a fine grid
-  IntNumVec                idxFineGrid;//depricated
-  IntNumVec                idxFineGridR2C;//depricated
-  // Usage: WfcFine(idxFine(i))=WfcCoarse(i)
-  //        WfcFine(idxNyqFine(i))=conjugate(WfcCoarse(idxNyqCoarse(i)))
-  IntNumVec                idxFine;
-  IntNumVec                idxFineNyq;
-  IntNumVec                idxCoarseNyq;
-  IntNumVec                idxR2CFine;
-  IntNumVec                idxR2CFineNyq;
-  IntNumVec                idxR2CCoarseNyq;
+  IntNumVec                idxFineGrid;
+  IntNumVec                idxFineGridR2C;
 
 
   Fourier();
@@ -143,11 +133,6 @@ struct Fourier {
 
 };
 #ifdef GPU
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out , int nbands);
-void cuFFTExecuteInverse2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
 void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
 void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
 #endif

@@ -39,7 +39,7 @@ Enhancements, then you hereby grant the following license: a non-exclusive,
 royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
- */
+*/
 /// @file esdf.cpp
 /// @brief Electronic structure data format for reading the input data.
 /// @date 2012-08-10
@@ -644,7 +644,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"pw_solver");
   strcpy(kw_typ[i],"T:E");
-  
+
   i++;
   strcpy(kw_label[i],"ppcg_sbsize");
   strcpy(kw_typ[i],"I:E");
@@ -929,14 +929,6 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:B");
 
   i++;
-  strcpy(kw_label[i],"hybrid_df_kmeans_wf_type");
-  strcpy(kw_typ[i],"T:B");
-
-  i++;
-  strcpy(kw_label[i],"hybrid_df_kmeans_wf_alpha");
-  strcpy(kw_typ[i],"D:E");
-
-  i++;
   strcpy(kw_label[i],"hybrid_df_kmeans_tolerance");
   strcpy(kw_typ[i],"D:E");
 
@@ -1005,7 +997,6 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"pwdft_cheby_use_wfn_ecut_filt");
   strcpy(kw_typ[i],"I:E");
-
 
 
   // ~~**~~
@@ -1216,11 +1207,27 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"lrtddft");
   strcpy(kw_typ[i],"I:E");
-  
+
+  i++;
+  strcpy(kw_label[i],"lrtddft_isdf");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"iptype_lrtddft_isdf");
+  strcpy(kw_typ[i],"T:E");
+
+  i++;
+  strcpy(kw_label[i],"eigensolver_lrtddft");
+  strcpy(kw_typ[i],"T:E");
+
+  i++;
+  strcpy(kw_label[i], "numproceigensolver_lrtddft");
+  strcpy(kw_typ[i], "I:E");
+
   i++;
   strcpy(kw_label[i],"output_excitation_energy");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"output_excitation_wfn");
   strcpy(kw_typ[i],"I:E");
@@ -1233,6 +1240,73 @@ void esdf_key() {
   strcpy(kw_label[i], "ncband");
   strcpy(kw_typ[i], "I:E");
 
+  i++;
+  strcpy(kw_label[i], "nkband");
+  strcpy(kw_typ[i], "I:E");
+
+  i++;
+  strcpy(kw_label[i], "nummufac_lrtddft_isdf");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;    
+  strcpy(kw_label[i], "numgaussianrandomfac_lrtddft_isdf");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;    
+  strcpy(kw_label[i], "tolerance_lrtddft");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "maxiterkmeans_lrtddft_isdf");
+  strcpy(kw_typ[i], "I:E");
+    
+  i++;
+  strcpy(kw_label[i], "tolerancekmeans_lrtddft_isdf");
+  strcpy(kw_typ[i], "D:E");
+  
+  i++;
+  strcpy(kw_label[i], "eigmaxiter_lrtddft");
+  strcpy(kw_typ[i], "I:E");
+
+  i++;
+  strcpy(kw_label[i], "eigmintolerance_lrtddft");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "eigtolerance_lrtddft");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "outstartband");
+  strcpy(kw_typ[i], "I:E");
+
+  i++;
+  strcpy(kw_label[i], "outendband");
+  strcpy(kw_typ[i], "I:E");
+
+  i++;
+  strcpy(kw_label[i],"spectrum");
+  strcpy(kw_typ[i],"I:E");
+ 
+  i++;
+  strcpy(kw_label[i], "lrtddft_vext_polx");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "lrtddft_vext_poly");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "lrtddft_vext_polz");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "lrtddft_omega_grid");
+  strcpy(kw_typ[i], "D:E");
+
+  i++;
+  strcpy(kw_label[i], "lrtddft_sigma");
+  strcpy(kw_typ[i], "D:E");
 }
 
 void esdf() {
@@ -1684,7 +1758,7 @@ double esdf_double(const char *labl,double def) {
 double esdf_physical(const char *labl,double def,char *dunit) {
   /* Return the double precisioned physical value attached to the "label"
      units converted to "dunit"
-   */
+     */
   int i,j;
   char ctemp[llength],iunit[llength];
   int kw_number;
@@ -2488,7 +2562,7 @@ ESDFReadInput ( const char* filename )
           pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
           pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
           pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
-          
+
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
 
@@ -2608,7 +2682,6 @@ ESDFReadInput ( const char* filename )
       esdfParam.TDDFTMethod        = strtmp;
       if(esdfParam.TDDFTMethod != "PTTRAP" &&
           esdfParam.TDDFTMethod != "RK4"   &&
-          esdfParam.TDDFTMethod != "CN"   &&
           esdfParam.TDDFTMethod != "PTTRAPDIIS" ) {
         ErrorHandling("Invalid TDDFT method.");
       }
@@ -2621,7 +2694,7 @@ ESDFReadInput ( const char* filename )
       esdfParam.TDDFTDiisTol           = esdf_double("TDDFT_DIIS_TOL",  1.0E-5);
       esdfParam.TDDFTPhiMaxIter        = esdf_integer("TDDFT_PHI_MAXITER", 20);
       esdfParam.TDDFTDiisMaxIter       = esdf_integer("TDDFT_DIIS_MAXITER", 50);
-      
+
     }
 
     esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
@@ -2651,13 +2724,7 @@ ESDFReadInput ( const char* filename )
         esdfParam.hybridDFType != "Kmeans+QRCP"){
       ErrorHandling("Invalid ISDF type.");
     }
-    esdf_string("Hybrid_DF_Kmeans_WF_Type", "Add", strtmp);
-    esdfParam.hybridDFKmeansWFType         = strtmp;
-    if( esdfParam.hybridDFKmeansWFType != "Add" &&
-        esdfParam.hybridDFKmeansWFType != "Multi") {
-      ErrorHandling("Invalid Kmeans WF type.");
-    }
-    esdfParam.hybridDFKmeansWFAlpha            = esdf_double( "Hybrid_DF_Kmeans_WF_Alpha", 2.0 ); // 0.5 1.0 1.5 2.0 2.5 3.0 4.0
+
     esdfParam.hybridDFKmeansTolerance          = esdf_double( "Hybrid_DF_Kmeans_Tolerance", 1e-3 );
     esdfParam.hybridDFKmeansMaxIter            = esdf_integer( "Hybrid_DF_Kmeans_MaxIter", 99 );
     esdfParam.hybridDFNumMu                    = esdf_double( "Hybrid_DF_Num_Mu", 6.0 );
@@ -2707,45 +2774,6 @@ ESDFReadInput ( const char* filename )
 
     esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
     esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
-
-//-----the odd number for FFT 
-// not use it temporarily because of different energy results from that of old version
-#if 0
-    // Choose the number of grid points based on ecut
-    // The formula for the number of grid points along each dimension with
-    // length L is
-    //
-    // 1/2 K_max^2 = Ecut,   with K_max = pi N_max / L, 
-    //
-    // i.e.
-    //
-    // N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
-    {
-      Domain&  dm       = esdfParam.domain;
-
-      for( Int d = 0; d < DIM; d++ ){
-        dm.numGrid[d] = AdjustNumGridOdd(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
-              dm.length[d] / PI));
-        dm.numGridFine[d] = AdjustNumGrid(std::ceil(dm.numGrid[d] * esdfParam.densityGridFactor));
-	/*
-        // FIXME: Temporary thing to make sure numGrid is an odd number (an odd thing to say..), and 
-        // fix esdfParam.densityGridFactor to be 2
-        if( dm.numGrid[d] % 2 == 0 ){
-          dm.numGrid[d] += 1;
-          dm.numGridFine[d] = dm.numGrid[d] * 2;
-        }
-	*/
-      } // for (d)
-//      if( dm.numGrid[0] % 2 == 0 ){
-//        dm.numGrid[0] += 1;
-//        dm.numGridFine[0] = dm.numGrid[0] * 2;
-//      }
-//      if( dm.numGrid[0] % 2 != 0 ){
-//        dm.numGrid[0] += 1;
-//        dm.numGridFine[0] = dm.numGrid[0] * 2;
-//      }
-    }
-#endif
 
     // The density grid factor must be an integer
     // esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
@@ -2817,38 +2845,6 @@ ESDFReadInput ( const char* filename )
 
     esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
 
-
-#if 0
-    // DGDFT requires the number of grids to be readjusted, so that the
-    // wavefunction grid and the density grid sizes are a multiple of
-    // the number of elements along each dimension.
-    //
-    {
-      Domain&  dm       = esdfParam.domain;
-      Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
-      Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
-      Index3&  numGridLGL = esdfParam.numGridLGL;
-      Index3   numElem = esdfParam.numElem;
-
-      Point3  elemLength;
-
-
-      for( Int d = 0; d < DIM; d++ ){
-        elemLength[d] = dm.length[d] / numElem[d];
-        // the number of grid is assumed to be at least an even number
-
-        numGridWavefunctionElem[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
-              elemLength[d] / PI));
-
-        numGridDensityElem[d] = AdjustNumGrid(std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor));
-
-        dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
-        dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
-
-        numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
-      } // for (d)
-    }
-#endif
     // Get the number of basis functions per element
     // NOTE: ALB_Num_Element overwrites the parameter numALB later        
     {
@@ -3036,8 +3032,6 @@ ESDFReadInput ( const char* filename )
   // wavefunction.  This constraint can be improved later by saving the
   // wavefunction in the extended element really in the Fourier domain.
   // This real dual grid approach will be done in the next step.
-
-#if 1
   {
     Domain&  dm       = esdfParam.domain;
     Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
@@ -3047,19 +3041,13 @@ ESDFReadInput ( const char* filename )
 
     Point3  elemLength;
 
-//     Int npow2;
     for( Int d = 0; d < DIM; d++ ){
       elemLength[d] = dm.length[d] / numElem[d];
       // the number of grid is assumed to be at least an even number
 
-
-//      npow2 = std::ceil(log(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) *
-//              elemLength[d] / PI / 2.0) * 2) /log(2));
-//      numGridWavefunctionElem[d] = pow(2,npow2);
-
       numGridWavefunctionElem[d] = 
         std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
-            elemLength[d] / PI / 2.0) * 2 + 1;
+            elemLength[d] / PI / 2.0) * 2;
 
       numGridDensityElem[d] = std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor / 2.0) * 2;
 
@@ -3071,11 +3059,9 @@ ESDFReadInput ( const char* filename )
 
     } // for (d)
 
-    if(dm.numGridFine[2] < numElem[0]*numElem[1]*numElem[2] ){
-    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", dm.numGridFine[2] );
-   }
+
   }
-#endif
+
   // Ionic motion
   {
     // Both for geometry optimization and molecular dynamics
@@ -3215,16 +3201,48 @@ ESDFReadInput ( const char* filename )
   // *********************************************************************
   // LRTDDFT
   // *********************************************************************
-    
+
   {
-	  esdfParam.isLRTDDFT = esdf_integer("LRTDDFT", 0);
-	  esdfParam.isOutputExcitationEnergy = esdf_integer("Output_Excitation_Energy", 0);
-	  esdfParam.isOutputExcitationWfn = esdf_integer("Output_Excitation_Wfn", 0);
-	  esdfParam.nvband = esdf_integer("Nvband", 1);
-	  esdfParam.ncband = esdf_integer("Ncband", 1);
+    esdfParam.isLRTDDFT = esdf_integer("LRTDDFT", 0);
+    esdfParam.isLRTDDFTISDF = esdf_integer("LRTDDFT_ISDF", 0);
+    esdfParam.isOutputExcitationEnergy = esdf_integer("Output_Excitation_Energy", 0);
+    esdfParam.isOutputExcitationWfn = esdf_integer("Output_Excitation_Wfn", 0);
+    esdfParam.nvband = esdf_integer("NvBand", 1);
+    esdfParam.ncband = esdf_integer("NcBand", 1);
+    esdfParam.nkband = esdf_integer("NkBand", 1);
+    esdfParam.startband = esdf_integer("OutStartBand", 0);
+    esdfParam.endband = esdf_integer("OutEndBand", esdfParam.nkband);
+    esdfParam.numMuFacLRTDDFTISDF = esdf_double("NumMuFac_LRTDDFT_ISDF", 1.0);
+    esdfParam.numGaussianRandomFacLRTDDFTISDF = esdf_double("NumGaussianRandomFac_LRTDDFT_ISDF", 6.0);
+    esdfParam.toleranceLRTDDFT = esdf_double("Tolerance_LRTDDFT", 1e-8);
+    esdfParam.maxIterKmeansLRTDDFTISDF = esdf_integer("MaxIterKmeans_LRTDDFT_ISDF", 10);
+    esdfParam.toleranceKmeansLRTDDFTISDF = esdf_double("ToleranceKmeans_LRTDDFT_ISDF", 1e-5);
+    esdf_string("IPType_LRTDDFT_ISDF", "QRCP", strtmp); 
+    esdfParam.ipTypeLRTDDFTISDF = strtmp;
+    if( esdfParam.ipTypeLRTDDFTISDF != "QRCP" &&
+        esdfParam.ipTypeLRTDDFTISDF != "Kmeans"){
+      ErrorHandling("Invalid LRTDDFT ISDF IP type.");
+    }
+
+    esdf_string("EigenSolver_LRTDDFT", "LAPACK", strtmp);
+    esdfParam.eigenSolverLRTDDFT = strtmp;
+    esdfParam.numProcEigenSolverLRTDDFT  = esdf_integer("NumProcEigenSolver_LRTDDFT", mpisize);
+    esdfParam.eigMaxIterLRTDDFT = esdf_integer("EigMaxIter_LRTDDFT", 10);
+    esdfParam.eigMinToleranceLRTDDFT = esdf_double("EigMinTolerance_LRTDDFT", 1e-5);
+    esdfParam.eigToleranceLRTDDFT = esdf_double("EigTolerance_LRTDDFT", 1e-10);
+
+    // Spectrum
+    esdfParam.isOutputExcitationSpectrum = esdf_integer("Spectrum", 0);
+    esdfParam.LRTDDFTVextPolx = esdf_double( "LRTDDFT_VEXT_POLX", 1.0);
+    esdfParam.LRTDDFTVextPoly = esdf_double( "LRTDDFT_VEXT_POLY", 0.0);
+    esdfParam.LRTDDFTVextPolz = esdf_double( "LRTDDFT_VEXT_POLZ", 0.0);
+    esdfParam.LRTDDFTOmegagrid = esdf_double( "LRTDDFT_Omega_Grid", 0.1);
+    esdfParam.LRTDDFTSigma = esdf_double( "LRTDDFT_Sigma", 0.1);
+
   }
 
   return ;
+
 }        // -----  end of function ESDFReadInput  ----- 
 
 void ESDFPrintInput( ){
@@ -3404,9 +3422,6 @@ void ESDFPrintInput( ){
     Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
     Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
-    Print(statusOFS, "Hybrid DF Type                       = ",  esdfParam.hybridDFType);
-    Print(statusOFS, "Hybrid DF Kmeans WF Type             = ",  esdfParam.hybridDFKmeansWFType);
-    Print(statusOFS, "Hybrid DF Kmeans WF Alpha            = ",  esdfParam.hybridDFKmeansWFAlpha);
     Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
     Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
     Print(statusOFS, "Hybrid DF Num Mu                     = ",  esdfParam.hybridDFNumMu);
@@ -3418,24 +3433,48 @@ void ESDFPrintInput( ){
       Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
       Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
     }
-    
+
     if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
       Print(statusOFS, "Subblock size (sbSize) in PPCG       = ",  esdfParam.PPCGsbSize); 
     }
 
     if( esdfParam.isLRTDDFT ){
 
-	    PrintBlock(statusOFS, "PWDFT LRTDDFT");
+      PrintBlock(statusOFS, "PWDFT LRTDDFT");
 
-	    if( esdfParam.densityGridFactor != 1.0 ){
-		    ErrorHandling( "Density_Grid_Factor != 1.0 is NOT supported in LRTDDFT." );
-	    }
+      //if( esdfParam.densityGridFactor != 1.0 ){
+      //  ErrorHandling( "Density_Grid_Factor != 1.0 is NOT supported in LRTDDFT." );
+      //}
 
-	    Print(statusOFS, "LRTDDFT                              = ",  esdfParam.isLRTDDFT);
-	    Print(statusOFS, "Output_Excitation_Energy             = ",  esdfParam.isOutputExcitationEnergy);
-	    Print(statusOFS, "Output_Excitation_Wfn                = ",  esdfParam.isOutputExcitationWfn);
-	    Print(statusOFS, "Nvband                               = ",  esdfParam.nvband);
-	    Print(statusOFS, "Ncband                               = ",  esdfParam.ncband);
+      Print(statusOFS, "LRTDDFT                              = ",  esdfParam.isLRTDDFT);
+      Print(statusOFS, "Output_Excitation_Energy             = ",  esdfParam.isOutputExcitationEnergy);
+      Print(statusOFS, "Output_Excitation_Wfn                = ",  esdfParam.isOutputExcitationWfn);
+      Print(statusOFS, "Nvband                               = ",  esdfParam.nvband);
+      Print(statusOFS, "Ncband                               = ",  esdfParam.ncband);
+      Print(statusOFS, "ISDF Parameters");
+
+      Print(statusOFS, "MuFac                                = ",  esdfParam.numMuFacLRTDDFTISDF);
+      Print(statusOFS, "GaussianRandomFac                    = ",  esdfParam.numGaussianRandomFacLRTDDFTISDF);
+      Print(statusOFS, "LRTDDFT_Tolerance                    = ",  esdfParam.toleranceLRTDDFT);
+      Print(statusOFS, "hybridDFKmeansMaxIter_ISDF           = ",  esdfParam.maxIterKmeansLRTDDFTISDF);      
+
+      Print(statusOFS, "LOBPCG Parameters");
+      Print(statusOFS, "Nkband                               = ", esdfParam.nkband);
+      Print(statusOFS, "OutStartband                         = ", esdfParam.startband);
+      Print(statusOFS, "OutEndband                           = ", esdfParam.endband);
+      Print(statusOFS, "useLessProcessInLOBPCG               = ", esdfParam.numProcEigenSolverLRTDDFT);
+      Print(statusOFS, "eigMaxIter_LRTDDFT                   = ", esdfParam.eigMaxIterLRTDDFT);
+      Print(statusOFS, "eigMinTolerance_LRTDDFT              = ", esdfParam.eigMinToleranceLRTDDFT);
+      Print(statusOFS, "eigTolerance_LRTDDFT                 = ", esdfParam.eigToleranceLRTDDFT);
+
+      Print(statusOFS, "LRTDDFT Spectrum Parameters");
+      Print(statusOFS, "LRTDDFT_Spectrum                     = ", esdfParam.isOutputExcitationSpectrum);
+      Print(statusOFS, "LRTDDFT_VEXT_POLX                    = ", esdfParam.LRTDDFTVextPolx);
+      Print(statusOFS, "LRTDDFT_VEXT_POLY                    = ", esdfParam.LRTDDFTVextPoly);
+      Print(statusOFS, "LRTDDFT_VEXT_POLZ                    = ", esdfParam.LRTDDFTVextPolz);
+      Print(statusOFS, "LRTDDFT_Omega_Grid                   = ", esdfParam.LRTDDFTOmegagrid);
+      Print(statusOFS, "LRTDDFT_Sigma                        = ", esdfParam.LRTDDFTSigma);
+      
     }
 
   } // PW
@@ -3462,227 +3501,6 @@ void ESDFPrintInput( ){
   return ;
 }        // -----  end of function ESDFPrintInput  ----- 
 
-#if 0
-Int AdjustNumGridOdd( Int numGrid ){
-  Int numGridNew;
-  Int nnn[100];
-  nnn[ 0] = 1;
-  nnn[ 1] = 3;
-  nnn[ 2] = 5;
-  nnn[ 3] = 7;
-  nnn[ 4] = 9;
-  nnn[ 5] = 15;
-  nnn[ 6] = 21;
-  nnn[ 7] = 25;
-  nnn[ 8] = 27;
-  nnn[ 9] = 35;
-  nnn[ 10] = 45;
-  nnn[ 11] = 49;
-  nnn[ 12] = 63;
-  nnn[ 13] = 75;
-  nnn[ 14] = 81;
-  nnn[ 15] = 105;
-  nnn[ 16] = 125;
-  nnn[ 17] = 135;
-  nnn[ 18] = 147;
-  nnn[ 19] = 175;
-  nnn[ 20] = 189;
-  nnn[ 21] = 225;
-  nnn[ 22] = 245;
-  nnn[ 23] = 315;
-  nnn[ 24] = 343;
-  nnn[ 25] = 375;
-  nnn[ 26] = 441;
-  nnn[ 27] = 525;
-  nnn[ 28] = 625;
-  nnn[ 29] = 735;
-  nnn[ 30] = 875;
-  nnn[ 31] = 1029;
-  nnn[ 32] = 1225;
-  nnn[ 33] = 1715;
-  nnn[ 34] = 2401;
-
-  for( int i = 1; i <= 33; i++)
-  {
-    if( nnn[i] >= numGrid && nnn[i+1] > numGrid ) {
-//      numGridNew = IRound(nnn[i]/2.0)*2;
-      numGridNew = nnn[i];
-      break;
-    }
-  }
-
-  return numGridNew;
-}
-
-Int AdjustNumGrid( Int numGrid ){
-  Int numGridNew;
-  Int nnn[300];
-  nnn[0] =0;
-  nnn[1] =1;
-  nnn[2] =2;
-  nnn[3] =3;
-  nnn[4] =4;
-  nnn[5] =5;
-  nnn[6] =6;
-  nnn[7] =7;
-  nnn[8] =8;
-  nnn[9] =9;
-  nnn[10] =10;
-  nnn[11] =12;
-  nnn[12] =14;
-  nnn[13] =15;
-  nnn[14] =16;
-  nnn[15] =18;
-  nnn[16] =20;
-  nnn[17] =21;
-  nnn[18] =24;
-  nnn[19] =25;
-  nnn[20] =27;
-  nnn[21] =28;
-  nnn[22] =30;
-  nnn[23] =32;
-  nnn[24] =35;
-  nnn[25] =36;
-  nnn[26] =40;
-  nnn[27] =42;
-  nnn[28] =45;
-  nnn[29] =48;
-  nnn[30] =49;
-  nnn[31] =50;
-  nnn[32] =54;
-  nnn[33] =56;
-  nnn[34] =60;
-  nnn[35] =63;
-  nnn[36] =64;
-  nnn[37] =70;
-  nnn[38] =72;
-  nnn[39] =75;
-  nnn[40] =80;
-  nnn[41] =81;
-  nnn[42] =84;
-  nnn[43] =90;
-  nnn[44] =96;
-  nnn[45] =98;
-  nnn[46] =100;
-  nnn[47] =105;
-  nnn[48] =108;
-  nnn[49] =112;
-  nnn[50] =120;
-  nnn[51] =125;
-  nnn[52] =126;
-  nnn[53] =128;
-  nnn[54] =135;
-  nnn[55] =140;
-  nnn[56] =144;
-  nnn[57] =147;
-  nnn[58] =150;
-  nnn[59] =160;
-  nnn[60] =162;
-  nnn[61] =168;
-  nnn[62] =175;
-  nnn[63] =180;
-  nnn[64] =189;
-  nnn[65] =192;
-  nnn[66] =196;
-  nnn[67] =200;
-  nnn[68] =210;
-  nnn[69] =216;
-  nnn[70] =224;
-  nnn[71] =225;
-  nnn[72] =240;
-  nnn[73] =243;
-  nnn[74] =245;
-  nnn[75] =250;
-  nnn[76] =252;
-  nnn[77] =256;
-  nnn[78] =270;
-  nnn[79] =280;
-  nnn[80] =288;
-  nnn[81] =294;
-  nnn[82] =300;
-  nnn[83] =315;
-  nnn[84] =320;
-  nnn[85] =324;
-  nnn[86] =336;
-  nnn[87] =343;
-  nnn[88] =350;
-  nnn[89] =360;
-  nnn[90] =375;
-  nnn[91] =378;
-  nnn[92] =384;
-  nnn[93] =392;
-  nnn[94] =400;
-  nnn[95] =405;
-  nnn[96] =420;
-  nnn[97] =432;
-  nnn[98] =441;
-  nnn[99] =448;
-  nnn[100] =450;
-  nnn[101] =480;
-  nnn[102] =486;
-  nnn[103] =490;
-  nnn[104] =500;
-  nnn[105] =504;
-  nnn[106] =512;
-  nnn[107] =525;
-  nnn[108] =540;
-  nnn[109] =560;
-  nnn[110] =567;
-  nnn[111] =576;
-  nnn[112] =588;
-  nnn[113] =600;
-  nnn[114] =625;
-  nnn[115] =630;
-  nnn[116] =640;
-  nnn[117] =648;
-  nnn[118] =672;
-  nnn[119] =675;
-  nnn[120] =686;
-  nnn[121] =700;
-  nnn[122] =720;
-  nnn[123] =729;
-  nnn[124] =735;
-  nnn[125] =750;
-  nnn[126] =756;
-  nnn[127] =768;
-  nnn[128] =784;
-  nnn[129] =800;
-  nnn[130] =810;
-  nnn[131] =840;
-  nnn[132] =864;
-  nnn[133] =875;
-  nnn[134] =882;
-  nnn[135] =896;
-  nnn[136] =900;
-  nnn[137] =945;
-  nnn[138] =960;
-  nnn[139] =972;
-  nnn[140] =980;
-  nnn[141] =1000;
-  nnn[142] =1008;
-  nnn[143] =1024;
-  nnn[144] =1029;
-  nnn[145] =1050;
-  nnn[146] =1080;
-  nnn[147] =1120;
-  nnn[148] =1125;
-  nnn[149] =1134;
-  nnn[150] =1152;
-  nnn[151] =1176;
-  nnn[152] =1200;
-
-  for( int i = 1; i <= 151; i++)
-  {
-    if( nnn[i] >= numGrid && nnn[i+1] > numGrid ) {
-//      numGridNew = IRound(nnn[i]/2.0)*2;
-      numGridNew = nnn[i];
-      break;
-    }
-  }
-
-  return numGridNew;
-}        // -----  end of function AdjustNumGrid      -----
-#endif
 
 } // namespace esdf
 } // namespace dgdft

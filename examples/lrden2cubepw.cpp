@@ -101,7 +101,8 @@ int main(int argc, char **argv){
   Index3 numGridFineGlobal;
   Point3 posStartGlobal;
   Int numAtom;
-  DblNumVec  densityVec;
+  DblNumVec  densityVece;
+  DblNumVec  densityVech;
   std::vector<Atom> atomList;
 
 
@@ -162,11 +163,10 @@ int main(int argc, char **argv){
   // Construct the density in the global domain
   {
     // Only works for the case without magnetization
-    densityVec.Resize(numGridFineGlobal[0]*numGridFineGlobal[1]*numGridFineGlobal[2]);
-    SetValue( densityVec, 0.0 );
+    densityVece.Resize(numGridFineGlobal[0]*numGridFineGlobal[1]*numGridFineGlobal[2]);
+    SetValue( densityVece, 0.0 );
 
-
-    ifstream inputFileStream("DEN");
+    ifstream inputFileStream("ele");
     iA( inputFileStream.good() );
 
     // Read the gridpos
@@ -175,9 +175,27 @@ int main(int argc, char **argv){
       deserialize( gridpos[d], inputFileStream, NO_MASK );
     }
 
-    deserialize(densityVec, inputFileStream, NO_MASK);
+    deserialize(densityVece, inputFileStream, NO_MASK);
 
     if( inputFileStream.is_open() ) inputFileStream.close();
+
+  }
+  {
+    densityVech.Resize(numGridFineGlobal[0]*numGridFineGlobal[1]*numGridFineGlobal[2]);
+    SetValue( densityVech, 0.0 );
+
+    ifstream inputFileStream("hole");
+    iA( inputFileStream.good() );
+
+    std::vector<DblNumVec> gridpos(DIM);
+    for( Int d = 0; d < DIM; d++ ){
+      deserialize( gridpos[d], inputFileStream, NO_MASK );
+    }
+
+    deserialize(densityVech, inputFileStream, NO_MASK);
+
+    if( inputFileStream.is_open() ) inputFileStream.close();
+
   }
 
   // Output the density in the Gaussian cube format
@@ -217,23 +235,32 @@ int main(int argc, char **argv){
         << atomList[a].pos[2]  << endl;
     }
 
-    DblNumTns densityGlobal(
+    DblNumTns densityGlobale(
         numGridFineGlobal[0],
         numGridFineGlobal[1],
         numGridFineGlobal[2], 
-        false, densityVec.Data() );
+        false, densityVece.Data() );
 
+    DblNumTns densityGlobalh(
+        numGridFineGlobal[0],
+        numGridFineGlobal[1],
+        numGridFineGlobal[2], 
+        false, densityVech.Data() );
 
+     cout << "ele DEN" << densityGlobale << endl;
+     
+     cout << "hole DEN" << densityGlobalh << endl;
     //NOTE the special Z-Y-X order here in the Gaussian cube format.
     Int count = 0;
     for(int i = 0; i < numGridFineGlobal[0]; i++)
       for(int j = 0; j < numGridFineGlobal[1]; j++)
         for(int k = 0; k < numGridFineGlobal[2]; k++){
           outputFileStream << scientific << setw(12) << setprecision(5) <<
-            densityGlobal(i,j,k);
+            densityGlobale(i,j,k)-densityGlobalh(i,j,k);
           count++;
           if( count % 6 == 0 )
             outputFileStream << endl;
+
         }
     outputFileStream.close();
   }

@@ -112,11 +112,6 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
  void Scal (int n, const dcomplex *alpha, dcomplex *x, int incx);
  void Scal (int n, const double *alpha, dcomplex *x, int incx);
 
-void Axpy( int n, const cuDoubleComplex * alpha, const cuDoubleComplex * x, int incx, cuDoubleComplex * y, int incy);
-void Axpy( int n, const cuComplex * alpha, const cuComplex * x, int incx, cuComplex * y, int incy);
-void Axpy( int n, const double * alpha, const double * x, int incx, double * y, int incy);
-void Axpy( int n, const float * alpha, const float * x, int incx, float * y, int incy);
-
  void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
              cublasDiagType_t diag, int m, int n, const float *alpha,  const float *A,  
              int lda, float  *B, int ldb );

@@ -53,11 +53,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "blas.hpp"
 #ifdef GPU
-#ifdef USE_MAGMA
 #include  "magma.hpp"
-#else
-#include  "cusolver.hpp"
-#endif   // ifdef USE_MAGMA
 #include  "cublas.hpp"
 #include  "cuda_utils.h"
 #include  "cu_nummat_impl.hpp"
@@ -762,7 +758,7 @@ EigenSolver::PPCGSolveComplex (
 
     // Perform the sweep
     GetTime( timeSta );
-    Int sbSize = esdfParam.PPCGsbSize, nsb = width/sbSize; // this should be generalized to subblocks 
+    Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
     CpxNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
     CpxNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
     CpxNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
@@ -775,10 +771,10 @@ EigenSolver::PPCGSolveComplex (
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
-      CpxNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
-      CpxNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
-      CpxNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
-      CpxNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
+      CpxNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+      CpxNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+      CpxNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+      CpxNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
 
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
@@ -833,8 +829,8 @@ EigenSolver::PPCGSolveComplex (
 
       if ( numSet == 3 ){
 
-        CpxNumMat  p( heightLocal, sbSize, false, P.VecData(sbSize*k) );
-        CpxNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
+        CpxNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+        CpxNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
         // AMatAllLoc
         GetTime( timeSta );
@@ -931,12 +927,12 @@ EigenSolver::PPCGSolveComplex (
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
 
       // fetch indiviual columns
-      CpxNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
-      CpxNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
-      CpxNumMat  p( heightLocal, sbSize, false, P.VecData(sbSize*k) );
-      CpxNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
-      CpxNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
-      CpxNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
+      CpxNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+      CpxNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+      CpxNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+      CpxNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+      CpxNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+      CpxNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
       GetTime( timeSta );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
@@ -1116,7 +1112,7 @@ EigenSolver::PPCGSolveComplex (
     //        statusOFS << "eigValS   = " << eigValS << std::endl;
     //#endif
 
-  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
+  } while( (iter < (5 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -2554,7 +2550,7 @@ EigenSolver::LOBPCGSolveReal    (
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
-  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
+  } while( (iter < (5 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -4803,11 +4799,7 @@ EigenSolver::PPCGSolveReal (
   // each node do the Potrf, without the MPI_Bcast.
     GetTime( timeSta );
     cu_XTX.CopyFrom( XTX );
-#ifdef USE_MAGMA
     MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
-#else
-    cusolver::Potrf( 'U', width, cu_XTX.Data(), width );
-#endif
     cu_XTX.CopyTo( XTX );
 #if 0
     lapack::Potrf( 'U', width, XTX.Data(), width );
@@ -5236,7 +5228,7 @@ EigenSolver::PPCGSolveReal (
 
     // Perform the sweep
     GetTime( timeSta );
-    Int sbSize = esdfParam.PPCGsbSize, nsb = width/sbSize; // this should be generalized to subblocks 
+    Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
     DblNumMat AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
     DblNumMat AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
     DblNumMat AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
@@ -5442,21 +5434,16 @@ EigenSolver::PPCGSolveReal (
     if(mpirank == 0)
       std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
 #endif
-
-    // gpu   ------move memory allocation out of the for cycle by lijl 20201230  
-    cuDblNumMat  cu_cx( sbSize, sbSize ), cu_cw( sbSize, sbSize ), cu_cp( sbSize, sbSize);
-    cuDblNumMat cu_tmp( heightLocal, sbSize );      
-
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
       DblNumMat  cx( sbSize, sbSize ), cw( sbSize, sbSize ), cp( sbSize, sbSize);
       DblNumMat tmp( heightLocal, sbSize );      
-/*       
+       
       // gpu     
       cuDblNumMat  cu_cx( sbSize, sbSize ), cu_cw( sbSize, sbSize ), cu_cp( sbSize, sbSize);
       cuDblNumMat cu_tmp( heightLocal, sbSize );      
-*/
+
       // small eigensolve
       GetTime( timeSta );
 
@@ -5474,20 +5461,20 @@ EigenSolver::PPCGSolveReal (
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
 
       // fetch indiviual columns
-      DblNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
-      DblNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
-      DblNumMat  p( heightLocal, sbSize, false, P.VecData(sbSize*k) );
-      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
-      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
-      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
+      DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+      DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+      DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
       // cuda parts. 
-      cuDblNumMat  cu_x( heightLocal, sbSize, false, cu_X.VecData(sbSize*k) );
-      cuDblNumMat  cu_w( heightLocal, sbSize, false, cu_W.VecData(sbSize*k) );
-      cuDblNumMat  cu_p( heightLocal, sbSize, false, cu_P.VecData(sbSize*k) );
-      cuDblNumMat cu_ax( heightLocal, sbSize, false, cu_AX.VecData(sbSize*k) );
-      cuDblNumMat cu_aw( heightLocal, sbSize, false, cu_AW.VecData(sbSize*k) );
-      cuDblNumMat cu_ap( heightLocal, sbSize, false, cu_AP.VecData(sbSize*k) );
+      cuDblNumMat  cu_x( heightLocal, sbSize, false, cu_X.VecData(k) );
+      cuDblNumMat  cu_w( heightLocal, sbSize, false, cu_W.VecData(k) );
+      cuDblNumMat  cu_p( heightLocal, sbSize, false, cu_P.VecData(k) );
+      cuDblNumMat cu_ax( heightLocal, sbSize, false, cu_AX.VecData(k) );
+      cuDblNumMat cu_aw( heightLocal, sbSize, false, cu_AW.VecData(k) );
+      cuDblNumMat cu_ap( heightLocal, sbSize, false, cu_AP.VecData(k) );
       GetTime( timeSta );
 
       cuda_memcpy_CPU2GPU( cu_cx.Data(), &AMat(0,0), sbSize *sbSize*sizeof(Real));
@@ -5701,11 +5688,7 @@ EigenSolver::PPCGSolveReal (
       lapack::Potrf( 'U', width, XTX.Data(), width );
 #endif
       cu_XTX.CopyFrom( XTX );
-#ifdef USE_MAGMA
       MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
-#else
-      cusolver::Potrf( 'U', width, cu_XTX.Data(), width );
-#endif
       //cu_XTX.CopyTo( XTX );
 
       GetTime( timeEnd1 );
@@ -5732,7 +5715,7 @@ EigenSolver::PPCGSolveReal (
     GetTime( time2);
     thirdTime += time2 - time1;
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (5 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -5833,12 +5816,7 @@ EigenSolver::PPCGSolveReal (
       GetTime( timeSta );
       //lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
       cu_XTX.CopyFrom( XTX );
-#ifdef USE_MAGMA
       MAGMA::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
-#else
-     cusolver::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
-#endif
-
 #ifdef GPU_NOPTIMIZE
       cu_XTX.CopyTo( XTX );
 #endif
@@ -6734,7 +6712,7 @@ EigenSolver::PPCGSolveReal    (
 
     // Perform the sweep
     GetTime( timeSta );
-    Int sbSize = esdfParam.PPCGsbSize, nsb = width/sbSize; // this should be generalized to subblocks 
+    Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
     DblNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
     DblNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
     DblNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
@@ -6747,10 +6725,10 @@ EigenSolver::PPCGSolveReal    (
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
-      DblNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
-      DblNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
-      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
-      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
+      DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+      DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
 
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
@@ -6903,12 +6881,12 @@ EigenSolver::PPCGSolveReal    (
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
 
       // fetch indiviual columns
-      DblNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
-      DblNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
-      DblNumMat  p( heightLocal, sbSize, false, P.VecData(sbSize*k) );
-      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
-      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
-      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
+      DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+      DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+      DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
       GetTime( timeSta );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
@@ -7088,7 +7066,7 @@ EigenSolver::PPCGSolveReal    (
     //        statusOFS << "eigValS   = " << eigValS << std::endl;
     //#endif
 
-  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
+  } while( (iter < (5 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 

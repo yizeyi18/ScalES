@@ -252,7 +252,6 @@ namespace dgdft{
 
       void advanceRK4(PeriodTable& ptable) ;
       void advancePTTRAP(PeriodTable& ptable) ;
-      void advanceCN(PeriodTable& ptable) ;
       void advancePTTRAPDIIS(PeriodTable& ptable) ;
       void done();  
       void Propagate(PeriodTable& ptable );
@@ -265,7 +264,6 @@ namespace dgdft{
       void PrintState( Int step );
 
       Real InnerSolve(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
-      Real InnerSolve_CN(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
       
       // Mixing
       void  AndersonMix( 

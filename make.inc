@@ -6,13 +6,12 @@ USE_COMPLEX      = 0
 USE_OPENMP       = 0
 USE_PROFILE      = 0
 USE_PEXSI        = 0
-USE_GPU          = 1
-USE_MAGMA        = 0
+USE_GPU          = 0
 
 ifeq (${COMPILE_MODE}, release)
   COMPILE_DEF    = -DRELEASE
 #  COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
-  COMPILE_FLAG   = -O3 -w -D GPU -D GPUDIRECT
+  COMPILE_FLAG   = -O3 -w #-D GPU -D GPUDIRECT
 endif
 ifeq (${COMPILE_MODE}, debug)
   COMPILE_DEF    = -DDEBUG=1
@@ -20,17 +19,16 @@ ifeq (${COMPILE_MODE}, debug)
 endif
 
 ifeq (${USE_COMPLEX}, 1)
-  SCALAR_DEF    = -DCOMPLEXSCALAR
+  SCALAR_DEF    = -DCOMPLEXSCALAR -DCPX
 endif
 
 ifeq (${USE_GPU}, 1)
   NVCC = nvcc
-  CUDA_DIR = /usr/local/cuda
-  CUDA_FLAG = -I${CUDA_DIR}/include -D GPU #-I/usr/local/magma/include
-  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda -lcusolver # -lmagma #-lmagma_sparse #-lcudadevrt
-  #CUDA_LIB += -L/usr/local/magma/lib -lmagma
-  #NVCCFLAG = -gencode arch=compute_70,code=sm_70 -DGPU -I ../include -DSYNC  # for debug purpose
-  NVCCFLAG = -gencode arch=compute_70,code=sm_70 -DGPU -I ../include  -I /usr/local/cuda/include
+  CUDA_FLAG = -I/usr/local/cuda/include -D GPU -I/usr/local/magma/include
+  CUDA_LIB = -L/usr/local/cuda/lib64 -lcufft -lcublas -lcudart -lcuda #  -lmagma #-lmagma_sparse #-lcudadevrt
+  CUDA_LIB += -L/usr/local/magma/lib -lmagma
+  #NVCCFLAG = -gencode arch=compute_60,code=sm_60 -DGPU -I ../include -DSYNC  # for debug purpose
+  NVCCFLAG = -gencode arch=compute_60,code=sm_60 -DGPU -I ../include  -I /usr/local/cuda/include
 endif
 
 ifeq (${USE_OPENMP}, 1)
@@ -59,44 +57,33 @@ ifeq (${USE_PEXSI}, 1)
   PEXSI_LIB        = 
 endif
 
-DGDFT_DIR     = /raid/home/lijl/code_git/hefeidgdft
-FFTW_DIR      = /opt/fftw/3.3.8/intel
+DGDFT_DIR     = /staff/qcjiang/codes/hefeidgdft
+FFTW_DIR      = /staff/qcjiang/lib/fftw-3.3.10
 
-FFTW_INCLUDE     = -I${FFTW_DIR}/include  -I/usr/local/cuda/include
-MKL_ROOT      = /opt/intel/mkl
+FFTW_INCLUDE     = -I${FFTW_DIR}/include  
+MKL_ROOT      = /staff/qcjiang/intel/oneapi/mkl/2022.0.2
 # inclues
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC}
 
 # Libraries
 
-LIBXC_DIR     = /opt/libxc/4.2.3/intel
+LIBXC_DIR     = /staff/qcjiang/lib/libxc-5.2.3
 LIBXC_LIB        = $(LIBXC_DIR)/lib/libxc.a
 LIBXC_INCLUDE    = -I$(LIBXC_DIR)/include
 FFTW_LIB         = -L${FFTW_DIR}/lib -lfftw3_mpi -lfftw3 -lm
-MKL_LIB      = -L${MKL_ROOT}/lib/intel64 -lmkl_core -lmkl_intel_lp64  -lmkl_sequential -lmkl_blacs_openmpi_lp64  -lmkl_scalapack_lp64 -lpthread -lgfortran
-
-#MKL_LIB      = -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64 -lmkl_scalapack_lp64 -ldl  -lpthread
-
-#MKL_LIB      = -Wl,--start-group ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a ${MKL_ROOT}/lib/intel64/libmkl_sequential.a ${MKL_ROOT}/lib/intel64/libmkl_core.a ${MKL_ROOT}/lib/intel64/libmkl_blacs_openmpi_lp64.a ${MKL_ROOT}/lib/intel64/libmkl_scalapack_lp64.a -Wl,--end-group -lgfortran -ldl -lpthread
-
-GFORTRAN_LIB     = -lgfortran
+#MKL_LIB      = -L${MKL_ROOT}/lib/intel64 -lmkl_core -lmkl_intel_lp64  -lmkl_sequential -lmkl_blacs_intelmpi_lp64  -lmkl_scalapack_lp64 -lpthread -lgfortran 
+MKL_LIB      = -Wl,--start-group ${MKL_ROOT}/lib/intel64/libmkl_sequential.a ${MKL_ROOT}/lib/intel64/libmkl_core.a ${MKL_ROOT}/lib/intel64/libmkl_blacs_openmpi_lp64.a ${MKL_ROOT}/lib/intel64/libmkl_scalapack_lp64.a ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a -Wl,--end-group -lgfortran -ldl -lpthread -zmuldefs
+#GFORTRAN_LIB     = /usr/lib/gcc/x86_64-linux-gnu/5/libgfortran.a
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
 RQRCP_LIB    = ${DGDFT_DIR}/external/rqrcp/librqrcp.a
 LBFGS_LIB    = ${DGDFT_DIR}/external/lbfgs/liblbfgs.a
 LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${GFORTRAN_LIB} ${BLOPEX_LIB} ${LBFGS_LIB} ${RQRCP_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB}
 
-#CC	= mpiicc
-#CXX	= mpiicpc
-#FC	= mpiifort
-#LOADER	= mpiicpc
-
-OMPI=/opt/openmpi/2.1.2/intel/bin
-CC           = ${OMPI}/mpicc
-CXX          = ${OMPI}/mpicxx
-FC           = gfortran
-LOADER       = ${OMPI}/mpicxx
-
+CC           = mpicc
+CXX          = mpicxx
+FC           = mpif90
+LOADER       = mpicxx
 
 AR           = ar
 ARFLAGS      = rvcu
@@ -129,7 +116,7 @@ LOADOPTS     = ${OPENMP_FLAG} ${PROFILE_FLAG} ${LIBS}
 %.o: %.f
 	${FC} -c ${FFLAGS} $<
 %.o: %.F
-	${FC} -c ${FFLAGS} $<
+	${FC} -c ${FFLAGS} $< ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a 
 %.o: %.f90
 	${FC} -c ${FFLAGS} $<
 %.o: %.F90
