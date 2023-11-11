@@ -9,7 +9,7 @@
 /// @brief Thin interface to device_solver
 /// @date 2020-08-21
 #ifdef  DEVICE
-#include "device_solver.hpp"
+#include "device_solver.h"
 
 cusolverDnHandle_t cusolverH;
 

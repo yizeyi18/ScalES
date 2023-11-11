@@ -5,8 +5,8 @@
 //
 //  Authors: David Williams-Young
 
-#include "block_distributor_impl.hpp"
-#include "block_distributor_factory.hpp"
+#include "block_distributor_impl.h"
+#include "block_distributor_factory.h"
 
 namespace scales {
 

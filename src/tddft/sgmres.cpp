@@ -9,12 +9,12 @@
 /// @brief sgmres in the global domain or extended element.
 /// @date 2017-10-17
 
-#include "sgmres.hpp"
-#include  "utility.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
-#include  "scalapack.hpp"
-#include  "mpi_interf.hpp"
+#include "sgmres.h"
+#include  "utility.h"
+#include  "blas.h"
+#include  "lapack.h"
+#include  "scalapack.h"
+#include  "mpi_interf.h"
 
 
 #ifdef _COMPLEX_

@@ -9,10 +9,10 @@
 /// @brief Electronic structure data format for reading the input data.
 /// @date 2012-08-10
 /// @date 2020-09-19
-#include "esdf.hpp"
-#include "utility.hpp" 
-#include "domain.hpp"
-#include "periodtable.hpp"
+#include "esdf.h"
+#include "utility.h" 
+#include "domain.h"
+#include "periodtable.h"
 #include <xc.h>
 
 namespace scales{

@@ -8,7 +8,7 @@
 /// @file magma.cpp
 /// @brief Thin interface to magma
 /// @date 2020-08-21
-#include "magma.hpp"
+#include "magma.h"
 
 namespace scales {
 namespace MAGMA {

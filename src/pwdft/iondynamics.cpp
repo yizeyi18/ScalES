@@ -11,8 +11,8 @@
 #ifndef _IONDYNAMICS_CPP_
 #define _IONDYNAMICS_CPP_
 
-#include  "iondynamics.hpp"
-#include  "utility.hpp"
+#include  "iondynamics.h"
+#include  "utility.h"
 #include  <algorithm>		// std::min
 
 #include  <blas.hh>

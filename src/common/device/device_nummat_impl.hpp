@@ -12,7 +12,7 @@
 #ifndef _DEVICE_NUMMAT_IMPL_HPP_
 #define _DEVICE_NUMMAT_IMPL_HPP_
 
-#include "device_nummat_decl.hpp"
+#include "device_nummat_decl.h"
 
 namespace  scales{
 

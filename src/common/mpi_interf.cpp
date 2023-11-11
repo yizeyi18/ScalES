@@ -8,8 +8,8 @@
 /// @file mpi_interf.cpp
 /// @brief Inerface with MPI to facilitate communication.
 /// @date 2012-11-03
-#include  "mpi_interf.hpp"
-#include  "utility.hpp"
+#include  "mpi_interf.h"
+#include  "utility.h"
 namespace scales{
 
 // *********************************************************************

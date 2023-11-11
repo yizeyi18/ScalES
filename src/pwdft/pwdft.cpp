@@ -19,7 +19,7 @@
 #include <blas.hh>
 #include <lapack.hh>
 
-#include "pwdft.hpp"
+#include "pwdft.h"
 
 using namespace scales;
 using namespace std;
@@ -27,11 +27,11 @@ using namespace scales::esdf;
 using namespace scales::scalapack;
 
 #ifdef DEVICE
-#include "device_mpi_interf.hpp"
+#include "device_mpi_interf.h"
 #ifdef USE_MAGMA
-#include  "magma.hpp"
+#include  "magma.h"
 #else
-#include "device_solver.hpp"
+#include "device_solver.h"
 #endif
 #endif
 

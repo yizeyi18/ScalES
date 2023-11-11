@@ -6,7 +6,7 @@
 //  Authors: Weile Jia
 
 #ifdef DEVICE
-#include "device_error.hpp"
+#include "device_error.h"
 
 const char *deviceBLASGetErrorString(cublasStatus_t error)
 {

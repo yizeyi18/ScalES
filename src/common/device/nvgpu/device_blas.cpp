@@ -5,12 +5,12 @@
 //
 //  Authors: Weile Jia
 
-/// @file device_blas.hpp
+/// @file device_blas.h
 /// @brief Thin interface to CUBLAS
 /// @date 2020-08-18
 #ifdef DEVICE // only used for the GPU version of the PWDFT code. 
-#include  "environment.hpp"
-#include "device_blas.hpp"
+#include  "environment.h"
+#include "device_blas.h"
 
 cublasHandle_t hcublas;
 

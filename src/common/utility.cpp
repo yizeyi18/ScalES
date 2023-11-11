@@ -8,7 +8,7 @@
 /// @file utility.cpp
 /// @brief Utility subroutines
 /// @date 2012-08-12
-#include "utility.hpp"
+#include "utility.h"
 
 namespace scales{
 

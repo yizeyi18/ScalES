@@ -11,7 +11,7 @@
 #ifndef _NUMMAT_IMPL_HPP_
 #define _NUMMAT_IMPL_HPP_
 
-#include "nummat_decl.hpp"
+#include "nummat_decl.h"
 
 namespace  scales{
 

@@ -9,9 +9,9 @@
 /// @brief Global structure.
 /// @date 2012-08-01
 /// @date 2016-07-12 Update to the coredumper model for debugging
-#include    "environment.hpp"
-#include    "esdf.hpp"
-#include    "periodtable.hpp"
+#include    "environment.h"
+#include    "esdf.h"
+#include    "periodtable.h"
 #ifdef _COREDUMPER_
 #include <google/coredumper.h>
 #endif

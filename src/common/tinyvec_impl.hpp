@@ -11,7 +11,7 @@
 #ifndef  _TINYVEC_IMPL_HPP_
 #define  _TINYVEC_IMPL_HPP_
 
-#include "tinyvec_decl.hpp"
+#include "tinyvec_decl.h"
 
 namespace scales{
 

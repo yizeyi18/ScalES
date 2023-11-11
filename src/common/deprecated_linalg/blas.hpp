@@ -11,7 +11,7 @@
 #ifndef _BLAS_HPP_
 #define _BLAS_HPP_
 
-#include  "environment.hpp"
+#include  "environment.h"
 
 namespace scales {
 

@@ -11,8 +11,8 @@
 /// the generalized eigenvalue problem using ScaLAPACK.
 ///
 /// @date 2013-10-15
-#include "sparse_matrix_decl.hpp"
-#include "scales.hpp"
+#include "sparse_matrix_decl.h"
+#include "scales.h"
 
 using namespace scales;
 using namespace std;

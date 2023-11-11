@@ -14,7 +14,7 @@
 /// @date 2014-07-15 Parallelization of PWDFT.
 /// @date 2016-03-07 Refactoring PWDFT to include geometry optimization
 /// and molecular dynamics.
-#include "pwdft.hpp"
+#include "pwdft.h"
 
 using namespace scales;
 using namespace std;
@@ -23,9 +23,9 @@ using namespace scales::scalapack;
 
 #ifdef DEVICE
 #ifdef USE_MAGMA
-#include  "magma.hpp"
+#include  "magma.h"
 #else
-#include "device_solver.hpp"
+#include "device_solver.h"
 #endif
 #endif
 

@@ -31,7 +31,7 @@
 ///            xxx
 ///
 /// @date 2016-08-12 Original version
-#include "scales.hpp"
+#include "scales.h"
 
 #define _DEBUGlevel_ 0
 

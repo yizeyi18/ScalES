@@ -9,11 +9,11 @@
 /// @brief Hamiltonian class for planewave basis diagonalization method.
 /// @date 2012-09-16
 /// @date 2020-09-19
-#include  "hamiltonian.hpp"
+#include  "hamiltonian.h"
 #include  <blas.hh>
 #include  <lapack.hh>
 
-#include "block_distributor_decl.hpp"
+#include "block_distributor_decl.h"
 
 namespace scales{
 

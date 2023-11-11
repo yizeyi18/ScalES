@@ -11,7 +11,7 @@
 #ifndef _NUMVEC_IMPL_HPP_
 #define _NUMVEC_IMPL_HPP_
 
-#include  "numvec_decl.hpp"
+#include  "numvec_decl.h"
 
 namespace  scales{
 

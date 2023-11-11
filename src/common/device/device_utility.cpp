@@ -8,7 +8,7 @@
 /// @file device_utility.cpp
 /// @brief DEVICE_UTILITY subroutines.
 /// @date 2020-08-12
-#include "device_utility.hpp"
+#include "device_utility.h"
 
 namespace scales{
 

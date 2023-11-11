@@ -8,12 +8,12 @@
 /// @file device_hamiltonian.cpp
 /// @brief device_hamiltonian class for planewave basis diagonalization method.
 /// @date 2020-08-21
-#include  "hamiltonian.hpp"
+#include  "hamiltonian.h"
 #include  <blas.hh>
 #include  <lapack.hh>
-#include  "device_utility.hpp"
+#include  "device_utility.h"
 
-#include "block_distributor_decl.hpp"
+#include "block_distributor_decl.h"
 
 namespace scales{
 

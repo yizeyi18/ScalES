@@ -19,7 +19,7 @@
 #ifndef _DEVICE_NUMVEC_IMPL_HPP_
 #define _DEVICE_NUMVEC_IMPL_HPP_
 
-#include  "device_numvec_decl.hpp"
+#include  "device_numvec_decl.h"
 
 namespace  scales{
 

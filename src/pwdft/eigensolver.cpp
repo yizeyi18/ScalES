@@ -14,14 +14,14 @@
 /// @date 2016-04-04 Adjust some parameters for controlling the number
 /// of iterations dynamically.
 /// @date 2016-04-07 Add Chebyshev filtering.
-#include  "eigensolver.hpp"
-#include  "utility.hpp"
+#include  "eigensolver.h"
+#include  "utility.h"
 #include  <blas.hh>
 #include  <lapack.hh>
-#include  "scalapack.hpp"
-#include  "mpi_interf.hpp"
+#include  "scalapack.h"
+#include  "mpi_interf.h"
 
-#include "block_distributor_decl.hpp"
+#include "block_distributor_decl.h"
 
 
 using namespace scales::scalapack;

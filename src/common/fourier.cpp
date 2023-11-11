@@ -9,9 +9,9 @@
 /// @brief Sequential and Distributed Fourier wrapper.
 /// @date 2011-11-01
 /// @date 2014-02-01 Dual grid implementation.
-#include  "fourier.hpp"
+#include  "fourier.h"
 #include  <blas.hh>
-#include  "esdf.hpp"
+#include  "esdf.h"
 
 namespace scales{
 

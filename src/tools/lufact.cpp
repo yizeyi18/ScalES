@@ -13,8 +13,8 @@
 /// The correctness is verified for the Lap 2d matrix using 1 core.
 ///
 /// @date 2015-08-17
-#include "sparse_matrix_decl.hpp"
-#include "scales.hpp"
+#include "sparse_matrix_decl.h"
+#include "scales.h"
 
 using namespace scales;
 using namespace std;

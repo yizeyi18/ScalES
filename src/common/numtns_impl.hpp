@@ -11,7 +11,7 @@
 #ifndef _NUMTNS_IMPL_HPP_
 #define _NUMTNS_IMPL_HPP_
 
-#include  "numtns_decl.hpp"
+#include  "numtns_decl.h"
 
 namespace  scales{
 

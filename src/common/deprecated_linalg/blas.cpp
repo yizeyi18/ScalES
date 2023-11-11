@@ -8,7 +8,7 @@
 /// @file blas.cpp
 /// @brief Thin interface to BLAS
 /// @date 2012-09-12
-#include "blas.hpp"
+#include "blas.h"
 
 namespace scales {
 namespace blas {

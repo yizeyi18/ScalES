@@ -9,15 +9,15 @@
 /// @brief Spinor (wavefunction) for the global domain or extended
 /// element.
 /// @date 2012-10-06
-#include  "spinor.hpp"
-#include  "utility.hpp"
+#include  "spinor.h"
+#include  "utility.h"
 #include  <blas.hh>
 #include  <lapack.hh>
-#include "linalg_extensions.hpp"
-#include  "scalapack.hpp"
-#include  "mpi_interf.hpp"
+#include "linalg_extensions.h"
+#include  "scalapack.h"
+#include  "mpi_interf.h"
 
-#include "block_distributor_decl.hpp"
+#include "block_distributor_decl.h"
 
 namespace scales{
 

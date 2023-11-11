@@ -11,8 +11,8 @@
 #ifndef _SPARSE_MATRIX_IMPL_HPP_
 #define _SPARSE_MATRIX_IMPL_HPP_
 
-#include "sparse_matrix_decl.hpp"
-#include "mpi_interf.hpp"
+#include "sparse_matrix_decl.h"
+#include "mpi_interf.h"
 
 namespace  scales{
 

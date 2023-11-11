@@ -12,25 +12,25 @@
 /// @date 2014-08-07 Parallelization for PWDFT
 /// @date 2016-01-19 Add hybrid functional
 /// @date 2016-04-08 Update mixing
-#include  "scf.hpp"
+#include  "scf.h"
 #include  <blas.hh>
 #include  <lapack.hh>
-#include  "scalapack.hpp"
-#include  "mpi_interf.hpp"
-#include  "utility.hpp"
-#include  "spinor.hpp"
-#include  "periodtable.hpp"
+#include  "scalapack.h"
+#include  "mpi_interf.h"
+#include  "utility.h"
+#include  "spinor.h"
+#include  "periodtable.h"
 #ifdef DEVICE
-#include  "device_blas.hpp"
+#include  "device_blas.h"
 #include "device_utils.h"
 #ifdef USE_MAGMA
-#include  "magma.hpp"
+#include  "magma.h"
 #else
-#include "device_solver.hpp"
+#include "device_solver.h"
 #endif
 #endif
 
-#include "linalg_extensions.hpp"
+#include "linalg_extensions.h"
 
 namespace  scales{
 

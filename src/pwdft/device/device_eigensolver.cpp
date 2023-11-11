@@ -8,20 +8,20 @@
 /// @file device_eigensolver.cpp
 /// @brief device_eigensolver in the global domain or extended element.
 /// @date 2020-08-21
-#include  "eigensolver.hpp"
-#include  "utility.hpp"
+#include  "eigensolver.h"
+#include  "utility.h"
 #include  <blas.hh>
 #include  <lapack.hh>
-#include  "device_blas.hpp"
+#include  "device_blas.h"
 #include  "device_utils.h"
 #include  "device_nummat_impl.hpp"
 #include  "device_numvec_impl.hpp"
-#include  "scalapack.hpp"
-#include  "mpi_interf.hpp"
+#include  "scalapack.h"
+#include  "mpi_interf.h"
 #ifdef USE_MAGMA
-#include  "magma.hpp"
+#include  "magma.h"
 #else
-#include "device_solver.hpp"
+#include "device_solver.h"
 #endif
 
 using namespace scales::scalapack;

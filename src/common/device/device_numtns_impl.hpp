@@ -12,7 +12,7 @@
 #ifndef _DEVICE_NUMTNS_IMPL_HPP_
 #define _DEVICE_NUMTNS_IMPL_HPP_
 
-#include  "device_numtns_decl.hpp"
+#include  "device_numtns_decl.h"
 
 namespace  scales{
 

@@ -10,8 +10,8 @@
 /// @date 2017-09-05 Initialize
 /// @date 2017-12-28 Integrate with master branch
 
-#include "tddft.hpp"
-#include "utility.hpp"
+#include "tddft.h"
+#include "utility.h"
 #ifdef GPU
 #include "cuda_utils.h"
 #endif

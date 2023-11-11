@@ -8,8 +8,8 @@
 /// @file device_mpi_interf.cpp
 /// @brief Inerface with MPI to facilitate communication.
 /// @date 2020-08-23
-#include  "device_mpi_interf.hpp"
-#include  "utility.hpp"
+#include  "device_mpi_interf.h"
+#include  "utility.h"
 static int stringCmp(const void *a, const void* b)
 {
 	char* m = (char*)a;

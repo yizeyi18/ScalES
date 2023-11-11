@@ -9,13 +9,13 @@
 /// @brief Sequential and Distributed device_fft wrapper.
 /// @date 2020-08-12
 
-#include  "domain.hpp"
-#include  "device_fft.hpp"
-#include  "fourier.hpp"
+#include  "domain.h"
+#include  "device_fft.h"
+#include  "fourier.h"
 #include  <blas.hh>
-#include  "esdf.hpp"
-#include "device_blas.hpp"
-#include "mpi_interf.hpp"
+#include  "esdf.h"
+#include "device_blas.h"
+#include "mpi_interf.h"
 
 cufftHandle cuPlanR2C[NSTREAM];
 cufftHandle cuPlanR2CFine[NSTREAM];

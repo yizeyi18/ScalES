@@ -8,9 +8,9 @@
 /// @file periodtable.hpp
 /// @brief Periodic table and its entries.
 /// @date 2012-08-10
-#include "periodtable.hpp"
-#include "esdf.hpp"
-#include "utility.hpp"
+#include "periodtable.h"
+#include "esdf.h"
+#include "utility.h"
 #include <blas.hh>
 #include <lapack.hh>
 

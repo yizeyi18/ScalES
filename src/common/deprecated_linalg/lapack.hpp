@@ -8,7 +8,7 @@
 /// @file lapack.hpp
 /// @brief Thin interface to LAPACK
 /// @date 2012-09-12
-#include  "environment.hpp"
+#include  "environment.h"
 #ifndef _LAPACK_HPP_
 #define _LAPACK_HPP_
 

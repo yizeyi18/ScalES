@@ -8,7 +8,7 @@
 /// @file scalapack.cpp
 /// @brief Thin interface to ScaLAPACK
 /// @date 2012-06-05
-#include "scalapack.hpp"
+#include "scalapack.h"
 
 namespace scales {
 namespace scalapack {
