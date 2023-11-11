@@ -5,3 +5,5 @@
 */*/*.a
 */*.swp
 */jia
+a_build/
+examples/*/*/statfile.0

@@ -17,16 +17,17 @@ add_library( ScalES::linalg INTERFACE IMPORTED )
 #endif()
 
 # BLAS++/LAPACK++
-include( FetchContent )
-FetchContent_Declare( blaspp
-  GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git 
-)
-FetchContent_Declare( lapackpp
-  GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git 
-)
+#include( FetchContent )
+#FetchContent_Declare( blaspp
+#  GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git 
+#)
+#FetchContent_Declare( lapackpp
+#  GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git 
+#)
 
-FetchContent_MakeAvailable( blaspp )
-FetchContent_MakeAvailable( lapackpp )
-target_compile_definitions( lapackpp PUBLIC LAPACK_COMPLEX_CPP )
+#FetchContent_MakeAvailable( blaspp )
+#FetchContent_MakeAvailable( lapackpp )
+find_package( lapackpp REQUIRED )
+#target_compile_definitions( lapackpp PUBLIC LAPACK_COMPLEX_CPP )
 
 target_link_libraries( ScalES::linalg INTERFACE lapackpp ScaLAPACK::ScaLAPACK ) 
