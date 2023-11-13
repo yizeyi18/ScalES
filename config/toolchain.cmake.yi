@@ -1,0 +1,31 @@
+#set( MPI_C_COMPILER       /home/su_group/soft/spack/opt/spack/linux-centos7-cascadelake/gcc-13.2.0/openmpi-4.1.6-l7kzgab4xe2avo2et34iaae2flsludq3/bin/mpicc         )
+#set( MPI_CXX_COMPILER     /home/su_group/soft/spack/opt/spack/linux-centos7-cascadelake/gcc-13.2.0/openmpi-4.1.6-l7kzgab4xe2avo2et34iaae2flsludq3/bin/mpicxx        )
+#set( MPI_Fortran_COMPILER /home/su_group/soft/spack/opt/spack/linux-centos7-cascadelake/gcc-13.2.0/openmpi-4.1.6-l7kzgab4xe2avo2et34iaae2flsludq3/bin/mpif90        )
+set( CMAKE_C_COMPILER             /home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/aocc-4.0.0/gcc-13.1.0-gm7gtsx5rcnc7sgwlpyezmrpldpbw44f/bin/gcc       )
+set( CMAKE_CXX_COMPILER           /home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/aocc-4.0.0/gcc-13.1.0-gm7gtsx5rcnc7sgwlpyezmrpldpbw44f/bin/g++       )
+set( CMAKE_Fortran_COMPILER       /home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/aocc-4.0.0/gcc-13.1.0-gm7gtsx5rcnc7sgwlpyezmrpldpbw44f/bin/gfortran  )
+#set( CMAKE_C_COMPILER       /home/su_group/soft/openmpi/bin/mpicc   ) 
+#set( CMAKE_CXX_COMPILER     /home/su_group/soft/openmpi/bin/mpicxx  )
+#set( CMAKE_Fortran_COMPILER /home/su_group/soft/openmpi/bin/mpifort )
+
+
+# These are generally set to be the UNIX prefix for the install
+# path of the dependency, e.g. 
+#   libs are located in $BLAS_PREFIX/lib{,32,64}
+#   fftw headers are located in $FFTW_PREFIX/include
+set( BLAS_PREFIX      "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/openblas-0.3.23-2fnivlg4e7pdfxtdv5oxs4cr3fgao3r6"      )
+set( LAPACK_PREFIX    "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/openblas-0.3.23-2fnivlg4e7pdfxtdv5oxs4cr3fgao3r6"      )
+set( ScaLAPACK_PREFIX "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/netlib-scalapack-2.2.0-k6lq5bqo6sdtool3a4l7i6adzqqjjke3" )
+#set( ScaLAPACK_PREFIX "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/amdscalapack-4.1-vjygrp5uo3ssy2xz7ktckgysnx5lrqj5"     )
+set( FFTW3_PREFIX     "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/fftw-3.3.10-6fs2j2y2ttnhd3p6yqzeyhsq3krbx75r"          )
+set( Libxc_PREFIX     "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/libxc-6.2.2-h3qnenu2rbjtt2wlkn2fscgzae5yorvu"          )
+set( lapackpp_DIR     "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/lapackpp-2023.08.25-44bfypnw6cjkso5r7l3wyp4rs4rw5f6n/lib/cmake/lapackpp"  )
+set( blaspp_DIR       "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/blaspp-2023.08.25-j34ax7cjiddkjgwdbvqjguniesum7zyg/lib/cmake/blaspp"    )
+set( PEXSI_DIR        "/home/yizeyi18/soft/spack/opt/spack/linux-ubuntu22.04-zen3/gcc-13.1.0/pexsi-2.0.0-kzxshhu3pwmdwzajl7fwjdv7fx72x2qg/lib/cmake/PEXSI"          )
+
+# If discovery fails, you can always specify the libraries 
+# explictly
+#
+#set( ScaLAPACK_LIBRARIES      "-L/usr/lib/x86_64-linux-gnu -lscalapack-openmpi -llapack -lblas" )
+#set( CMAKE_CUDA_ARCHITECTURES "75" )
+# set( CUDA_ROOT                "/usr/local/cuda-10.2" )

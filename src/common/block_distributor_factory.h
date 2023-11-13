@@ -1,0 +1,61 @@
+//  This file is a part of ScalES (see LICENSE). All Right Reserved
+//
+//  Copyright (c) 2012-2021 The Regents of the University of California,
+//  through Lawrence Berkeley National Laboratory.  
+//
+//  Authors: David Williams-Young
+
+#pragma once
+
+#include "block_distributor_impl.h"
+#include "host_generic_block_distributor.h"
+#include "host_optpack_block_distributor.h"
+
+
+namespace scales {
+
+namespace detail {
+
+template <typename T, class ImplType, typename... Args>
+std::unique_ptr< BlockDistributorImpl<T> >
+  make_distributor_impl( Args&&... args ) {
+
+  return std::unique_ptr< BlockDistributorImpl<T> >(
+    new ImplType( std::forward<Args>(args)... )
+  );
+
+}
+
+template <typename T, class ImplType, typename... Args>
+BlockDistributor<T> make_distributor( Args&&... args ) {
+
+  return BlockDistributor<T>( 
+    make_distributor_impl<T,ImplType>( std::forward<Args>(args)... )
+  );
+
+}
+
+}
+
+template <typename T>
+BlockDistributor<T> make_block_distributor( BlockDistAlg alg, 
+                                            MPI_Comm comm, 
+                                            Int M, 
+                                            Int N ) {
+
+  switch(alg) {
+    case BlockDistAlg::HostGeneric:
+      return detail::make_distributor<T,HostGenericBlockDistributor<T>>(
+        comm, M, N
+      );
+    case BlockDistAlg::HostOptPack:
+      return detail::make_distributor<T,HostOptPackBlockDistributor<T>>(
+        comm, M, N
+      );
+    default:
+      return BlockDistributor<T>();
+  }
+
+}
+
+}
