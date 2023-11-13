@@ -60,7 +60,7 @@ typedef NumVec<Complex>    CpxNumVec;
 
 // Utilities
 template <class F> inline void SetValue( NumVec<F>& vec, F val );  //给所有元素设值
-template <class F> inline Real Energy( const NumVec<F>& vec );     //给实向量取模
+template <class F> inline Real Energy( const NumVec<F>& vec );     //给实/复向量取模，通过std::abs取了元素模
 template <class F> inline Real findMin( const NumVec<F>& vec );    //遍历搜极大，假设任意vec存在小于0元素
 template <class F> inline Real findMax( const NumVec<F>& vec );    //遍历搜极大，假设任意vec存在大于0元素
 template <class F> inline void Sort( NumVec<F>& vec );             //FIXME vec元素排序，多少带点......
