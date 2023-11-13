@@ -28,21 +28,21 @@ public:
   bool owndata_;                          // Whether it owns the data
   F* data_;                               // The pointer for the actual data
 public:
-  NumVec(Int m = 0);
+  NumVec(Int m = 0);                      //三种构造函数
   NumVec(Int m, bool owndata, F* data);
   NumVec(const NumVec& C);
-  ~NumVec();
+  ~NumVec();                              //析构
 
-  NumVec& operator=(const NumVec& C);
+  NumVec& operator=(const NumVec& C);     //赋值算符
 
-  void Resize ( Int m );
+  void Resize ( Int m );                  //改大小用，没闹懂。不保留旧的为什么不析构掉建个新的？
 
-  const F& operator()(Int i) const;  
+  const F& operator()(Int i) const;       //常量与非常量型的值访问算符
   F& operator()(Int i);  
   const F& operator[](Int i) const;
   F& operator[](Int i);
 
-  bool IsOwnData() const { return owndata_; }
+  bool IsOwnData() const { return owndata_; }//访问成员的方法
 
   F*   Data() const { return data_; }
 
@@ -59,11 +59,11 @@ typedef NumVec<Complex>    CpxNumVec;
 
 
 // Utilities
-template <class F> inline void SetValue( NumVec<F>& vec, F val );
-template <class F> inline Real Energy( const NumVec<F>& vec );
-template <class F> inline Real findMin( const NumVec<F>& vec );
-template <class F> inline Real findMax( const NumVec<F>& vec );
-template <class F> inline void Sort( NumVec<F>& vec );
+template <class F> inline void SetValue( NumVec<F>& vec, F val );  //给所有元素设值
+template <class F> inline Real Energy( const NumVec<F>& vec );     //给实向量取模
+template <class F> inline Real findMin( const NumVec<F>& vec );    //遍历搜极大，假设任意vec存在小于0元素
+template <class F> inline Real findMax( const NumVec<F>& vec );    //遍历搜极大，假设任意vec存在大于0元素
+template <class F> inline void Sort( NumVec<F>& vec );             //FIXME vec元素排序，多少带点......
 
 } // namespace scales
 
