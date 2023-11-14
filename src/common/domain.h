@@ -8,6 +8,11 @@
 /// @file domain.hpp
 /// @brief Computational domain.
 /// @date 2012-08-01
+//
+/// 看起来是记录体系尺寸·格点·MPI通信信息的类型
+/// 为什么用结构体而不是全局变量？或者说存在使用多个domain的需求？
+/// 再看看，回头写说明
+/// yizeyi18 2023.11.14
 #ifndef _DOMAIN_HPP_
 #define _DOMAIN_HPP_
 
@@ -27,7 +32,7 @@ struct Domain
   MPI_Comm     rowComm;
   MPI_Comm     colComm;
 
-  Domain()
+  Domain()                                      //构造函数。似乎没有可选初值，换句话说必须后赋。
   { 
     length        = Point3( 0.0, 0.0, 0.0 );
     posStart      = Point3( 0.0, 0.0, 0.0 );

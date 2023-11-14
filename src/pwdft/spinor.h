@@ -9,6 +9,8 @@
 /// @brief Spinor (wavefunction) for the global domain or extended
 /// element.
 /// @date 2012-10-06
+//
+/// 波函数旋量类的定义
 #ifndef _SPINOR_HPP_
 #define _SPINOR_HPP_
 
@@ -34,7 +36,7 @@ class Spinor {
 private:
   Domain            domain_;                // mesh should be used here for general cases 
   NumTns<Real>      wavefun_;               // Local data of the wavefunction 
-  IntNumVec         wavefunIdx_;
+  IntNumVec         wavefunIdx_;            // 干啥的？
   Int               numStateTotal_;
   Int               blocksize_;
 #ifdef DEVICE
@@ -50,9 +52,9 @@ private:
 
 public:
   // *********************************************************************
-  // Constructor and destructor
+  // Constructor and destructor 两种有参构造与无参构造/析构；与构造函数职能大概一样的Setup函数
   // *********************************************************************
-  Spinor(); 
+  Spinor();
   ~Spinor();
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
@@ -62,6 +64,7 @@ public:
       const bool owndata, Real* data );
 #ifdef DEVICE
   // Weile, needs further consideration.
+  // 贾同学的作品？不知道有啥问题
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data, bool isGPU);
   void SetupGPU( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
@@ -75,7 +78,7 @@ public:
       const bool owndata, Real* data );
 
   // *********************************************************************
-  // Inquiries
+  // Inquiries 访问成员用，Wavefun和WavefunIdx做了可变版
   // *********************************************************************
   Int NumGridTotal()  const { return wavefun_.m(); }
   Int NumComponent()  const { return wavefun_.n(); }
@@ -83,19 +86,19 @@ public:
   Int NumStateTotal() const { return numStateTotal_; }
   Int Blocksize()     const { return blocksize_; }
 
-  IntNumVec&  WavefunIdx() { return wavefunIdx_; }
+        IntNumVec&  WavefunIdx()       { return wavefunIdx_; }
   const IntNumVec&  WavefunIdx() const { return wavefunIdx_; }
-  Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
+        Int&  WavefunIdx(const Int k)       { return wavefunIdx_(k); }
   const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
-  NumTns<Real>& Wavefun() { return wavefun_; } 
+        NumTns<Real>& Wavefun()       { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
 #ifdef DEVICE
-  deviceNumTns<Real>& cuWavefun() { return cu_wavefun_; } 
+        deviceNumTns<Real>& cuWavefun()       { return cu_wavefun_; } 
   const deviceNumTns<Real>& cuWavefun() const { return cu_wavefun_; } 
 #endif
-  Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
-  const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
+        Real& Wavefun(const Int i, const Int j, const Int k)       { return wavefun_(i,j,k); }
+  const Real& Wavefun(const Int i, const Int j, const Int k) const { return wavefun_(i,j,k); }
 
   // *********************************************************************
   // Access
@@ -104,26 +107,28 @@ public:
   // *********************************************************************
   // Operations
   // *********************************************************************
-  void Normalize();
+  void Normalize();                                                     //正则化？
 
   // Perform all operations of matrix vector multiplication.
   void AddMultSpinor( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );       //乘加？不确定
   
   // LL: 1/3/2021
   // This function requires the coarse grid to be an odd number along each
   // direction, and therefore should be deprecated in the future.
   void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );       //
+
+  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& Hpsi );          //Teter预处理。
+									//见：Physical Review B 40 (1989) 12255
+									//https://doi.org/10.1103/PhysRevB.40.12255
 
 #ifdef DEVICE 
   void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi );
+      const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi ); 
   void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& Hpsi );
 #endif
 
-  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& Hpsi );
-
   /// @brief Apply the exchange operator to the spinor by solving
   /// Poisson like equations
   /// EXX: Spinor with exact exchange. 
@@ -131,25 +136,19 @@ public:
   /// algorithm requires a different set of input parameters for AddMultSpinor
   void AddMultSpinorEXX ( Fourier& fft,
       const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2CFine,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      NumTns<Real>& Hpsi );
-
+      const DblNumVec&    exxgkkR2CFine,
+            Real          exxFraction,
+            Real          numSpin,
+      const DblNumVec&    occupationRate,
+            NumTns<Real>& Hpsi );
 #ifdef DEVICE
-  /// @brief Apply the exchange operator to the spinor by solving
-  /// Poisson like equations
-  /// EXX: Spinor with exact exchange. 
-  /// Keeping the names separate is good for now, since the new
-  /// algorithm requires a different set of input parameters for AddMultSpinor
   void AddMultSpinorEXX ( Fourier& fft,
-      const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2CFine,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      deviceNumTns<Real>& Hpsi );
+      const NumTns<Real>&       phi,
+      const DblNumVec&          exxgkkR2CFine,
+            Real                exxFraction,
+            Real                numSpin,
+      const DblNumVec&          occupationRate,
+            deviceNumTns<Real>& Hpsi );
 #endif
 
   /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
@@ -162,19 +161,19 @@ public:
   /// Only sequential version is implemented
   void AddMultSpinorEXXDF ( Fourier& fft, 
       const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2C,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      const Real numMuFac,
-      const Real numGaussianRandomFac,
-      const Int numProcScaLAPACKPotrf, 
-      const Int scaPotrfBlockSize, 
-      NumTns<Real>& Hpsi,
-      NumMat<Real>& VxMat, 
-      bool isFixColumnDF );
+      const DblNumVec&    exxgkkR2C,
+            Real          exxFraction,
+            Real          numSpin,
+      const DblNumVec&    occupationRate,
+      const Real          numMuFac,
+      const Real          numGaussianRandomFac,
+      const Int           numProcScaLAPACKPotrf, 
+      const Int           scaPotrfBlockSize, 
+            NumTns<Real>& Hpsi,
+            NumMat<Real>& VxMat, 
+            bool          isFixColumnDF );
 
-
+//  这些为什么被注释掉了？
 //  void AddMultSpinorEXXDF2 ( Fourier& fft, 
 //      const NumTns<Real>& phi,
 //      const DblNumVec& exxgkkR2C,
@@ -233,56 +232,64 @@ public:
   
   void AddMultSpinorEXXDF6 ( Fourier& fft, 
       const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2C,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      const Real numMuFac,
-      const Real numGaussianRandomFac,
-      const Int numProcScaLAPACKPotrf, 
-      const Real hybridDFTolerance,
-      const Int scaPotrfBlockSize, 
-      NumTns<Real>& Hpsi,
-      NumMat<Real>& VxMat, 
-      bool isFixColumnDF );
+      const DblNumVec&    exxgkkR2C,
+            Real          exxFraction,
+            Real          numSpin,
+      const DblNumVec&    occupationRate,
+      const Real          numMuFac,
+      const Real          numGaussianRandomFac,
+      const Int           numProcScaLAPACKPotrf, 
+      const Real          hybridDFTolerance,
+      const Int           scaPotrfBlockSize, 
+            NumTns<Real>& Hpsi,
+            NumMat<Real>& VxMat, 
+            bool          isFixColumnDF );
 
-  void AddMultSpinorEXXDF7 ( Fourier& fft, 
+  void AddMultSpinorEXXDF7 ( Fourier& fft,                              //好像只有这个被调用过？剩下的是干啥的？
       const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2C,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      std::string hybridDFType_,
-      Real  hybridDFKmeansTolerance, 
-      Int   hybridDFKmeansMaxIter, 
-      const Real numMuFac,
-      const Real numGaussianRandomFac,
-      const Int numProcScaLAPACKPotrf, 
-      const Real hybridDFTolerance,
-      const Int scaPotrfBlockSize, 
-      NumTns<Real>& Hpsi,
-      NumMat<Real>& VxMat, 
-      bool isFixColumnDF );
+      const DblNumVec&    exxgkkR2C,
+            Real          exxFraction,
+            Real          numSpin,
+      const DblNumVec&    occupationRate,
+            std::string   hybridDFType_,
+            Real          hybridDFKmeansTolerance, 
+            Int           hybridDFKmeansMaxIter, 
+      const Real          numMuFac,
+      const Real          numGaussianRandomFac,
+      const Int           numProcScaLAPACKPotrf, 
+      const Real          hybridDFTolerance,
+      const Int           scaPotrfBlockSize, 
+            NumTns<Real>& Hpsi,
+            NumMat<Real>& VxMat, 
+            bool          isFixColumnDF );
 #ifdef DEVICE
-  void AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
-      const NumTns<Real>& phi,
-      const DblNumVec& exxgkkR2C,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      const Real numMuFac,
-      const Real numGaussianRandomFac,
-      const Int numProcScaLAPACKPotrf, 
-      const Int scaPotrfBlockSize, 
-      deviceDblNumMat & cu_Hpsi,
-      NumMat<Real>& VxMat, 
-      bool isFixColumnDF );
+  void AddMultSpinorEXXDF3_GPU ( Fourier& fft,                          //被调用过 
+      const NumTns<Real>&    phi,
+      const DblNumVec&       exxgkkR2C,
+            Real             exxFraction,
+            Real             numSpin,
+      const DblNumVec&       occupationRate,
+      const Real             numMuFac,
+      const Real             numGaussianRandomFac,
+      const Int              numProcScaLAPACKPotrf, 
+      const Int              scaPotrfBlockSize, 
+            deviceDblNumMat& cu_Hpsi,//FIXME 见不得cu是这样的
+            NumMat<Real>&    VxMat, 
+            bool             isFixColumnDF );
 
 #endif
 
 
 };  // Spinor
 
+//只在AddMultSpinorEXXDF7的实现里用过
+//我们真的需要这样一个结构体吗？
+//不过把这么一大坨纯声明塞在实现里也......挺蠢的
+//所以真的需要这么多东西来实现一个矩阵通信？
+//可能AddMultSpinorEXXDF6或者其它需要写通信的地方可以复用
+//比如，pwdft.cpp
+//不过实在是太丑陋了令人无力阅读......
+//好好加一遍注释然后当成黑魔法用吧
 struct CommMatrix {
   Int contxt0, contxt1, contxt11, contxt2;
   Int nprow0, npcol0, myrow0, mycol0, info0;
