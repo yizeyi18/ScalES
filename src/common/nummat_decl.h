@@ -36,13 +36,13 @@ template <class F>
 
     NumMat& operator=(const NumMat& C);                        //赋值
 
-    void Resize(Int m, Int n);                                 //没闹懂预备
+    void Resize(Int m, Int n);                                 //变形，转置矩阵时Resize传出量时候用的
 
     const F& operator()(Int i, Int j) const;                   //可变/不可变地访问元素
     F& operator()(Int i, Int j);  
     F* VecData(Int j)  const;                                  //返回列j首元素的地址，不负责传出指针的尺寸
 
-    bool IsOwnData() const { return owndata_; }                //访问类成员
+    bool IsOwnData() const { return owndata_; }                //访问类成员，统统不可变
     F* Data() const { return data_; } 
     Int m() const { return m_; }
     Int n() const { return n_; }

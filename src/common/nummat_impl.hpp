@@ -18,7 +18,8 @@ namespace  scales{
 template <class F> inline NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
   if(m_>0 && n_>0) { 
     data_ = new F[m_*n_]; 
-    if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); } 
+    if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+  }//m_ > 0 && n_ > 0 
   else data_=nullptr;
 }//NumMat::NumMat()
 
@@ -32,9 +33,8 @@ template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data)
     if(m_>0 && n_>0) //复制
       for(Int i=0; i<m_*n_; i++) data_[i] = data[i];
   }//if owndata_
-  else {
+  else 
     data_ = data;
-  }
 }//NumMat::NumMat()
 
 template <class F> inline NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), owndata_(C.owndata_) {

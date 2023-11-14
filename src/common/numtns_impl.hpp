@@ -17,34 +17,48 @@ namespace  scales{
 
 template <class F> 
   inline NumTns<F>::NumTns(Int m, Int n, Int p): m_(m), n_(n), p_(p), owndata_(true) {
-    if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+    if(m_>0 && n_>0 && p_>0) {
+      data_ = new F[m_*n_*p_]; 
+      if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+    }//m_>0 && n_>0 && p_>0
+    else data_=nullptr;
   }
 
 template <class F> 
   inline NumTns<F>::NumTns(Int m, Int n, Int p, bool owndata, F* data): m_(m), n_(n), p_(p), owndata_(owndata) {
     if(owndata_) {
-      if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-      if(m_>0 && n_>0 && p_>0) { for(Int i=0; i<m_*n_*p_; i++) data_[i] = data[i]; }
-    } else {
+      if(m_>0 && n_>0 && p_>0) { 
+        data_ = new F[m_*n_*p_]; 
+	if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+      }//m_>0 && n_>0 && p_>0
+      else data_=nullptr;
+      if(m_>0 && n_>0 && p_>0) 
+        for(Int i=0; i<m_*n_*p_; i++) data_[i] = data[i]; 
+    }//if owndata_
+    else 
       data_ = data;
-    }
   }
 
 template <class F> 
   inline NumTns<F>::NumTns(const NumTns& C): m_(C.m_), n_(C.n_), p_(C.p_), owndata_(C.owndata_) {
     if(owndata_) {
-      if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-      if(m_>0 && n_>0 && p_>0) { for(Int i=0; i<m_*n_*p_; i++) data_[i] = C.data_[i]; }
-    } else {
+      if(m_>0 && n_>0 && p_>0) { 
+        data_ = new F[m_*n_*p_]; 
+	if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+      }//m_>0 && n_>0 && p_>0
+      else data_=nullptr;
+      if(m_>0 && n_>0 && p_>0) 
+        for(Int i=0; i<m_*n_*p_; i++) data_[i] = C.data_[i]; 
+    }//if owndata_
+    else 
       data_ = C.data_;
-    }
   }
 
 template <class F> 
   inline NumTns<F>::~NumTns() { 
-    if(owndata_) { 
-      if(m_>0 && n_>0 && p_>0) { delete[] data_; data_ = NULL; } 
-    }
+    if(owndata_ && m_>0 && n_>0 && p_>0) { 
+        delete[] data_; data_ = nullptr; 
+    } 
   }
 
 template <class F> 
@@ -52,18 +66,26 @@ template <class F>
     // Do not copy if it is the same matrix.
     if(C.data_ == data_) return *this;
 
-    if(owndata_) { 
-      if(m_>0 && n_>0 && p_>0) { delete[] data_; data_ = NULL; } 
-    }
-    m_ = C.m_; n_=C.n_; p_=C.p_; owndata_=C.owndata_;
+    if(owndata_ && m_>0 && n_>0 && p_>0) { 
+      delete[] data_; data_ = nullptr; 
+    }//if owndata_
+    m_ = C.m_; 
+    n_=C.n_; 
+    p_=C.p_; 
+    owndata_=C.owndata_;
     if(owndata_) {
-      if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-      if(m_>0 && n_>0 && p_>0) { for(Int i=0; i<m_*n_*p_; i++) data_[i] = C.data_[i]; }
-    } else {
+      if(m_>0 && n_>0 && p_>0) { 
+        data_ = new F[m_*n_*p_]; 
+	if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+      }//m_>0 && n_>0 && p_>0 
+      else data_=nullptr;
+      if(m_>0 && n_>0 && p_>0)  
+        for(Int i=0; i<m_*n_*p_; i++) data_[i] = C.data_[i]; 
+    }//if owndata_ 
+    else 
       data_ = C.data_;
-    }
     return *this;
-  }
+  }//NumTns::operator=
 
 template <class F> 
   inline void NumTns<F>::Resize(Int m, Int n, Int p)  {
@@ -71,18 +93,23 @@ template <class F>
       ErrorHandling("Tensor being resized must own data.");
     }
     if(m_!=m || n_!=n || p_!=p) {
-      if(m_>0 && n_>0 && p_>0) { delete[] data_; data_ = NULL; } 
+      if(m_>0 && n_>0 && p_>0) { 
+        delete[] data_; data_ = nullptr; } 
       m_ = m; n_ = n; p_=p;
-      if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-    }
-  }
+      if(m_>0 && n_>0 && p_>0) { 
+        data_ = new F[m_*n_*p_]; 
+	if( data_ == nullptr ) ErrorHandling("Cannot allocate memory."); 
+      }//m_>0 && n_>0 && p_>0 
+      else data_=nullptr;
+    }//if m_!=m || n_!=n || p_!=p
+  }//NumTns::Resize
 
 template <class F> 
   inline const F& NumTns<F>::operator()(Int i, Int j, Int k) const  {
 #if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ||
         j < 0 || j >= n_ ||
-        k < 0 || k >= p_ ) {
+        k < 0 || k >= p_ ) {//FIXME 检查m_ n_ p_是否小于0
       std::ostringstream msg;
       msg 
         << "Index is out of bound."  << std::endl
@@ -112,7 +139,7 @@ template <class F>
   }
 
 template <class F> 
-  inline F* NumTns<F>::MatData (Int k) const {
+  inline F* NumTns<F>::MatData (Int k) const {                 //返回第三指标是k的首元素地址，不负责矩阵大小
 #if ( _DEBUGlevel_ >= 1 )
     if( k < 0 || k >= p_ ) {
       std::ostringstream msg;
@@ -127,7 +154,7 @@ template <class F>
   }
 
 template <class F> 
-  inline F* NumTns<F>::VecData (Int j, Int k) const {
+  inline F* NumTns<F>::VecData (Int j, Int k) const {          //返回第二指标是j，第三指标是k的首元素地址，不负责向量大小
 #if ( _DEBUGlevel_ >= 1 )
     if( j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
@@ -147,22 +174,23 @@ template <class F>
 // Utilities
 // *********************************************************************
 
-template <class F> inline void SetValue(NumTns<F>& T, F val)
-{
+template <class F> inline void SetValue(NumTns<F>& T, F val) { //FIXME 是否有非逐个遍历的更好写法？
   F *ptr = T.data_;
-  for(Int i=0; i < T.m() * T.n() * T.p(); i++) *(ptr++) = val; 
-
+  Int max= T.m() * T.n() * T.p();
+  for(Int i=0; i < max; i++) {
+    *ptr = val; 
+    ptr++;
+  }//for
   return;
 }
 
-template <class F> inline Real Energy(const NumTns<F>& T)
-{
+template <class F> inline Real Energy(const NumTns<F>& T) {    //取模
   Real sum = 0;
 
+  Int max=T.m() * T.n() * T.p();
   F *ptr = T.Data();
-  for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
+  for(Int i=0; i < max; i++) 
     sum += std::abs(ptr[i]) * std::abs(ptr[i]);
-
   return sum;
 }
 
