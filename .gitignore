@@ -6,4 +6,5 @@
 */*.swp
 */jia
 a_build/
-examples/*/*/statfile.0
+examples/pwdft/01-ground_pbe/*
+*/*/*/statfile.0

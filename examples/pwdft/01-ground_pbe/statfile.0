@@ -80,16 +80,16 @@ PBE functional is used. In LIBXC, this requires X and C to be set separately
 XC_GGA_X_PBE  XId = 101, XC_GGA_C_PBE  CId = 130
 
 Computing the local pseudopotential
-Time for local pseudopotential is 0.009850656000000001 [s]
+Time for local pseudopotential is 0.010018058 [s]
 
 Sum of Pseudocharge                          = +3.1999999998936378e+01
 Number of Occupied States                    = 16                
 After adjustment, Sum of Pseudocharge        = +3.2000000000000000e+01
 Computing the non-local pseudopotential
 Total number of nonlocal pseudopotential = 64                
-Time for nonlocal pseudopotential 0.036787809 [s]
+Time for nonlocal pseudopotential 0.036719499 [s]
 
-Time for calculating the pseudopotential for the Hamiltonian = 0.046756921 [s]
+Time for calculating the pseudopotential for the Hamiltonian = 0.046851887 [s]
 Spinor setup finished.
 Eigensolver setup finished.
 Sum of atomic density                        = +3.1516633568620609e+01
@@ -116,7 +116,7 @@ The maximum norm of the residual is 0.05298134662366707
 The minimum norm of the residual is 3.789594259874034e-05
 
 
-Time for the eigensolver is 0.2690657320000001 [s]
+Time for the eigensolver is 0.261229051 [s]
 
 band#    = 0        eigval   = -2.4869518450215067e-01    resval   = +3.7895942598740342e-05    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -1.0882739727737523e-01    resval   = +2.1417999788822436e-04    occrate  = +1.0000000000000000e+00  
@@ -165,7 +165,7 @@ HOMO              = +5.3271983768568001e+00  [eV]
 LUMO              = +5.9018135569905201e+00  [eV]  
 norm(out-in)/norm(in) = +3.0698969386179775e-02
 Efree diff per atom   = +1.2262172292902074e-01
-Total wall clock time for this SCF iteration = 0.287591073 [s]
+Total wall clock time for this SCF iteration = 0.279807365 [s]
 
 *********************************************************************
 SCF iteration # 2
@@ -182,7 +182,7 @@ The maximum norm of the residual is 0.001091171576317315
 The minimum norm of the residual is 1.962697296732326e-07
 
 
-Time for the eigensolver is 0.268670347 [s]
+Time for the eigensolver is 0.2710915609999999 [s]
 
 band#    = 0        eigval   = -2.3368175828582516e-01    resval   = +6.1822332867606632e-07    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.9989302361351664e-02    resval   = +8.0749226459405194e-07    occrate  = +1.0000000000000000e+00  
@@ -233,7 +233,7 @@ norm(out-in)/norm(in) = +1.3034266820198910e-02
 Efree diff per atom   = +1.7676277010005848e-02
   Rank of dfmat = 1                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.288499473 [s]
+Total wall clock time for this SCF iteration = 0.290981627 [s]
 
 *********************************************************************
 SCF iteration # 3
@@ -250,7 +250,7 @@ The maximum norm of the residual is 0.0001729171630961648
 The minimum norm of the residual is 1.439365490001866e-07
 
 
-Time for the eigensolver is 0.268644538 [s]
+Time for the eigensolver is 0.263493274 [s]
 
 band#    = 0        eigval   = -2.2639862864407173e-01    resval   = +4.8978586199010265e-07    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.1963271550011693e-02    resval   = +5.5730239044626083e-07    occrate  = +1.0000000000000000e+00  
@@ -301,7 +301,7 @@ norm(out-in)/norm(in) = +9.0260583371324470e-03
 Efree diff per atom   = +1.0240310675950326e-02
   Rank of dfmat = 2                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2879692880000001 [s]
+Total wall clock time for this SCF iteration = 0.282841008 [s]
 
 *********************************************************************
 SCF iteration # 4
@@ -318,7 +318,7 @@ The maximum norm of the residual is 2.19909770288403e-05
 The minimum norm of the residual is 2.530250621867781e-08
 
 
-Time for the eigensolver is 0.2676231109999999 [s]
+Time for the eigensolver is 0.2637221850000001 [s]
 
 band#    = 0        eigval   = -2.2525276888531406e-01    resval   = +9.2130399451097650e-08    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0599315763251939e-02    resval   = +2.0353386991102875e-07    occrate  = +1.0000000000000000e+00  
@@ -369,7 +369,7 @@ norm(out-in)/norm(in) = +2.5667202361183651e-03
 Efree diff per atom   = +2.5442825349308862e-04
   Rank of dfmat = 3                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.287034939 [s]
+Total wall clock time for this SCF iteration = 0.2832005909999999 [s]
 
 *********************************************************************
 SCF iteration # 5
@@ -386,7 +386,7 @@ The maximum norm of the residual is 2.586436376733814e-06
 The minimum norm of the residual is 1.182196763778026e-08
 
 
-Time for the eigensolver is 0.2682876330000001 [s]
+Time for the eigensolver is 0.263222775 [s]
 
 band#    = 0        eigval   = -2.2525970356894642e-01    resval   = +4.9897768938342629e-08    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0414242488131712e-02    resval   = +3.5977929363702494e-08    occrate  = +1.0000000000000000e+00  
@@ -437,7 +437,7 @@ norm(out-in)/norm(in) = +1.0253288748610383e-03
 Efree diff per atom   = +2.1642918225595054e-05
   Rank of dfmat = 4                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2878549189999999 [s]
+Total wall clock time for this SCF iteration = 0.2828865370000002 [s]
 
 *********************************************************************
 SCF iteration # 6
@@ -454,7 +454,7 @@ The maximum norm of the residual is 1.034015917499438e-06
 The minimum norm of the residual is 6.816749876105465e-09
 
 
-Time for the eigensolver is 0.2723653899999998 [s]
+Time for the eigensolver is 0.2642053440000001 [s]
 
 band#    = 0        eigval   = -2.2534043756054251e-01    resval   = +3.1314115628687433e-08    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0648710558875375e-02    resval   = +1.4600372140665021e-08    occrate  = +1.0000000000000000e+00  
@@ -505,7 +505,7 @@ norm(out-in)/norm(in) = +3.3220063369023288e-04
 Efree diff per atom   = +2.3237790231789290e-04
   Rank of dfmat = 5                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2920956669999999 [s]
+Total wall clock time for this SCF iteration = 0.284014505 [s]
 
 *********************************************************************
 SCF iteration # 7
@@ -522,7 +522,7 @@ The maximum norm of the residual is 6.570869232733837e-07
 The minimum norm of the residual is 1.53214911284206e-09
 
 
-Time for the eigensolver is 0.2682593010000001 [s]
+Time for the eigensolver is 0.272433645 [s]
 
 band#    = 0        eigval   = -2.2535447200003741e-01    resval   = +7.2914463609459774e-09    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0687587972656391e-02    resval   = +6.1437779454767090e-09    occrate  = +1.0000000000000000e+00  
@@ -573,7 +573,7 @@ norm(out-in)/norm(in) = +8.9163990989969989e-05
 Efree diff per atom   = +4.6498768902836218e-05
   Rank of dfmat = 6                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2882008110000003 [s]
+Total wall clock time for this SCF iteration = 0.2924707939999998 [s]
 
 *********************************************************************
 SCF iteration # 8
@@ -590,7 +590,7 @@ The maximum norm of the residual is 2.219786242038732e-07
 The minimum norm of the residual is 8.575920156524496e-10
 
 
-Time for the eigensolver is 0.2689887070000001 [s]
+Time for the eigensolver is 0.2808012100000004 [s]
 
 band#    = 0        eigval   = -2.2535696555877757e-01    resval   = +2.0746957664413692e-09    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0685368044954589e-02    resval   = +1.8334239812920902e-09    occrate  = +1.0000000000000000e+00  
@@ -641,7 +641,7 @@ norm(out-in)/norm(in) = +5.8447069867424269e-05
 Efree diff per atom   = +9.1451843964307500e-06
   Rank of dfmat = 7                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2890692449999999 [s]
+Total wall clock time for this SCF iteration = 0.3009640610000002 [s]
 
 *********************************************************************
 SCF iteration # 9
@@ -658,7 +658,7 @@ The maximum norm of the residual is 1.541405520428469e-07
 The minimum norm of the residual is 2.587673217058606e-10
 
 
-Time for the eigensolver is 0.2681956889999997 [s]
+Time for the eigensolver is 0.263060114 [s]
 
 band#    = 0        eigval   = -2.2535862900028111e-01    resval   = +7.4075172270936874e-10    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0690276310642683e-02    resval   = +6.5106458519641980e-10    occrate  = +1.0000000000000000e+00  
@@ -709,7 +709,7 @@ norm(out-in)/norm(in) = +2.3621376184368940e-05
 Efree diff per atom   = +2.9014538007743340e-06
   Rank of dfmat = 8                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2885086920000002 [s]
+Total wall clock time for this SCF iteration = 0.2833763409999999 [s]
 
 *********************************************************************
 SCF iteration # 10
@@ -726,7 +726,7 @@ The maximum norm of the residual is 5.092668310568715e-08
 The minimum norm of the residual is 1.155327108647613e-10
 
 
-Time for the eigensolver is 0.2695370160000001 [s]
+Time for the eigensolver is 0.2633405239999997 [s]
 
 band#    = 0        eigval   = -2.2535916694115796e-01    resval   = +4.8752275731853520e-10    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0691446734460992e-02    resval   = +3.3038263796031532e-10    occrate  = +1.0000000000000000e+00  
@@ -777,7 +777,7 @@ norm(out-in)/norm(in) = +4.1273160817501820e-06
 Efree diff per atom   = +6.8246413853501053e-07
   Rank of dfmat = 9                 
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2900786970000002 [s]
+Total wall clock time for this SCF iteration = 0.2838143730000002 [s]
 
 *********************************************************************
 SCF iteration # 11
@@ -794,7 +794,7 @@ The maximum norm of the residual is 1.694305801772833e-08
 The minimum norm of the residual is 2.438685694310585e-11
 
 
-Time for the eigensolver is 0.2705008930000004 [s]
+Time for the eigensolver is 0.2632017169999998 [s]
 
 band#    = 0        eigval   = -2.2535869595966881e-01    resval   = +1.5052963270020794e-10    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0690827443039792e-02    resval   = +9.6159289741466778e-11    occrate  = +1.0000000000000000e+00  
@@ -845,7 +845,7 @@ norm(out-in)/norm(in) = +1.1487375669656201e-06
 Efree diff per atom   = +3.2076599865149547e-07
   Rank of dfmat = 10                
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2912002039999999 [s]
+Total wall clock time for this SCF iteration = 0.2839132520000001 [s]
 
 *********************************************************************
 SCF iteration # 12
@@ -862,7 +862,7 @@ The maximum norm of the residual is 8.499438900905289e-09
 The minimum norm of the residual is 7.329307221576121e-11
 
 
-Time for the eigensolver is 0.1962492309999999 [s]
+Time for the eigensolver is 0.1915209990000002 [s]
 
 band#    = 0        eigval   = -2.2535848867249139e-01    resval   = +3.6117329954290472e-10    occrate  = +1.0000000000000000e+00  
 band#    = 1        eigval   = -8.0690653246183755e-02    resval   = +2.2661473552666590e-10    occrate  = +1.0000000000000000e+00  
@@ -914,7 +914,7 @@ Efree diff per atom   = +3.0156666497305196e-08
 SCF is converged in 12 steps !
   Rank of dfmat = 10                
   Rcond = +9.9999999999999998e-13
-Total wall clock time for this SCF iteration = 0.2170223849999999 [s]
+Total wall clock time for this SCF iteration = 0.2122012449999997 [s]
 
 *********************************************************************
 Energy
@@ -949,5 +949,5 @@ atom    7    force   +9.8121846640755340e-03  +8.1473781192056439e-03  -8.147387
 force for centroid  : -2.2613320771202455e-05  -8.8025093134685983e-09  -1.2065363121788186e-08  
 Max force magnitude : +2.6142526732013133e-02
 
-! Total time for the SCF iteration = 3.447519278 [s]
+! Total time for the SCF iteration = 3.412928221 [s]
 PWDFT has finished the calculation.
