@@ -21,46 +21,38 @@ namespace scales{
 
 template <class F> 
   inline F&
-  Vec3T<F>::operator() ( Int i ) 
-  {
-    if( i < 0 || i > 2 ){
+  Vec3T<F>::operator() ( Int i ) {
+    if( i < 0 || i > 2 )
       ErrorHandling( "Index is out of bound." );
-    }
     return v_[i];
   }         // -----  end of method Vec3T::operator()  ----- 
 
 template <class F> 
   inline const F&
-  Vec3T<F>::operator() ( Int i ) const
-  {
-    if( i < 0 || i > 2 ){
+  Vec3T<F>::operator() ( Int i ) const{
+    if( i < 0 || i > 2 )
       ErrorHandling( "Index is out of bound." );
-    }
     return v_[i];
   }         // -----  end of method Vec3T::operator()  ----- 
 
 template <class F> 
   inline F&
-  Vec3T<F>::operator[] ( Int i ) 
-  {
-    if( i < 0 || i > 2 ){
+  Vec3T<F>::operator[] ( Int i ){
+    if( i < 0 || i > 2 )
       ErrorHandling( "Index is out of bound." );
-    }
     return v_[i];
   }         // -----  end of method Vec3T::operator[]  ----- 
 
 template <class F> 
   inline const F&
-  Vec3T<F>::operator[] ( Int i ) const
-  {
-    if( i < 0 || i > 2 ){
+  Vec3T<F>::operator[] ( Int i ) const{
+    if( i < 0 || i > 2 )
       ErrorHandling( "Index is out of bound." );
-    }
     return v_[i];
   }         // -----  end of method Vec3T::operator[]  ----- 
 
 // *********************************************************************
-// Vec3T: Compare
+// Vec3T: Compare >/</>=/<=完全没用到
 // *********************************************************************
 template <class F> inline bool operator==(const Vec3T<F>& a, const Vec3T<F>& b) {
   return (a[0]==b[0] && a[1]==b[1] && a[2]==b[2]);
@@ -68,28 +60,32 @@ template <class F> inline bool operator==(const Vec3T<F>& a, const Vec3T<F>& b) 
 template <class F> inline bool operator!=(const Vec3T<F>& a, const Vec3T<F>& b) {
   return !(a==b);
 }
-template <class F> inline bool operator> (const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allequ instead.")]] 
+inline bool operator> (const Vec3T<F>& a, const Vec3T<F>& b) {
   for(Int i=0; i<3; i++) {
-    if(     a[i]>b[i])      return true;
+    if(     a[i]>b[i])      return true;//这是首元素/首个不等元素决定返回值？
     else if(a[i]<b[i])      return false;
   }
   return false;
 }
-template <class F> inline bool operator< (const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allneq instead.")]]
+inline bool operator< (const Vec3T<F>& a, const Vec3T<F>& b) {
   for(Int i=0; i<3; i++) {
     if(     a[i]<b[i])      return true;
     else if(a[i]>b[i])      return false;
   }
   return false;
 }
-template <class F> inline bool operator>=(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allgoe instead.")]]
+inline bool operator>=(const Vec3T<F>& a, const Vec3T<F>& b) {
   for(Int i=0; i<3; i++) {
     if(     a[i]>b[i])      return true;
     else if(a[i]<b[i])      return false;
   }
   return true;
 }
-template <class F> inline bool operator<=(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allloe instead.")]]
+inline bool operator<=(const Vec3T<F>& a, const Vec3T<F>& b) {
   for(Int i=0; i<3; i++) {
     if(     a[i]<b[i])      return true;
     else if(a[i]>b[i])      return false;
@@ -109,7 +105,7 @@ template <class F> inline Vec3T<F> operator+ (const Vec3T<F>& a, const Vec3T<F>&
 template <class F> inline Vec3T<F> operator- (const Vec3T<F>& a, const Vec3T<F>& b) {
   Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]-b[i]; return r;
 }
-template <class F> inline Vec3T<F> operator* (F scl, const Vec3T<F>& a) {
+template <class F> inline Vec3T<F> operator* (F scl, const Vec3T<F>& a) {//(写法上的)乘法交换律！
   Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = scl*a[i];  return r;
 }
 template <class F> inline Vec3T<F> operator* (const Vec3T<F>& a, F scl) {
@@ -118,13 +114,13 @@ template <class F> inline Vec3T<F> operator* (const Vec3T<F>& a, F scl) {
 template <class F> inline Vec3T<F> operator/ (const Vec3T<F>& a, F scl) {
   Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]/scl;  return r;
 }
-template <class F> inline F operator* (const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline F operator* (const Vec3T<F>& a, const Vec3T<F>& b) {//点乘，但写作*
   F sum=F(0); for(Int i=0; i<3; i++) sum=sum+a(i)*b(i); return sum;
 }
 template <class F> inline F dot       (const Vec3T<F>& a, const Vec3T<F>& b) {
   return a*b;
 }
-template <class F> inline Vec3T<F> operator^ (const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline Vec3T<F> operator^ (const Vec3T<F>& a, const Vec3T<F>& b) {//三维向量特有(?)的叉乘
   return Vec3T<F>(a(1)*b(2)-a(2)*b(1), a(2)*b(0)-a(0)*b(2), a(0)*b(1)-a(1)*b(0));
 }
 template <class F> inline Vec3T<F> cross     (const Vec3T<F>& a, const Vec3T<F>& b) { 
@@ -149,29 +145,29 @@ template <class F> inline Vec3T<F> ewmul(const Vec3T<F>&a, const Vec3T<F>& b) {
 template <class F> inline Vec3T<F> ewdiv(const Vec3T<F>&a, const Vec3T<F>& b) { 
   Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]/b[i]; return r;
 }
-template <class F> inline Vec3T<F> ewrnd(const Vec3T<F>&a) { //round
+template <class F> inline Vec3T<F> ewrnd(const Vec3T<F>&a) { //round，向上取整
   Vec3T<F> r;  for(Int i=0; i<3; i++)    r[i] = round(a[i]);  return r;
 }
 
 // *********************************************************************
-// Vec3T: Accumulative boolean operations
+// Vec3T: Accumulative boolean operations //完全没用到啊
 // *********************************************************************
 template <class F> inline bool allequ(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)==b(i));  return res;
+  return a==b ;
 }
 template <class F> inline bool allneq(const Vec3T<F>& a, const Vec3T<F>& b) {
   return !(a==b);
 }
-template <class F> inline bool allgtt(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline bool allgtt(const Vec3T<F>& a, const Vec3T<F>& b) {//greater than
   bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)> b(i));  return res; 
 }
-template <class F> inline bool alllst(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline bool alllst(const Vec3T<F>& a, const Vec3T<F>& b) {//less than
   bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)< b(i));  return res; 
 }
-template <class F> inline bool allgoe(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline bool allgoe(const Vec3T<F>& a, const Vec3T<F>& b) {//greater or equal
   bool res = true;  for(Int i=0; i<3; i++)    res = res && (a(i)>=b(i));  return res; 
 }
-template <class F> inline bool allloe(const Vec3T<F>& a, const Vec3T<F>& b) {
+template <class F> inline bool allloe(const Vec3T<F>& a, const Vec3T<F>& b) {//less or equal
   bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)<=b(i));  return res; 
 }
 
@@ -193,7 +189,7 @@ template <class F> std::ostream& operator<<(std::ostream& os, const Vec3T<F>& a)
 
 
 // *********************************************************************
-// Vec2T: Compare
+// Vec2T: Compare >/</>=/<=完全没用到
 // *********************************************************************
 template <class F> inline bool operator==(const Vec2T<F>& a, const Vec2T<F>& b) {
   return (a[0]==b[0] && a[1]==b[1]);
@@ -201,28 +197,32 @@ template <class F> inline bool operator==(const Vec2T<F>& a, const Vec2T<F>& b) 
 template <class F> inline bool operator!=(const Vec2T<F>& a, const Vec2T<F>& b) {
   return !(a==b);
 }
-template <class F> inline bool operator> (const Vec2T<F>& a, const Vec2T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allequ instead.")]]
+inline bool operator> (const Vec2T<F>& a, const Vec2T<F>& b) {
   for(int i=0; i<2; i++) {
     if(     a[i]>b[i])      return true;
     else if(a[i]<b[i])      return false;
   }
   return false;
 }
-template <class F> inline bool operator< (const Vec2T<F>& a, const Vec2T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allneq instead.")]]
+inline bool operator< (const Vec2T<F>& a, const Vec2T<F>& b) {
   for(int i=0; i<2; i++) {
     if(     a[i]<b[i])      return true;
     else if(a[i]>b[i])      return false;
   }
   return false;
 }
-template <class F> inline bool operator>=(const Vec2T<F>& a, const Vec2T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allgoe instead.")]]
+inline bool operator>=(const Vec2T<F>& a, const Vec2T<F>& b) {
   for(int i=0; i<2; i++) {
     if(     a[i]>b[i])      return true;
     else if(a[i]<b[i])      return false;
   }
   return true;
 }
-template <class F> inline bool operator<=(const Vec2T<F>& a, const Vec2T<F>& b) {
+template <class F> [[deprecated("First unequal component depends return value. Use allloe instead.")]]
+inline bool operator<=(const Vec2T<F>& a, const Vec2T<F>& b) {
   for(int i=0; i<2; i++) {
     if(     a[i]<b[i])      return true;
     else if(a[i]>b[i])      return false;
