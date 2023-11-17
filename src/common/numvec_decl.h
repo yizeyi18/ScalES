@@ -35,7 +35,7 @@ public:
 
   NumVec& operator=(const NumVec& C);     //赋值算符
 
-  void Resize ( Int m );                  //改大小用，没闹懂。不保留旧的为什么不析构掉建个新的？
+  void Resize ( Int m );                  //改大小用，不保留旧的。用来在传值之类时候确保out向量和in一样长。
 
   const F& operator()(Int i) const;       //常量与非常量型的值访问算符
   F& operator()(Int i);  

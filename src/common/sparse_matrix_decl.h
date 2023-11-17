@@ -32,9 +32,9 @@ namespace  scales{
 template <class F> struct SparseMatrix{
   Int          size;                            // Matrix dimension
   Int          nnz;                             // Number of nonzeros
-  IntNumVec    colptr;                          // Column index pointer
-  IntNumVec    rowind;                          // Starting row index pointer
-  NumVec<F>    nzval;                           // Nonzero values for the sparse matrix
+  IntNumVec    colptr;                          // Column index pointer 意为rowind[colptr[n]]至rowind[colptr[n+1]]位于矩阵第n列。
+  IntNumVec    rowind;                          // Starting row index pointer 
+  NumVec<F>    nzval;                           // Nonzero values for the sparse matrix 
 };
 
 // Commonly used
@@ -103,8 +103,8 @@ template<typename F>
 void ReadSparseMatrix ( const char* filename, SparseMatrix<F>& spmat );
 
 /// @brief Read a sparse matrix from a formatted file using one processor.
-template <class F> void
-ReadSparseMatrixFormatted    ( const char* filename, SparseMatrix<F>& spmat );
+template <class F> 
+void ReadSparseMatrixFormatted ( const char* filename, SparseMatrix<F>& spmat );
 
 /// @brief Read a distributed sparse matrix from a binary file.
 template<typename F>
