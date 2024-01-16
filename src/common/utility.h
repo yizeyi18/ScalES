@@ -26,42 +26,42 @@
 #endif
 namespace scales{
 
-#ifdef _PROFILING_
+#ifdef _PROFILING_ //计时
 extern Real alltoallTime;
 extern Real alltoallTimeTotal ;
 void reset_alltoall_time();
 #endif
 
 
-// Forward declaration of Atom structure in periodtable.hpp 
+// Forward declaration of Atom structure in periodtable.h 
 struct Atom;
 
 // *********************************************************************
 // Global utility functions 
 // These utility functions do not depend on local definitions
 // *********************************************************************
-inline Int IRound(Real a){ 
+inline Int IRound(Real a){                                     //四舍五入 
   Int b = 0;
   if(a>0) b = (a-Int(a)<0.5)?Int(a):(Int(a)+1);
   else b = (Int(a)-a<0.5)?Int(a):(Int(a)-1);
   return b; 
 }
 
-inline Int IMod(int a,int b){
-  assert( b > 0 );
+inline Int IMod(int a,int b){                                  //取余，返回非负数
+  assert( b > 0 );//给编译器看的
   return ((a%b)<0)?((a%b)+b):(a%b);
 }
 
-inline Real DMod( Real a, Real b){
+inline Real DMod( Real a, Real b){                             //浮点取“余”，返回非负浮点a-nb
   assert(b>0);
   return (a>=0)?(a-Int(a/b)*b):(a-(Int(a/b)-1)*b);
 }
 
 
 inline Int OptionsCreate(Int argc, char** argv, std::map<std::string,std::string>& options)
-{
+{                                                              //解释命令行参数？options存储结果
   options.clear();
-  for(Int k=1; k<argc; k=k+2) {
+  for(Int k=1; k<argc; k=k+2) {//argv[0]是可执行文件绝对路径，假设每个argv都以k+1为值
     options[ std::string(argv[k]) ] = std::string(argv[k+1]);
   }
   return 0;
@@ -69,92 +69,101 @@ inline Int OptionsCreate(Int argc, char** argv, std::map<std::string,std::string
 
 template<class Element, class Container>
 bool InArray(const Element & element, const Container & container)
-{
+{                                                              //查找元素是否在容器里
   return std::find(std::begin(container), std::end(container), element)
     != std::end(container);
 }
 
 
 // *********************************************************************
-// Stringstream
+// Stringstream 字符流
 // *********************************************************************
 
-// Size information.
+// Size information in byte 以字节为单位的字符流长度
 // Like sstm.str().length() but without making the copy
 inline Int Size( std::stringstream& sstm ){
   Int length;
   sstm.seekg (0, std::ios::end);
   length = sstm.tellg();
-  sstm.seekg (0, std::ios::beg);
+  sstm.seekg (0, std::ios::beg);//设回起点
   return length;
 }
 
 
 // *********************************************************************
-// Data types
+// Data types 数据类型
 // *********************************************************************
 // Sparse vector used for a domain with uniform grid (not for LGL grid).  
 // SparseVec.first is the indices of grid points for which the sparse
 // vector has nonzero value.  
 // SparseVec.second contains four columns, ordered as value, and its
 // derivatives along x, y, z directions, respectively. 
-typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
-
+typedef std::pair<IntNumVec, DblNumMat > SparseVec; //稀疏向量
+						    //存储格点上的值与xyz方向上的导数
+						    //为啥不直接用个5*n矩阵？
 // Each nonlocal pseudopotential is written as
 //   \int dy V(x,y) f(y) = w b(x) \int dy b(y) f(y).
+//   其中x、y、V、b的含义不明确。
+//   x、y可能分别是三维坐标
+//   V是非局域势函数
+//   f是波函数？
+//   b是势函数分离变量版？
+//   以及，非局域势求起来应该是<psi|V|psi>
+//   此处做了分离变量假设？
+//   FIXME
 // First: b vector with integration measure.
 // Second: weight w
-typedef std::pair<SparseVec, Real> NonlocalPP; 
-
+typedef std::pair<SparseVec, Real> NonlocalPP;      //非局域赝势
+						    //存储一种非局域势的权重及其在格点上的值
 /// @struct PseudoPot
 /// @brief The pseudocharge and nonlocal projectors for each atom. 
 ///
 /// Each vector is on the global grid in the format of SparseVec.
-struct PseudoPot
+struct PseudoPot                                    //赝势结构体
 {
   /// @brief Pseudocharge of an atom, defined on the uniform fine grid.
   /// When VLocal is present, pseudoCharge corresponds to the Gaussian
   /// compensation charge
-  SparseVec                         pseudoCharge; 
+  SparseVec                         pseudoCharge;   //格点电荷
   /// @brief Short range local potential of an atom, defined on the uniform fine grid.
-  SparseVec                         vLocalSR; 
+  SparseVec                         vLocalSR;       //格点上的短程局域势
   /// @brief Nonlocal projectors of an atom, defined on the uniform fine grid.
-  std::vector<NonlocalPP>           vnlList;
+  std::vector<NonlocalPP>           vnlList;        //格点上的非局域势
+						    //可能不止一种所以用了vector
 };
 
 
 
 
 // *********************************************************************
-// Mesh  and other utilities FIXME
+// Mesh  and other utilities FIXME //网络及其它。为什么这玩意会在头文件里？
 // *********************************************************************
 
 /// @brief Check whether a point is in a sub-domain which is a part of a
 /// global domain with periodic boundary conditions
-inline bool IsInSubdomain( 
+inline bool IsInSubdomain(                          //检查r是否在dm里
     const Point3& r, 
     const Domain& dm, 
-    const Point3& Lsglb )
+    const Point3& Lsglb )                           //周期性条件/晶胞参数
 {
   bool isIn = true;
-  Point3 posstart = dm.posStart;
-  Point3 Lsbuf = dm.length;
+  Point3 posstart = dm.posStart;                    //dm原点在global坐标系下的坐标
+  Point3 Lsbuf = dm.length;                         //dm在三个方向上的长度
   Point3 shiftstart;
   Point3 shiftr;
-  for( Int i = 0; i < DIM; i++){
-    shiftstart[i] = DMod(posstart[i], Lsglb[i]);
-    shiftr[i]     = DMod(r[i],        Lsglb[i]);
-    /* Case 1 of the buffer interval */
-    if( shiftstart[i] + Lsbuf[i] > Lsglb[i] ){
-      if( (shiftr[i] > shiftstart[i] + Lsbuf[i] - Lsglb[i]) &&
-          (shiftr[i] < shiftstart[i]) ){
-        isIn = false;
-      }
-    }
+  for( Int i = 0; i < DIM; i++){                    //DIM就是3，于common/environment.h定义
+    shiftstart[i] = DMod(posstart[i], Lsglb[i]);    //求dm原点的分数坐标/在晶胞、周期性条件里的坐标
+    shiftr[i]     = DMod(r[i],        Lsglb[i]);    //求r的分数坐标 DMod：55行定义的浮点取余
+    /* Case 1 of the buffer interval */             // 图例：晶胞是| dm起止点是/ dm内点是·
+    if( shiftstart[i] + Lsbuf[i] > Lsglb[i] ){      //原点坐标+长度>周期性条件，换句话说跨晶胞了
+      if( (shiftr[i] < shiftstart[i]) &&            //r在原点左            |···/  r  /···| out
+	  (shiftr[i] > shiftstart[i] + Lsbuf[i] - Lsglb[i]) ) //且在终点右 |···/     /·r·| in
+        isIn = false;                               //                     |·r·/     /···| in
+    }//if
     /* Case 2 of the buffer interval */
-    else{
-      if( (shiftr[i] < shiftstart[i]) ||
-          (shiftr[i] > shiftstart[i] + Lsbuf[i]) ){
+    else{                                           //dm在一个晶胞内 |   /··r··/   | in
+      if( (shiftr[i] < shiftstart[i]) ||            //r在原点左      | r /·····/   | out
+          (shiftr[i] > shiftstart[i] + Lsbuf[i]) ){ //或终点右       |   /·····/ r | out
         isIn = false;
       }
     }
@@ -163,7 +172,8 @@ inline bool IsInSubdomain(
 }
 
 /// @brief Converts a 1D global index to a 3D index.
-inline Index3 Index1To3( const Int idx1, const Index3& numGrid ){
+// 将grid编号转化为三指标编号
+inline Index3 Index1To3( const Int idx1, const Index3& numGrid ){//FIXME numGrid不变，用&有什么作用？
   Index3 idx3;
   idx3[2] = idx1 / ( numGrid[0] * numGrid[1] );
   idx3[1] = ( idx1 % ( numGrid[0] * numGrid[1] ) ) / numGrid[0];
@@ -172,6 +182,7 @@ inline Index3 Index1To3( const Int idx1, const Index3& numGrid ){
 }
 
 /// @brief Converts a 3D index to a 1D global index.
+// 这个指导上面那个
 inline Int Index3To1( const Index3& idx3, const Index3& numGrid ){
   Int idx1 = idx3[0] + idx3[1] * numGrid[0] + idx3[2] * numGrid[0] * numGrid[1];
   return idx1;
@@ -187,6 +198,18 @@ inline Int Index3To1( const Index3& idx3, const Index3& numGrid ){
 /// very large number of LGL grids.
 ///
 /// Note: size(x) = size(w) = size(P,1|2) = size(D,1|2) = N
+//
+//  生成LGL格点与积分权重的接口。
+//  可以生成很大规模的LGL格点。
+//  另有个叫GenerateLGL的接口，会存储勒让德多项式，
+//  并计算、存储差分矩阵。吃资源比这个多。
+//
+//  LGL: Legendre-Gauss-Lobatto，格点名
+//  见：https://doi.org/10.48550/arXiv.1311.0028
+//
+//  P,D,x指代暂不明确，w应该是weight，N应该是格点数
+//  为什么把N单独作为参数传入而不从对象属性里读？
+//  更新：P是勒让德多项式，D是差分矩阵。作用待查。
 void GenerateLGLMeshWeightOnly(
     DblNumVec&         x, 
     DblNumVec&         w, 
@@ -202,12 +225,17 @@ void GenerateLGLMeshWeightOnly(
 
 /// Note: for legacy reason,  
 /// size(x) = size(w) = N-1
+//  ↑这里的size()是什么？FIXME
+//
+//  上面接口的本体，把自定义数据类型换成了原生数据类型。
 void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1);
 
 
 /// @brief Interface for generating the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
 ///
 /// Note: size(x) = size(w) = size(P,1|2) = size(D,1|2) = N
+//
+//  生成LGL格点的接口，会计算、存储勒让德多项式与差分矩阵。
 void GenerateLGL(
     DblNumVec&         x, 
     DblNumVec&         w, 
@@ -219,9 +247,11 @@ void GenerateLGL(
 ///
 /// Note: for legacy reason,  
 /// size(x) = size(w) = size(P,1|2) = size(D,1|2) = N-1
+//
+//  上述接口的本体，把自定义数据类型换成了原生数据类型。
 void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1);
 
-template<class F>
+template<class F>//转置，但转置后的矩阵存在B里。使用std::vector。
 void Transpose(std::vector<F>& A, std::vector<F>& B, Int m, Int n){
   Int i, j;
   for(i = 0; i < m; i++){
@@ -231,8 +261,8 @@ void Transpose(std::vector<F>& A, std::vector<F>& B, Int m, Int n){
   }
 }
 
-template<class F>
-void Transpose(Real* A, Real* B, Int m, Int n){
+template<class F>//转置，但转置后的矩阵存在B里。使用Real，或者说double。
+void Transpose(Real* A, Real* B, Int m, Int n){//有什么用模板的必要吗？
   Int i, j;
   for(i = 0; i < m; i++){
     for(j = 0; j < n; j++){
@@ -242,13 +272,20 @@ void Transpose(Real* A, Real* B, Int m, Int n){
 }
 
 /// @brief Generate 1D spline coefficients
+//
+//  FIXME 生成“1D spline”系数。没看懂。
+//  或许应该把注释写在.cpp里而不是头文件里。
 void spline(Int, Real*, Real*, Real*, Real*, Real*);
 
 /// @brief Evaluate the spline
+//
+//  生成spline。
 void seval(Real*, Int, Real*, Int, Real*, Real*, Real*, Real*, Real*);
 
 
 /// @brief Three component inner product.
+//
+//  三个向量的“内积”。
 inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
   Real tmp = 0.0;
   for(Int i = 0; i < ntot; i++){
