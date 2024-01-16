@@ -8,3 +8,4 @@
 a_build/
 examples/pwdft/01-ground_pbe/*
 */*/*/statfile.0
+.vscode
